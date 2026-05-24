@@ -1,0 +1,129 @@
+"use client";
+
+import { useState } from "react";
+import { useLanguage } from "@/context/LanguageContext";
+import Link from "next/link";
+import Footer from "@/components/layout/Footer";
+
+export default function LoginPage() {
+  const { t, language } = useLanguage();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [magicLink, setMagicLink] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    alert(
+      language === "de"
+        ? `Erfolgreich angemeldet als ${email}!`
+        : `Successfully logged in as ${email}!`
+    );
+  };
+
+  return (
+    <>
+      <div className="flex-grow flex items-center justify-center py-16 px-5 bg-gradient-to-br from-surface-container-low via-background to-surface-container">
+        <div className="w-full max-w-md bg-white/90 backdrop-blur-md border border-outline-variant p-8 rounded-2xl shadow-xl">
+          <div className="text-center mb-8">
+            <h1 className="text-headline-lg text-primary font-bold mb-2">
+              {t("loginTitle")}
+            </h1>
+            <p className="text-on-surface-variant text-body-md">
+              {t("loginSubtitle")}
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <label className="block text-label-md text-on-surface font-semibold">
+                {t("emailLabel")}
+              </label>
+              <input
+                id="login-email"
+                type="email"
+                required
+                placeholder="email@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full h-12 px-4 bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-[16px]"
+              />
+            </div>
+
+            {!magicLink && (
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <label className="block text-label-md text-on-surface font-semibold">
+                    {t("passwordLabel")}
+                  </label>
+                  <Link
+                    href="#"
+                    className="text-[12px] text-primary hover:underline font-semibold"
+                  >
+                    {language === "de" ? "Passwort vergessen?" : "Forgot password?"}
+                  </Link>
+                </div>
+                <input
+                  id="login-password"
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full h-12 px-4 bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-[16px]"
+                />
+              </div>
+            )}
+
+            <button
+              id="btn-login-submit"
+              type="submit"
+              className="w-full h-12 bg-primary text-on-primary rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all shadow-md cursor-pointer"
+            >
+              {magicLink
+                ? language === "de" ? "Magic Link senden" : "Send Magic Link"
+                : t("login")}
+            </button>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setMagicLink(!magicLink)}
+                className="text-[14px] text-primary font-semibold hover:underline cursor-pointer"
+              >
+                {magicLink
+                  ? language === "de" ? "Mit Passwort anmelden" : "Sign in with password"
+                  : language === "de" ? "Magic Link per E-Mail senden" : "Send Magic Link via Email"}
+              </button>
+            </div>
+          </form>
+
+          {/* Social Logins */}
+          <div className="mt-8 pt-6 border-t border-outline-variant">
+            <p className="text-center text-[12px] text-on-surface-variant font-semibold mb-4 uppercase tracking-wider">
+              {language === "de" ? "Oder fortfahren mit" : "Or continue with"}
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <button className="flex items-center justify-center gap-2 h-12 border border-outline-variant rounded-xl hover:bg-surface-container-low transition-colors cursor-pointer text-label-md">
+                <img src="https://globe.svg" className="w-5 h-5 hidden" alt="" />
+                <span>Google</span>
+              </button>
+              <button className="flex items-center justify-center gap-2 h-12 border border-outline-variant rounded-xl hover:bg-surface-container-low transition-colors cursor-pointer text-label-md">
+                <span>Apple</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-8 text-center text-body-md">
+            <Link
+              href="/auth/register"
+              className="text-primary font-bold hover:underline"
+            >
+              {t("dontHaveAccount")}
+            </Link>
+          </div>
+        </div>
+      </div>
+      <Footer />
+    </>
+  );
+}

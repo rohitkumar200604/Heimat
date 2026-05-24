@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+
+<html class="light" lang="de"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "background": "#f8f9ff",
+                    "on-tertiary-fixed": "#2b1700",
+                    "surface-container-high": "#dce9ff",
+                    "on-tertiary": "#ffffff",
+                    "tertiary-fixed-dim": "#f1bd81",
+                    "on-secondary-fixed-variant": "#574500",
+                    "surface-variant": "#d3e4fe",
+                    "on-primary-container": "#87a0cd",
+                    "surface-dim": "#cbdbf5",
+                    "error": "#ba1a1a",
+                    "tertiary-container": "#4f2f00",
+                    "on-primary-fixed-variant": "#2e476f",
+                    "tertiary-fixed": "#ffddb9",
+                    "on-secondary-container": "#745c00",
+                    "on-surface-variant": "#44474e",
+                    "on-error-container": "#93000a",
+                    "inverse-surface": "#213145",
+                    "primary": "#002046",
+                    "secondary": "#735c00",
+                    "tertiary": "#321c00",
+                    "outline-variant": "#c4c6cf",
+                    "on-secondary": "#ffffff",
+                    "on-primary-fixed": "#001b3d",
+                    "inverse-primary": "#aec7f7",
+                    "primary-container": "#1b365d",
+                    "surface-bright": "#f8f9ff",
+                    "primary-fixed-dim": "#aec7f7",
+                    "secondary-fixed": "#ffe088",
+                    "on-error": "#ffffff",
+                    "surface-container": "#e5eeff",
+                    "on-tertiary-container": "#c6965e",
+                    "surface": "#f8f9ff",
+                    "on-background": "#0b1c30",
+                    "surface-container-highest": "#d3e4fe",
+                    "on-surface": "#0b1c30",
+                    "surface-container-low": "#eff4ff",
+                    "error-container": "#ffdad6",
+                    "surface-tint": "#465f88",
+                    "secondary-container": "#fed65b",
+                    "primary-fixed": "#d6e3ff",
+                    "on-primary": "#ffffff",
+                    "secondary-fixed-dim": "#e9c349",
+                    "on-secondary-fixed": "#241a00",
+                    "outline": "#74777f",
+                    "inverse-on-surface": "#eaf1ff",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary-fixed-variant": "#623f0f"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "base": "8px",
+                    "margin-mobile": "20px",
+                    "container-max": "1280px",
+                    "margin-desktop": "48px",
+                    "gutter": "24px"
+            },
+            "fontFamily": {
+                    "label-sm": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "body-md": ["Inter"],
+                    "label-md": ["Inter"],
+                    "display-lg": ["Inter"],
+                    "headline-lg": ["Inter"]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .map-gradient-overlay {
+            background: linear-gradient(to right, rgba(248, 249, 255, 0.1) 0%, rgba(248, 249, 255, 0) 100%);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md overflow-hidden h-screen flex flex-col">
+<!-- Top Navigation Bar -->
+<nav class="w-full top-0 sticky bg-surface dark:bg-on-background border-b border-outline-variant dark:border-outline z-50">
+<div class="flex justify-between items-center w-full px-margin-desktop py-4 max-w-container-max mx-auto">
+<div class="flex items-center gap-12">
+<a class="font-display-lg text-display-lg font-bold text-primary dark:text-inverse-primary tracking-tighter" href="#">Heimat</a>
+<div class="hidden md:flex gap-8">
+<a class="text-primary dark:text-inverse-primary font-bold border-b-2 border-primary dark:border-inverse-primary pb-1 font-label-md text-label-md transition-all" href="#">Suchen</a>
+<a class="text-on-surface-variant dark:text-surface-variant font-medium hover:text-primary dark:hover:text-inverse-primary transition-colors duration-200 font-label-md text-label-md" href="#">Vermieten</a>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="hidden lg:flex items-center bg-surface-container-low rounded-full px-4 py-2 border border-outline-variant w-64">
+<span class="material-symbols-outlined text-outline mr-2" data-icon="search">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-body-md w-full text-on-surface-variant" placeholder="Ort oder PLZ..." type="text"/>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant font-medium hover:text-primary transition-colors font-label-md text-label-md">Anmelden</button>
+<button class="bg-primary text-on-primary px-6 py-2.5 rounded-lg font-bold hover:opacity-90 transition-all scale-95 active:opacity-80 text-label-md">Registrieren</button>
+</div>
+</div>
+</div>
+</nav>
+<!-- Filter Bar -->
+<section class="bg-surface-container-lowest border-b border-outline-variant px-margin-desktop py-4 z-40">
+<div class="max-w-container-max mx-auto flex flex-wrap items-center gap-4">
+<div class="flex items-center gap-2 px-4 py-2 bg-surface-container rounded-lg border border-outline-variant cursor-pointer hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-primary text-[20px]" data-icon="filter_list">filter_list</span>
+<span class="font-label-md text-label-md">Alle Filter</span>
+</div>
+<div class="h-6 w-px bg-outline-variant mx-2"></div>
+<!-- Filter Chips -->
+<button class="flex items-center gap-2 px-4 py-2 border border-outline-variant rounded-full hover:border-primary transition-colors bg-white">
+<span class="material-symbols-outlined text-[18px]" data-icon="balcony">balcony</span>
+<span class="font-label-md text-label-md">Balkon</span>
+</button>
+<button class="flex items-center gap-2 px-4 py-2 border border-outline-variant rounded-full hover:border-primary transition-colors bg-white">
+<span class="material-symbols-outlined text-[18px]" data-icon="countertops">countertops</span>
+<span class="font-label-md text-label-md">Einbauküche</span>
+</button>
+<button class="flex items-center gap-2 px-4 py-2 border border-outline-variant rounded-full hover:border-primary transition-colors bg-white">
+<span class="material-symbols-outlined text-[18px]" data-icon="pets">pets</span>
+<span class="font-label-md text-label-md">Haustiere erlaubt</span>
+</button>
+<button class="flex items-center gap-2 px-4 py-2 border border-outline-variant rounded-full hover:border-primary transition-colors bg-white">
+<span class="material-symbols-outlined text-[18px]" data-icon="euro">euro</span>
+<span class="font-label-md text-label-md">Preis bis 1.500€</span>
+</button>
+<div class="ml-auto flex items-center gap-2">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Sortieren nach:</span>
+<select class="bg-transparent border-none font-label-md text-label-md text-primary focus:ring-0 cursor-pointer">
+<option>Neueste zuerst</option>
+<option>Preis aufsteigend</option>
+<option>Größe absteigend</option>
+</select>
+</div>
+</div>
+</section>
+<!-- Main Content: Split View -->
+<main class="flex-grow flex overflow-hidden">
+<!-- Left: Map (40%) -->
+<aside class="hidden md:block w-[40%] relative bg-surface-dim">
+<div class="absolute inset-0 z-0">
+<img alt="Stadtplan von Berlin" class="w-full h-full object-cover grayscale opacity-80" data-alt="A detailed, high-resolution topographical map of a modern European city with a clean, grayscale aesthetic. The map features elegant, thin lines for streets and blocks, with subtle primary blue circles indicating property locations. The lighting is soft and even, mimicking a professional architectural software interface. The overall mood is precise, efficient, and sophisticated, consistent with a premium real estate brand identity." data-location="Berlin" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDEGihrfnuh0wAl41zlcHK1DL64GjtI_wCLHzt5iT6DJD8wsztj61L9rHxm-KTet0jEPiKD4WIf8vx8gXdO6SglirGXWjAYzZ2kUMnMZ2oF-uY3WU-bW5vplxWxgbytgOq3kKlnEs6eNG7WQJvYxNAz96UOSpkCNhRw9ReLFBrqu__lLCYITVatAPdj1FkquBMpdD_VI_mubTHY5_x0QPvLurCybVn3aKNgZG7JdZLxLSDFz8AEcrIECgJJVjxcgzelzBCIkGQsWNVh"/>
+<!-- Custom Map Markers -->
+<div class="absolute top-1/3 left-1/4 group cursor-pointer">
+<div class="bg-primary text-white font-bold px-3 py-1 rounded-full shadow-lg transform group-hover:scale-110 transition-transform text-label-md">1.240€</div>
+<div class="w-3 h-3 bg-primary rounded-full mx-auto mt-[-4px] border-2 border-white shadow-sm"></div>
+</div>
+<div class="absolute top-1/2 left-1/2 group cursor-pointer scale-125">
+<div class="bg-secondary text-on-secondary font-bold px-3 py-1 rounded-full shadow-xl ring-4 ring-secondary/20 transform group-hover:scale-110 transition-transform text-label-md">890€</div>
+<div class="w-3 h-3 bg-secondary rounded-full mx-auto mt-[-4px] border-2 border-white shadow-sm"></div>
+</div>
+<div class="absolute bottom-1/4 left-1/3 group cursor-pointer">
+<div class="bg-primary text-white font-bold px-3 py-1 rounded-full shadow-lg transform group-hover:scale-110 transition-transform text-label-md">1.550€</div>
+<div class="w-3 h-3 bg-primary rounded-full mx-auto mt-[-4px] border-2 border-white shadow-sm"></div>
+</div>
+</div>
+<!-- Map Controls -->
+<div class="absolute top-4 right-4 flex flex-col gap-2 z-10">
+<button class="bg-white p-2 rounded-lg shadow-md hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-on-surface" data-icon="add">add</span>
+</button>
+<button class="bg-white p-2 rounded-lg shadow-md hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-on-surface" data-icon="remove">remove</span>
+</button>
+<button class="bg-white p-2 rounded-lg shadow-md hover:bg-surface-container transition-colors mt-4">
+<span class="material-symbols-outlined text-on-surface" data-icon="my_location">my_location</span>
+</button>
+</div>
+</aside>
+<!-- Right: Listings (60%) -->
+<section class="w-full md:w-[60%] overflow-y-auto custom-scrollbar bg-background px-margin-desktop py-8">
+<div class="flex justify-between items-end mb-8">
+<div>
+<h1 class="font-headline-lg text-headline-lg text-primary">Wohnungen in Berlin</h1>
+<p class="font-body-md text-on-surface-variant">142 Ergebnisse gefunden</p>
+</div>
+<div class="hidden sm:flex gap-2">
+<button class="p-2 border border-outline-variant rounded-lg hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined" data-icon="grid_view" style="font-variation-settings: 'FILL' 1;">grid_view</span>
+</button>
+<button class="p-2 border border-outline-variant rounded-lg hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined" data-icon="view_list">view_list</span>
+</button>
+</div>
+</div>
+<!-- Listings Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-gutter">
+<!-- Card 1 -->
+<article class="group bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden hover:shadow-xl transition-all duration-300">
+<div class="relative h-56 overflow-hidden">
+<img alt="Modernes Wohnzimmer" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A bright and airy modern apartment living room in Berlin, featuring large floor-to-ceiling windows that flood the space with soft, natural morning light. The interior is styled with minimalist Scandinavian furniture, light oak wood flooring, and subtle Prussian blue accents. The atmosphere is peaceful, professional, and high-end, reflecting a premium urban lifestyle. The photography style is clean and architectural, highlighting the spaciousness and high-quality materials." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD_QulQvOFrVJRkkGsX2BrsSp14xkqlPqes9s9_Il_VRVqvAqO0_bCK4yxVerPirBDIW3TDbPLv5sE7M00UxeZ9xClyqhXSPIbY9FDe4h_7n5Z2XI6OTw2izd62YFf8NOSOHA26K2WlfkuKn8VWj3Jz8sfVyYSiEGkuLLDxNk_86vz9vPOvqxkUnsTOaydTEtWwactXRqb97FZN6qAVv0jTCBlvpzbPliTshl68mBbdX12Eji_WHSNNmt4OwSjNx-7P66bXjvllR5Qy"/>
+<div class="absolute top-4 left-4 bg-secondary text-on-secondary px-3 py-1 rounded font-label-sm text-label-sm uppercase tracking-wider">Neu</div>
+<button class="absolute top-4 right-4 bg-white/80 backdrop-blur-sm p-2 rounded-full hover:bg-white transition-colors">
+<span class="material-symbols-outlined text-error" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="p-6">
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-headline-md text-headline-md text-primary leading-tight">Helle 3-Zimmer-Wohnung in Charlottenburg</h3>
+</div>
+<p class="font-body-md text-on-surface-variant mb-4">Schloßstraße, 14059 Berlin</p>
+<div class="flex items-center gap-6 mb-6">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Preis (Warm)</span>
+<span class="font-headline-md text-headline-md text-primary font-bold">1.240 €</span>
+</div>
+<div class="h-8 w-px bg-outline-variant"></div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Fläche</span>
+<span class="font-body-lg text-body-lg font-semibold text-primary">82 m²</span>
+</div>
+<div class="h-8 w-px bg-outline-variant"></div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Zimmer</span>
+<span class="font-body-lg text-body-lg font-semibold text-primary">3,0</span>
+</div>
+</div>
+<div class="flex flex-wrap gap-2">
+<span class="bg-surface-variant text-on-surface-variant px-3 py-1 rounded-lg font-label-sm text-label-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]" data-icon="balcony">balcony</span> Balkon
+                            </span>
+<span class="bg-surface-variant text-on-surface-variant px-3 py-1 rounded-lg font-label-sm text-label-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]" data-icon="kitchen">kitchen</span> EBK
+                            </span>
+</div>
+</div>
+</article>
+<!-- Card 2 -->
+<article class="group bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden hover:shadow-xl transition-all duration-300">
+<div class="relative h-56 overflow-hidden">
+<img alt="Design Apartment" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A sophisticated, high-end studio apartment with dark charcoal walls and warm copper lighting fixtures. The space is elegantly furnished with a velvet sofa and a designer coffee table, creating an intimate and secure atmosphere. The lighting is low-key and moody, emphasizing a sense of luxury and privacy. Large windows overlook a blurred urban evening cityscape, providing a cosmopolitan feel to this modern German professional interior." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCFJoBaPwgs-xqXomloR_okL_JLQLgXLKOt7Q50bK0umYjGhDG2FCZAuPoni4Xt6HYxoHnWXMXPxBUI4omVFUYGQwfGRQ3iZZ1pPHgKP19HqjgkEtK_l8Ges70DZRtcPsLlqVrByRwUeoW95A0QMFqEh4YShf-XAWauMy-uBcXqvDjyYVKH8NuL1EpHTnggr0K33YJQ-i_9EigWc96IomN51LFTMXuV229bKe7kyygo-Y-ylsv-YX31xhTbfIQ-OxK6GxG_9RE3LO7l"/>
+<button class="absolute top-4 right-4 bg-white/80 backdrop-blur-sm p-2 rounded-full hover:bg-white transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="p-6">
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-headline-md text-headline-md text-primary leading-tight">Modernes Studio im Prenzlauer Berg</h3>
+</div>
+<p class="font-body-md text-on-surface-variant mb-4">Kastanienallee, 10435 Berlin</p>
+<div class="flex items-center gap-6 mb-6">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Preis (Warm)</span>
+<span class="font-headline-md text-headline-md text-primary font-bold">890 €</span>
+</div>
+<div class="h-8 w-px bg-outline-variant"></div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Fläche</span>
+<span class="font-body-lg text-body-lg font-semibold text-primary">45 m²</span>
+</div>
+<div class="h-8 w-px bg-outline-variant"></div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Zimmer</span>
+<span class="font-body-lg text-body-lg font-semibold text-primary">1,5</span>
+</div>
+</div>
+<div class="flex flex-wrap gap-2">
+<span class="bg-surface-variant text-on-surface-variant px-3 py-1 rounded-lg font-label-sm text-label-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]" data-icon="pets">pets</span> Haustiere
+                            </span>
+<span class="bg-surface-variant text-on-surface-variant px-3 py-1 rounded-lg font-label-sm text-label-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]" data-icon="elevator">elevator</span> Aufzug
+                            </span>
+</div>
+</div>
+</article>
+<!-- Card 3 -->
+<article class="group bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden hover:shadow-xl transition-all duration-300">
+<div class="relative h-56 overflow-hidden">
+<img alt="Luxuriöses Loft" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="An expansive industrial loft conversion in Berlin Mitte, characterized by high ceilings, exposed red brick walls, and massive black steel frame windows. The interior design blends raw industrial elements with soft, luxurious textures like large wool rugs and leather armchairs. Bright, directional spotlighting accents specific architectural details, creating a dynamic and creative workspace environment. The overall aesthetic is one of bold architectural integrity and efficient modern design." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDNJz3m3geqpIjm1i_Ql6_hGHPLrPJH5retGm-pD479qMgHXX1hZUkl-PyqEREl1lc01sbmWnRfGbX7I8Ws4L2x96v3p7pEaOmHha1iE6j1OoVeCpbfmcHgCqeTSSQPEN7n2HHvnizrGg37TPpWP1E777yydZOkP6Q4bSEAKM61tY0jtk4NTTkoNr6jYWXBODbuhtBCvXlRxXkb0enbmCUL0qsiLXlGau4vIMdHGSZXuuRgLxA5xs6Fh8VtVVoDObJgnzSdqpRSRn1G"/>
+<div class="absolute top-4 left-4 bg-secondary text-on-secondary px-3 py-1 rounded font-label-sm text-label-sm uppercase tracking-wider">Neu</div>
+<button class="absolute top-4 right-4 bg-white/80 backdrop-blur-sm p-2 rounded-full hover:bg-white transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="p-6">
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-headline-md text-headline-md text-primary leading-tight">Industrie-Loft mit Dachterrasse</h3>
+</div>
+<p class="font-body-md text-on-surface-variant mb-4">Torstraße, 10119 Berlin</p>
+<div class="flex items-center gap-6 mb-6">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Preis (Warm)</span>
+<span class="font-headline-md text-headline-md text-primary font-bold">1.550 €</span>
+</div>
+<div class="h-8 w-px bg-outline-variant"></div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Fläche</span>
+<span class="font-body-lg text-body-lg font-semibold text-primary">110 m²</span>
+</div>
+<div class="h-8 w-px bg-outline-variant"></div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Zimmer</span>
+<span class="font-body-lg text-body-lg font-semibold text-primary">2,0</span>
+</div>
+</div>
+<div class="flex flex-wrap gap-2">
+<span class="bg-surface-variant text-on-surface-variant px-3 py-1 rounded-lg font-label-sm text-label-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]" data-icon="deck">deck</span> Dachterrasse
+                            </span>
+<span class="bg-surface-variant text-on-surface-variant px-3 py-1 rounded-lg font-label-sm text-label-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]" data-icon="fireplace">fireplace</span> Kamin
+                            </span>
+</div>
+</div>
+</article>
+<!-- Card 4 -->
+<article class="group bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden hover:shadow-xl transition-all duration-300">
+<div class="relative h-56 overflow-hidden">
+<img alt="Klassischer Altbau" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A classic Berlin Altbau apartment hallway featuring ornate white crown molding, high ceilings, and original herringbone parquet flooring. The space is illuminated by warm, welcoming ambient light from a modern minimalist chandelier. The hallway stretches into the distance, leading to open doors that reveal glimpses of bright rooms. The mood is historic yet perfectly maintained, evoking a sense of stable, high-quality German living and architectural heritage." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBQULqtZ-UEZvvsHONbb0p4pkLsehv56Q9mTIlOKieg3b1QVmO2g7_ywL619av4YTyycHKN7T9ngj_Pha3omTrT4DVxdVEgwlsb1e16H01M6Yi_sTKcc9fydOlA5L7XumMPDDAfDXiHVlcrIUFsvkbav6M3hDH8-5Aaa1BT6o-ADyxbnY_DqXmRIstNA848urPBFOnXNJXunG9eRHifXR2zgdqgR-patqnF0ii0LsCNyJTGwd83PcGy8zkPjF08Lu7lwqqyaIep-mud"/>
+<button class="absolute top-4 right-4 bg-white/80 backdrop-blur-sm p-2 rounded-full hover:bg-white transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="p-6">
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-headline-md text-headline-md text-primary leading-tight">Sanierter Altbau nähe Ku'damm</h3>
+</div>
+<p class="font-body-md text-on-surface-variant mb-4">Uhlandstraße, 10719 Berlin</p>
+<div class="flex items-center gap-6 mb-6">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Preis (Warm)</span>
+<span class="font-headline-md text-headline-md text-primary font-bold">1.420 €</span>
+</div>
+<div class="h-8 w-px bg-outline-variant"></div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Fläche</span>
+<span class="font-body-lg text-body-lg font-semibold text-primary">95 m²</span>
+</div>
+<div class="h-8 w-px bg-outline-variant"></div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Zimmer</span>
+<span class="font-body-lg text-body-lg font-semibold text-primary">3,5</span>
+</div>
+</div>
+<div class="flex flex-wrap gap-2">
+<span class="bg-surface-variant text-on-surface-variant px-3 py-1 rounded-lg font-label-sm text-label-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]" data-icon="park">park</span> Parknähe
+                            </span>
+<span class="bg-surface-variant text-on-surface-variant px-3 py-1 rounded-lg font-label-sm text-label-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]" data-icon="garage">garage</span> Stellplatz
+                            </span>
+</div>
+</div>
+</article>
+</div>
+<!-- Pagination -->
+<div class="mt-12 flex justify-center items-center gap-4 pb-12">
+<button class="p-2 border border-outline-variant rounded-full hover:bg-surface-container transition-colors disabled:opacity-30" disabled="">
+<span class="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
+</button>
+<div class="flex gap-2">
+<button class="w-10 h-10 rounded-full bg-primary text-on-primary font-bold">1</button>
+<button class="w-10 h-10 rounded-full border border-outline-variant hover:bg-surface-container transition-colors font-medium">2</button>
+<button class="w-10 h-10 rounded-full border border-outline-variant hover:bg-surface-container transition-colors font-medium">3</button>
+<span class="px-2 self-end">...</span>
+<button class="w-10 h-10 rounded-full border border-outline-variant hover:bg-surface-container transition-colors font-medium">12</button>
+</div>
+<button class="p-2 border border-outline-variant rounded-full hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</section>
+</main>
+<!-- Footer (Mobile Only Hidden) -->
+<footer class="hidden lg:block w-full bg-surface-container-lowest border-t border-outline-variant z-50">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-gutter px-margin-desktop py-8 max-w-container-max mx-auto">
+<div class="col-span-1">
+<h2 class="font-headline-md text-headline-md font-bold text-primary mb-4">Heimat</h2>
+<p class="font-body-md text-on-surface-variant mb-4">Exzellenter Service für Ihre Immobilienwünsche in ganz Deutschland.</p>
+</div>
+<div>
+<h4 class="font-label-md text-label-md text-primary font-bold mb-4">Unternehmen</h4>
+<ul class="flex flex-col gap-2 font-body-md text-on-surface-variant">
+<li><a class="hover:underline decoration-secondary transition-all" href="#">Impressum</a></li>
+<li><a class="hover:underline decoration-secondary transition-all" href="#">Datenschutz</a></li>
+<li><a class="hover:underline decoration-secondary transition-all" href="#">AGB</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-label-md text-label-md text-primary font-bold mb-4">Top Städte</h4>
+<ul class="flex flex-col gap-2 font-body-md text-on-surface-variant">
+<li><a class="hover:underline decoration-secondary transition-all" href="#">Berlin</a></li>
+<li><a class="hover:underline decoration-secondary transition-all" href="#">München</a></li>
+<li><a class="hover:underline decoration-secondary transition-all" href="#">Hamburg</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-label-md text-label-md text-primary font-bold mb-4">Kontakt</h4>
+<p class="font-body-md text-on-surface-variant">
+                    support@heimat.de<br/>
+                    +49 (0) 30 123 456 78
+                </p>
+<div class="mt-4 text-on-surface-variant text-label-sm font-label-sm">
+                    © 2024 Heimat Immobilien GmbH.
+                </div>
+</div>
+</div>
+</footer>
+<script>
+        // Micro-interactions: Marker Hover effect on Cards
+        const cards = document.querySelectorAll('article');
+        cards.forEach((card, index) => {
+            card.addEventListener('mouseenter', () => {
+                // Mimic interactive feedback (In a real app, this would highlight the map marker)
+                console.log(`Highlighting property ${index + 1} on map`);
+            });
+        });
+
+        // Filter Toggle micro-interaction
+        const filterChips = document.querySelectorAll('button.rounded-full');
+        filterChips.forEach(chip => {
+            chip.addEventListener('click', () => {
+                const isSelected = chip.classList.contains('bg-primary-container');
+                if(isSelected) {
+                    chip.classList.remove('bg-primary-container', 'text-on-primary-container', 'border-primary');
+                    chip.classList.add('bg-white', 'border-outline-variant');
+                } else {
+                    chip.classList.remove('bg-white', 'border-outline-variant');
+                    chip.classList.add('bg-primary-container', 'text-on-primary-container', 'border-primary');
+                }
+            });
+        });
+    </script>
+</body></html>
