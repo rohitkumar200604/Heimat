@@ -32,7 +32,117 @@ function SuchePageContent() {
   useEffect(() => {
     const fetchListings = async () => {
       setLoading(true);
+
+      const mockListings = [
+        {
+          id: "berlin-studio",
+          title: language === "de" ? "Helles Studio-Apartment nahe Alexanderplatz" : "Bright Studio Apartment near Alexanderplatz",
+          city: "Berlin",
+          street: "Karl-Liebknecht-Str. 12",
+          zip: "10178",
+          rooms: 1,
+          size_sqm: 38,
+          rent_cold: 720,
+          rent_utilities: 80,
+          rent_heating: 70,
+          pets_allowed: true,
+          amenities: ["balcony", "kitchen"],
+          status: "active",
+          property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80", is_primary: true }]
+        },
+        {
+          id: "munich-expat",
+          title: language === "de" ? "Premium 3-Zimmer-Wohnung am Englischen Garten" : "Premium 3-Room Apartment at Englischen Garten",
+          city: "München",
+          street: "Königinstraße 44",
+          zip: "80539",
+          rooms: 3,
+          size_sqm: 82,
+          rent_cold: 1650,
+          rent_utilities: 150,
+          rent_heating: 110,
+          pets_allowed: false,
+          amenities: ["kitchen"],
+          status: "active",
+          property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80", is_primary: true }]
+        },
+        {
+          id: "hamburg-loft",
+          title: language === "de" ? "Stilvolles Loft in der Speicherstadt" : "Stylish Loft in Speicherstadt",
+          city: "Hamburg",
+          street: "Am Sandtorkai 10",
+          zip: "20457",
+          rooms: 2,
+          size_sqm: 65,
+          rent_cold: 1120,
+          rent_utilities: 110,
+          rent_heating: 90,
+          pets_allowed: true,
+          amenities: ["balcony", "kitchen"],
+          status: "active",
+          property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80", is_primary: true }]
+        },
+        {
+          id: "berlin-wg",
+          title: language === "de" ? "Gemütliches Zimmer in Studenten-WG" : "Cozy Room in Student Shared Apartment",
+          city: "Berlin",
+          street: "Königin-Luise-Str. 15",
+          zip: "14195",
+          rooms: 1,
+          size_sqm: 20,
+          rent_cold: 450,
+          rent_utilities: 60,
+          rent_heating: 40,
+          pets_allowed: true,
+          amenities: ["kitchen"],
+          status: "active",
+          property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=800&q=80", is_primary: true }]
+        }
+      ];
+
+      const applyInMemoryFilters = () => {
+        let filtered = [...mockListings];
+        if (stadtParam) {
+          filtered = filtered.filter(l => l.city.toLowerCase().includes(stadtParam.toLowerCase()));
+        }
+        if (zimmerParam !== "all") {
+          filtered = filtered.filter(l => l.rooms >= parseFloat(zimmerParam));
+        }
+        if (preisParam) {
+          filtered = filtered.filter(l => l.rent_cold <= parseFloat(preisParam));
+        }
+        if (activeFilters.includes("balcony")) {
+          filtered = filtered.filter(l => l.amenities.includes("balcony"));
+        }
+        if (activeFilters.includes("kitchen")) {
+          filtered = filtered.filter(l => l.amenities.includes("kitchen"));
+        }
+        if (activeFilters.includes("pets")) {
+          filtered = filtered.filter(l => l.pets_allowed === true);
+        }
+        if (activeFilters.includes("price")) {
+          filtered = filtered.filter(l => l.rent_cold <= 1500);
+        }
+        if (sort === "price_asc") {
+          filtered.sort((a, b) => a.rent_cold - b.rent_cold);
+        } else if (sort === "size_desc") {
+          filtered.sort((a, b) => b.size_sqm - a.size_sqm);
+        }
+        setListings(filtered);
+      };
+
       try {
+        const isConfigured =
+          process.env.NEXT_PUBLIC_SUPABASE_URL &&
+          process.env.NEXT_PUBLIC_SUPABASE_URL !== "https://mock-project.supabase.co" &&
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY !== "mock-anon-key";
+
+        if (!isConfigured) {
+          applyInMemoryFilters();
+          return;
+        }
+
         let query = supabase
           .from("properties")
           .select(`
@@ -81,14 +191,15 @@ function SuchePageContent() {
         if (error) throw error;
         setListings(data || []);
       } catch (err) {
-        console.error("Error fetching listings:", err);
+        console.warn("Supabase fetch failed, falling back to mock data:", err);
+        applyInMemoryFilters();
       } finally {
         setLoading(false);
       }
     };
 
     fetchListings();
-  }, [stadtParam, zimmerParam, preisParam, activeFilters, sort]);
+  }, [stadtParam, zimmerParam, preisParam, activeFilters, sort, language]);
 
   const toggleFilter = (id: string) => {
     setActiveFilters((prev) =>

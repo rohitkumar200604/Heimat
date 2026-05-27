@@ -81,8 +81,119 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
       } finally {
         setProperty((current: any) => {
           if (current) return current;
-          // Build premium mock fallback details
-          return {
+
+          const mocks: Record<string, any> = {
+            "berlin-studio": {
+              id: "berlin-studio",
+              title: language === "de" ? "Helles Studio-Apartment nahe Alexanderplatz" : "Bright Studio Apartment near Alexanderplatz",
+              city: "Berlin",
+              street: "Karl-Liebknecht-Str. 12",
+              zip: "10178",
+              rooms: 1,
+              size_sqm: 38,
+              floor: 2,
+              rent_cold: 720.00,
+              rent_utilities: 80.00,
+              rent_heating: 70.00,
+              deposit_months: 3,
+              available_from: new Date().toISOString().split("T")[0],
+              description: language === "de" 
+                ? "Ein modernes, voll ausgestattetes Apartment mit perfekter Anbindung. Ideal für Studierende oder Expats."
+                : "A modern, fully equipped apartment with perfect transport links. Ideal for students or expats.",
+              amenities: ["balcony", "kitchen"],
+              landlord_profiles: {
+                user_id: "mock-landlord-id",
+                profiles: {
+                  full_name: "Markus Weber",
+                  avatar_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
+                }
+              },
+              property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80", is_primary: true }]
+            },
+            "munich-expat": {
+              id: "munich-expat",
+              title: language === "de" ? "Premium 3-Zimmer-Wohnung am Englischen Garten" : "Premium 3-Room Apartment at Englischen Garten",
+              city: "München",
+              street: "Königinstraße 44",
+              zip: "80539",
+              rooms: 3,
+              size_sqm: 82,
+              floor: 3,
+              rent_cold: 1650.00,
+              rent_utilities: 150.00,
+              rent_heating: 110.00,
+              deposit_months: 3,
+              available_from: new Date().toISOString().split("T")[0],
+              description: language === "de"
+                ? "Lichtdurchflutete, großzügige 3-Zimmer-Wohnung in bester Lage direkt am Englischen Garten."
+                : "Bright, spacious 3-room apartment in a prime location directly on the English Garden.",
+              amenities: ["kitchen", "elevator"],
+              landlord_profiles: {
+                user_id: "mock-landlord-id",
+                profiles: {
+                  full_name: "Sabine Meyer",
+                  avatar_url: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80"
+                }
+              },
+              property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80", is_primary: true }]
+            },
+            "hamburg-loft": {
+              id: "hamburg-loft",
+              title: language === "de" ? "Stilvolles Loft in der Speicherstadt" : "Stylish Loft in Speicherstadt",
+              city: "Hamburg",
+              street: "Am Sandtorkai 10",
+              zip: "20457",
+              rooms: 2,
+              size_sqm: 65,
+              floor: 4,
+              rent_cold: 1120.00,
+              rent_utilities: 110.00,
+              rent_heating: 90.00,
+              deposit_months: 3,
+              available_from: new Date().toISOString().split("T")[0],
+              description: language === "de"
+                ? "Exklusives Design-Loft mit hohen Decken und Backsteinwänden in historischer Speicherstadt."
+                : "Exclusive design loft with high ceilings and brick walls in the historic Speicherstadt.",
+              amenities: ["balcony", "kitchen"],
+              landlord_profiles: {
+                user_id: "mock-landlord-id",
+                profiles: {
+                  full_name: "Jan Hansen",
+                  avatar_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80"
+                }
+              },
+              property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80", is_primary: true }]
+            },
+            "berlin-wg": {
+              id: "berlin-wg",
+              title: language === "de" ? "Gemütliches Zimmer in Studenten-WG" : "Cozy Room in Student Shared Apartment",
+              city: "Berlin",
+              street: "Königin-Luise-Str. 15",
+              zip: "14195",
+              rooms: 1,
+              size_sqm: 20,
+              floor: 1,
+              rent_cold: 450.00,
+              rent_utilities: 60.00,
+              rent_heating: 40.00,
+              deposit_months: 2,
+              available_from: new Date().toISOString().split("T")[0],
+              description: language === "de"
+                ? "Gemütliches, voll möbliertes WG-Zimmer in Dahlem, ideal für Studierende der FU Berlin."
+                : "Cozy, fully furnished room in a shared apartment in Dahlem, ideal for students at FU Berlin.",
+              amenities: ["kitchen"],
+              landlord_profiles: {
+                user_id: "mock-landlord-id",
+                profiles: {
+                  full_name: "Lukas Becker",
+                  avatar_url: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80"
+                }
+              },
+              property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=800&q=80", is_primary: true }]
+            }
+          };
+
+          return mocks[slug] || {
             id: "mock-apply-87a",
             title: language === "de" ? "Lichtdurchflutete 3-Zimmer-Wohnung am Tiergarten" : "Bright 3-room apartment near Tiergarten",
             street: "Torstraße 142",

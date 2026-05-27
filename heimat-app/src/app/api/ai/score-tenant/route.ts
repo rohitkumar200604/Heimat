@@ -4,7 +4,7 @@ export async function POST(req: Request) {
   try {
     const { bookingId, tenantProfile, docTypes } = await req.json();
 
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.OPENROUTER_API_KEY;
 
     if (!apiKey) {
       // ── Dev mock fallback (no API key needed) ──
@@ -41,14 +41,14 @@ export async function POST(req: Request) {
       });
     }
 
-    // ── Live: OpenAI Chat Completions via native fetch ──
+    // ── Live: OpenRouter AI Chat Completions via native fetch ──
     const body = {
-      model: "gpt-4o",
+      model: "google/gemini-2.5-flash", // fast and cost-effective default model on OpenRouter
       messages: [
         {
           role: "system",
           content:
-            "You are an AI-driven tenant rating engine. Respond ONLY with valid JSON containing: overall_score, employment_score, doc_score, stay_length_score, income_score, reasoning, flags, model_version.",
+            "You are an AI-driven tenant rating engine. Respond ONLY with valid JSON containing: overall_score, employment_score, doc_score, stay_length_score, income_score, reasoning, flags, model_version. Do not format with markdown, only return pure JSON.",
         },
         {
           role: "user",
@@ -58,11 +58,13 @@ export async function POST(req: Request) {
       response_format: { type: "json_object" },
     };
 
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
+        "HTTP-Referer": "https://heimat-app.vercel.app",
+        "X-Title": "Heimat App",
       },
       body: JSON.stringify(body),
     });

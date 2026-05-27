@@ -4,26 +4,26 @@ export async function POST(req: Request) {
   try {
     const { fileName, fileType, landlordId } = await req.json();
 
-    const region = process.env.AWS_REGION ?? "eu-central-1";
-    const bucket = process.env.AWS_S3_BUCKET_NAME;
-    const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-    const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+    const bucket = process.env.GCS_BUCKET_NAME;
+    const accessKeyId = process.env.GCS_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.GCS_SECRET_ACCESS_KEY;
 
     // ── Dev mock fallback ──
     if (!bucket || !accessKeyId || !secretAccessKey) {
       return NextResponse.json({
         success: true,
         mock: true,
-        uploadUrl: `https://mock-s3.amazonaws.com/${landlordId ?? "anon"}/properties/${fileName}?mock=true`,
+        uploadUrl: `https://storage.googleapis.com/${bucket || "mock-bucket"}/${landlordId ?? "anon"}/properties/${fileName}?mock=true`,
         key: `${landlordId ?? "anon"}/properties/${fileName}`,
       });
     }
 
-    // ── Production: SigV4 presigned PUT URL ──
+    // ── Production: SigV4 presigned PUT URL via GCS XML API ──
     const key = `${landlordId}/properties/${Date.now()}-${fileName}`;
     const expires = 900;
 
-    const host = `${bucket}.s3.${region}.amazonaws.com`;
+    const host = "storage.googleapis.com";
+    const region = "auto";
     const now = new Date();
     const datestamp = now.toISOString().replace(/[:-]|\.\d{3}/g, "").slice(0, 8);
     const amzdate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     }).toString();
 
     const canonicalRequest = [
-      "PUT", `/${key}`, queryParams, `host:${host}\n`, "host", "UNSIGNED-PAYLOAD",
+      "PUT", `/${bucket}/${key}`, queryParams, `host:${host}\n`, "host", "UNSIGNED-PAYLOAD",
     ].join("\n");
 
     const enc = new TextEncoder();
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     const sigBuf = await hmac(kSigning, stringToSign);
     const signature = Array.from(new Uint8Array(sigBuf)).map((b) => b.toString(16).padStart(2, "0")).join("");
 
-    const uploadUrl = `https://${host}/${key}?${queryParams}&X-Amz-Signature=${signature}`;
+    const uploadUrl = `https://${host}/${bucket}/${key}?${queryParams}&X-Amz-Signature=${signature}`;
 
     return NextResponse.json({ success: true, uploadUrl, key });
   } catch (error: any) {
