@@ -103,6 +103,9 @@ body {
   user-select: none;
 }
 
+button {
+  cursor:pointer;
+}
 /* ── Custom text utilities ─────────────────────────── */
 @utility text-label-sm {
   font-size: 12px;

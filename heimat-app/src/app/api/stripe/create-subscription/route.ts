@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "mock-secret-key", {
-  apiVersion: "2025-01-27.acac" as any,
-});
+function encodeForm(data: Record<string, string>): string {
+  return Object.entries(data)
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join("&");
+}
+
+function stripeHeaders(secretKey: string) {
+  return {
+    "Content-Type": "application/x-www-form-urlencoded",
+    Authorization: `Bearer ${secretKey}`,
+  };
+}
 
 export async function POST(req: Request) {
   try {
@@ -13,30 +21,38 @@ export async function POST(req: Request) {
       return NextResponse.json({
         success: true,
         mock: true,
-        subscriptionId: "sub_mock_123", 
-        clientSecret: "mock_client_secret_xyz"
+        subscriptionId: "sub_mock_123",
+        clientSecret: "mock_client_secret_xyz",
       });
     }
 
-    const subscription = await stripe.subscriptions.create({
-      customer: customerId,
-      items: [{ price: priceId }],
-      payment_behavior: "default_incomplete",
-      payment_settings: { save_default_payment_method: "on_subscription" },
-      expand: ["latest_invoice.payment_intent"],
+    const sk = process.env.STRIPE_SECRET_KEY;
+
+    const res = await fetch("https://api.stripe.com/v1/subscriptions", {
+      method: "POST",
+      headers: stripeHeaders(sk),
+      body: encodeForm({
+        customer: customerId,
+        "items[0][price]": priceId,
+        payment_behavior: "default_incomplete",
+        "payment_settings[save_default_payment_method]": "on_subscription",
+        "expand[]": "latest_invoice.payment_intent",
+      }),
     });
 
-    const invoice = subscription.latest_invoice && typeof subscription.latest_invoice === 'object' 
-      ? (subscription.latest_invoice as any) 
-      : null;
-    const paymentIntent = invoice && invoice.payment_intent && typeof invoice.payment_intent === 'object' 
-      ? (invoice.payment_intent as any) 
-      : null;
+    if (!res.ok) {
+      const err = await res.json();
+      return NextResponse.json({ success: false, error: err.error?.message }, { status: res.status });
+    }
+
+    const subscription = await res.json();
+    const clientSecret =
+      subscription.latest_invoice?.payment_intent?.client_secret ?? null;
 
     return NextResponse.json({
       success: true,
       subscriptionId: subscription.id,
-      clientSecret: paymentIntent?.client_secret || null,
+      clientSecret,
     });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
