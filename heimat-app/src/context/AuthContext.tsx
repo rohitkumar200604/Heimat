@@ -1,7 +1,7 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/utils/supabase/client";
+import { supabase, isSupabaseConfigured } from "@/utils/supabase/client";
 
 export interface Profile {
   id: string;
@@ -59,6 +59,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    // Skip Supabase auth if not configured (dev mode without real env vars)
+    if (!isSupabaseConfigured()) {
+      setLoading(false);
+      return;
+    }
+
     // Get initial session
     const getInitialSession = async () => {
       try {

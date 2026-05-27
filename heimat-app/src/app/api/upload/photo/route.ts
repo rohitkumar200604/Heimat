@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     ].join("\n");
 
     const enc = new TextEncoder();
-    const hmac = async (keyData: ArrayBuffer | Uint8Array, data: string) => {
+    const hmac = async (keyData: any, data: string) => {
       const k = await crypto.subtle.importKey("raw", keyData, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
       return crypto.subtle.sign("HMAC", k, enc.encode(data));
     };
