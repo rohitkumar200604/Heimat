@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "@/components/layout/Navbar";
 import { LanguageProvider } from "@/context/LanguageContext";
+import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata: Metadata = {
   title: "Heimat | Exklusive Immobilien in Deutschland",
@@ -27,8 +28,10 @@ export default function RootLayout({
       </head>
       <body className="bg-background text-on-surface min-h-screen flex flex-col">
         <LanguageProvider>
-          <Navbar />
-          <main className="flex-grow flex flex-col">{children}</main>
+          <AuthProvider>
+            <Navbar />
+            <main className="flex-grow flex flex-col">{children}</main>
+          </AuthProvider>
         </LanguageProvider>
       </body>
     </html>

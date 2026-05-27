@@ -2,27 +2,95 @@
 
 import { useState } from "react";
 import { useLanguage } from "@/context/LanguageContext";
-import Link from "next/navigation";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/utils/supabase/client";
+import Link from "next/link";
 import Footer from "@/components/layout/Footer";
 
 export default function RegisterPage() {
   const router = useRouter();
   const { t, language } = useLanguage();
+  
   const [role, setRole] = useState<"tenant" | "landlord">("tenant");
   const [form, setForm] = useState({ name: "", email: "", tel: "", password: "" });
+  
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+  const [loadingSubmit, setLoadingSubmit] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert(
-      language === "de"
-        ? `Konto für ${form.name} erfolgreich erstellt als ${role === "tenant" ? "Mieter" : "Vermieter"}!`
-        : `Account for ${form.name} successfully created as ${role === "tenant" ? "Tenant" : "Landlord"}!`
-    );
-    if (role === "tenant") {
-      router.push("/auth/verify");
-    } else {
-      router.push("/dashboard/landlord");
+    setErrorMsg("");
+    setSuccessMsg("");
+    setLoadingSubmit(true);
+
+    try {
+      // 1. Sign up the user via Supabase Auth
+      const { data, error } = await supabase.auth.signUp({
+        email: form.email,
+        password: form.password,
+      });
+
+      if (error) throw error;
+      if (!data.user) {
+        throw new Error(
+          language === "de"
+            ? "Registrierung fehlgeschlagen. Bitte überprüfen Sie Ihre Angaben."
+            : "Registration failed. Please check your credentials."
+        );
+      }
+
+      const userId = data.user.id;
+
+      // 2. Insert into profiles
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .insert({
+          id: userId,
+          email: form.email,
+          full_name: form.name,
+          phone: form.tel,
+          role: role,
+        });
+
+      if (profileError) throw profileError;
+
+      // 3. Insert into role-specific profiles
+      if (role === "landlord") {
+        const { error: lpError } = await supabase
+          .from("landlord_profiles")
+          .insert({
+            user_id: userId,
+          });
+        if (lpError) throw lpError;
+      } else {
+        const { error: tpError } = await supabase
+          .from("tenant_profiles")
+          .insert({
+            user_id: userId,
+          });
+        if (tpError) throw tpError;
+      }
+
+      setSuccessMsg(
+        language === "de"
+          ? "Konto erfolgreich erstellt! Sie werden weitergeleitet..."
+          : "Account successfully created! Redirecting..."
+      );
+
+      // Redirect role specifically after a short pause
+      setTimeout(() => {
+        if (role === "tenant") {
+          router.push("/auth/verify");
+        } else {
+          router.push("/dashboard/landlord");
+        }
+      }, 1500);
+
+    } catch (err: any) {
+      setErrorMsg(err.message || "An error occurred");
+    } finally {
+      setLoadingSubmit(false);
     }
   };
 
@@ -38,6 +106,20 @@ export default function RegisterPage() {
               {t("registerSubtitle")}
             </p>
           </div>
+
+          {errorMsg && (
+            <div className="p-4 mb-6 text-[14px] text-error bg-error-container/30 border border-error/20 rounded-xl flex items-center gap-2">
+              <span className="material-symbols-outlined text-[20px]">warning</span>
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="p-4 mb-6 text-[14px] text-primary bg-primary-fixed/30 border border-primary/20 rounded-xl flex items-center gap-2">
+              <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+              <span>{successMsg}</span>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Role Picker pills */}
@@ -137,19 +219,23 @@ export default function RegisterPage() {
             <button
               id="btn-register-submit"
               type="submit"
-              className="w-full h-12 bg-primary text-on-primary rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all shadow-md mt-6 cursor-pointer"
+              disabled={loadingSubmit}
+              className="w-full h-12 bg-primary text-on-primary rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all shadow-md mt-6 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
             >
+              {loadingSubmit && (
+                <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+              )}
               {t("register")}
             </button>
           </form>
 
           <div className="mt-8 text-center text-body-md">
-            <a
+            <Link
               href="/auth/login"
               className="text-primary font-bold hover:underline"
             >
               {t("alreadyHaveAccount")}
-            </a>
+            </Link>
           </div>
         </div>
       </div>

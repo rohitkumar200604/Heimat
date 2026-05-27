@@ -4,12 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/context/LanguageContext";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Navbar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { language, setLanguage, t } = useLanguage();
+  const { profile, signOut } = useAuth();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50);
@@ -35,6 +37,11 @@ export default function Navbar() {
         {label}
       </Link>
     );
+  };
+
+  const getDashboardUrl = () => {
+    if (!profile) return "/";
+    return profile.role === "landlord" ? "/dashboard/landlord" : "/dashboard/tenant";
   };
 
   return (
@@ -87,20 +94,41 @@ export default function Navbar() {
 
           {/* Auth Buttons */}
           <div className="flex items-center gap-3">
-            <Link
-              href="/auth/login"
-              id="btn-anmelden"
-              className="px-5 py-2 rounded-lg text-[14px] font-semibold text-primary hover:bg-surface-container-low transition-all active:scale-95 text-center"
-            >
-              {t("login")}
-            </Link>
-            <Link
-              href="/auth/register"
-              id="btn-registrieren"
-              className="px-5 py-2 rounded-lg text-[14px] font-semibold bg-primary text-on-primary hover:opacity-90 transition-all active:scale-95 text-center"
-            >
-              {t("register")}
-            </Link>
+            {profile ? (
+              <>
+                <Link
+                  href={getDashboardUrl()}
+                  id="btn-dashboard"
+                  className="px-5 py-2 rounded-lg text-[14px] font-semibold text-primary hover:bg-surface-container-low transition-all active:scale-95 text-center"
+                >
+                  {t("dashboard")}
+                </Link>
+                <button
+                  onClick={signOut}
+                  id="btn-logout"
+                  className="px-5 py-2 rounded-lg text-[14px] font-semibold bg-primary text-on-primary hover:opacity-90 transition-all active:scale-95 text-center cursor-pointer font-sans"
+                >
+                  {t("logout")}
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/auth/login"
+                  id="btn-anmelden"
+                  className="px-5 py-2 rounded-lg text-[14px] font-semibold text-primary hover:bg-surface-container-low transition-all active:scale-95 text-center"
+                >
+                  {t("login")}
+                </Link>
+                <Link
+                  href="/auth/register"
+                  id="btn-registrieren"
+                  className="px-5 py-2 rounded-lg text-[14px] font-semibold bg-primary text-on-primary hover:opacity-90 transition-all active:scale-95 text-center"
+                >
+                  {t("register")}
+                </Link>
+              </>
+            )}
           </div>
         </div>
 
@@ -167,18 +195,37 @@ export default function Navbar() {
             {t("rent")}
           </Link>
           <div className="pt-3 border-t border-outline-variant/50 flex flex-col gap-3">
-            <Link
-              href="/auth/login"
-              className="w-full py-3 rounded-xl text-[14px] font-semibold text-primary border border-outline-variant hover:bg-surface-container-low transition-all text-center"
-            >
-              {t("login")}
-            </Link>
-            <Link
-              href="/auth/register"
-              className="w-full py-3 rounded-xl text-[14px] font-semibold bg-primary text-on-primary hover:opacity-90 transition-all text-center"
-            >
-              {t("register")}
-            </Link>
+            {profile ? (
+              <>
+                <Link
+                  href={getDashboardUrl()}
+                  className="w-full py-3 rounded-xl text-[14px] font-semibold text-primary border border-outline-variant hover:bg-surface-container-low transition-all text-center"
+                >
+                  {t("dashboard")}
+                </Link>
+                <button
+                  onClick={signOut}
+                  className="w-full py-3 rounded-xl text-[14px] font-semibold bg-primary text-on-primary hover:opacity-90 transition-all text-center cursor-pointer font-sans"
+                >
+                  {t("logout")}
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/auth/login"
+                  className="w-full py-3 rounded-xl text-[14px] font-semibold text-primary border border-outline-variant hover:bg-surface-container-low transition-all text-center"
+                >
+                  {t("login")}
+                </Link>
+                <Link
+                  href="/auth/register"
+                  className="w-full py-3 rounded-xl text-[14px] font-semibold bg-primary text-on-primary hover:opacity-90 transition-all text-center"
+                >
+                  {t("register")}
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}

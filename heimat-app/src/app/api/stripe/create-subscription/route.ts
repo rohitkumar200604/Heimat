@@ -13,7 +13,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         success: true,
         mock: true,
-        subscriptionId: "sub_mock_123",
+        subscriptionId: "sub_mock_123", 
         clientSecret: "mock_client_secret_xyz"
       });
     }
@@ -26,13 +26,17 @@ export async function POST(req: Request) {
       expand: ["latest_invoice.payment_intent"],
     });
 
-    const invoice = subscription.latest_invoice as Stripe.Invoice;
-    const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent;
+    const invoice = subscription.latest_invoice && typeof subscription.latest_invoice === 'object' 
+      ? (subscription.latest_invoice as any) 
+      : null;
+    const paymentIntent = invoice && invoice.payment_intent && typeof invoice.payment_intent === 'object' 
+      ? (invoice.payment_intent as any) 
+      : null;
 
     return NextResponse.json({
       success: true,
       subscriptionId: subscription.id,
-      clientSecret: paymentIntent.client_secret,
+      clientSecret: paymentIntent?.client_secret || null,
     });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

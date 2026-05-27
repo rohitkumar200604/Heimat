@@ -20,6 +20,9 @@ CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles
 CREATE POLICY "Users can update their own profile" ON public.profiles
     FOR UPDATE USING (auth.uid() = id);
 
+CREATE POLICY "Users can insert their own profile" ON public.profiles
+    FOR INSERT WITH CHECK (auth.uid() = id);
+
 -- 2. Landlord Profiles Policies
 CREATE POLICY "Landlords can view their own landlord profile" ON public.landlord_profiles
     FOR SELECT USING (auth.uid() = user_id);
@@ -27,12 +30,18 @@ CREATE POLICY "Landlords can view their own landlord profile" ON public.landlord
 CREATE POLICY "Landlords can update their own landlord profile" ON public.landlord_profiles
     FOR UPDATE USING (auth.uid() = user_id);
 
+CREATE POLICY "Landlords can insert their own landlord profile" ON public.landlord_profiles
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
 -- 3. Tenant Profiles Policies
 CREATE POLICY "Tenants can view their own tenant profile" ON public.tenant_profiles
     FOR SELECT USING (auth.uid() = user_id);
 
 CREATE POLICY "Tenants can update their own tenant profile" ON public.tenant_profiles
     FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Tenants can insert their own tenant profile" ON public.tenant_profiles
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- 4. Properties Policies
 CREATE POLICY "Properties are viewable by everyone" ON public.properties

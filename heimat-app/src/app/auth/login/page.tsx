@@ -1,23 +1,69 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/utils/supabase/client";
 import Link from "next/link";
 import Footer from "@/components/layout/Footer";
 
 export default function LoginPage() {
+  const router = useRouter();
   const { t, language } = useLanguage();
+  const { profile, loading } = useAuth();
+  
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [magicLink, setMagicLink] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+  const [loadingSubmit, setLoadingSubmit] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (profile) {
+      const url = profile.role === "landlord" ? "/dashboard/landlord" : "/dashboard/tenant";
+      router.push(url);
+    }
+  }, [profile, router]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert(
-      language === "de"
-        ? `Erfolgreich angemeldet als ${email}!`
-        : `Successfully logged in as ${email}!`
-    );
+    setErrorMsg("");
+    setSuccessMsg("");
+    setLoadingSubmit(true);
+
+    try {
+      if (magicLink) {
+        const { error } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/login`,
+          },
+        });
+        if (error) throw error;
+        setSuccessMsg(
+          language === "de"
+            ? "Magic Link wurde an Ihre E-Mail gesendet!"
+            : "Magic Link sent to your email!"
+        );
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+        setSuccessMsg(
+          language === "de"
+            ? "Erfolgreich angemeldet!"
+            : "Successfully logged in!"
+        );
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "An error occurred");
+    } finally {
+      setLoadingSubmit(false);
+    }
   };
 
   return (
@@ -32,6 +78,20 @@ export default function LoginPage() {
               {t("loginSubtitle")}
             </p>
           </div>
+
+          {errorMsg && (
+            <div className="p-4 mb-6 text-[14px] text-error bg-error-container/30 border border-error/20 rounded-xl flex items-center gap-2">
+              <span className="material-symbols-outlined text-[20px]">warning</span>
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="p-4 mb-6 text-[14px] text-primary bg-primary-fixed/30 border border-primary/20 rounded-xl flex items-center gap-2">
+              <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+              <span>{successMsg}</span>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
@@ -77,8 +137,12 @@ export default function LoginPage() {
             <button
               id="btn-login-submit"
               type="submit"
-              className="w-full h-12 bg-primary text-on-primary rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all shadow-md cursor-pointer"
+              disabled={loadingSubmit}
+              className="w-full h-12 bg-primary text-on-primary rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all shadow-md cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
             >
+              {loadingSubmit && (
+                <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+              )}
               {magicLink
                 ? language === "de" ? "Magic Link senden" : "Send Magic Link"
                 : t("login")}
@@ -104,7 +168,6 @@ export default function LoginPage() {
             </p>
             <div className="grid grid-cols-2 gap-4">
               <button className="flex items-center justify-center gap-2 h-12 border border-outline-variant rounded-xl hover:bg-surface-container-low transition-colors cursor-pointer text-label-md">
-                <img src="https://globe.svg" className="w-5 h-5 hidden" alt="" />
                 <span>Google</span>
               </button>
               <button className="flex items-center justify-center gap-2 h-12 border border-outline-variant rounded-xl hover:bg-surface-container-low transition-colors cursor-pointer text-label-md">

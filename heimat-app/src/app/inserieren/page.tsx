@@ -1,28 +1,53 @@
 "use client";
 
-import { useState } from "react";
-import Footer from "@/components/layout/Footer";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
-
-const PHOTO_PREVIEWS = [
-  {
-    src: "https://lh3.googleusercontent.com/aida-public/AB6AXuDqewztWOsWA3pPKxeN1pbAZKo_yo5ILOrtcwmzVoDwtlBJjCF4wUfBVCcuAQoJmQn4ZH5zl7LXq5PQLadp_TlnmhA7ZIdzDP3bRssz7ogpzsS-jDMdWkZAx55_F5zlfPbWbp5iCXRTCqTVmz0KEQ-5K6Ru_eaf_ewIrvLlTz3HwdKY1UIcz2_nNwtjOdvv33tmXQZMkvTsx18V2lf4Je0na_s8cyxdicPzaC5NNJIh_Kxe-hxfoukRAgpsmuwKZGRHCxLLI8LEo4IS",
-    alt: "Wohnzimmer",
-  },
-  {
-    src: "https://lh3.googleusercontent.com/aida-public/AB6AXuCxwvxlF1vh2kgG2jIRBlES6rqXj31XQOjXfvtKQmZjc54b8J3abMHJVc_oYyyw-_f2HTFLp4QCtre6cPK2EZABy-vfZAacbm-kzQgDOZ5JyZS9JzpJrr-cssypFMn3N3XhquF90rkJ4VYrft1-24u-VkfRzAJ_ygOi-QJvIpLH-FkVHi7Zu9cNWOEaDCnI9WFhPwlPEAnLmD-JHHQqyZ4lKc9SVCe5MNCR0Yx_97CyT15-KJ7Hwo0uLZKsr79FoH-Fwpx1njU4II80",
-    alt: "Küche",
-  },
-];
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/utils/supabase/client";
+import Footer from "@/components/layout/Footer";
 
 export default function InserierenPage() {
+  const router = useRouter();
   const { t, language } = useLanguage();
+  const { user, profile, loading } = useAuth();
+  
+  const [landlordId, setLandlordId] = useState<string | null>(null);
   const [step, setStep] = useState(1);
   const [amenities, setAmenities] = useState<string[]>([]);
+  const [uploadedPhotos, setUploadedPhotos] = useState<any[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [step1, setStep1] = useState({ typ: "apartment", strasse: "", plz: "", stadt: "" });
   const [step2, setStep2] = useState({ kaltmiete: "", nebenkosten: "", flaeche: "", zimmer: "" });
   const [step4, setStep4] = useState({ titel: "", beschreibung: "" });
+
+  // Route protection
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/auth/login?redirect=/inserieren");
+    } else if (!loading && profile && profile.role !== "landlord") {
+      router.push("/dashboard/tenant");
+    }
+  }, [user, profile, loading, router]);
+
+  // Fetch landlord profile ID
+  useEffect(() => {
+    if (user && profile?.role === "landlord") {
+      const getLandlordId = async () => {
+        const { data } = await supabase
+          .from("landlord_profiles")
+          .select("id")
+          .eq("user_id", user.id)
+          .single();
+        if (data) {
+          setLandlordId(data.id);
+        }
+      };
+      getLandlordId();
+    }
+  }, [user, profile]);
 
   const stepsList = [
     { num: 1, label: t("indicatorBasis"), icon: "location_on" },
@@ -47,22 +72,171 @@ export default function InserierenPage() {
   const toggleAmenity = (a: string) =>
     setAmenities((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]));
 
-  const goNext = () => {
-    if (step < stepsList.length) setStep(step + 1);
-    else {
+  const handleDropzoneClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    await uploadFiles(Array.from(files));
+  };
+
+  const uploadFiles = async (files: File[]) => {
+    if (!user || !landlordId) {
+      alert("Error: Landlord profile not loaded yet.");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      for (const file of files) {
+        // 1. Get S3 presigned URL
+        const res = await fetch("/api/upload/photo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: file.name,
+            fileType: file.type,
+            landlordId: landlordId,
+          }),
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || "Failed to generate upload URL");
+
+        const { uploadUrl, key } = data;
+        let cdnUrl = uploadUrl.split("?")[0];
+
+        // 2. Upload file directly to S3 (or simulate if mock returned)
+        if (data.mock) {
+          console.log("Mock S3 Upload: Simulated file storage for key:", key);
+        } else {
+          const uploadRes = await fetch(uploadUrl, {
+            method: "PUT",
+            headers: { "Content-Type": file.type },
+            body: file,
+          });
+          if (!uploadRes.ok) throw new Error("S3 Upload Failed");
+          
+          // Rebuild standard S3 URL (use bucket name from supabase URL config context if needed)
+          cdnUrl = uploadUrl.split("?")[0];
+        }
+
+        // Add uploaded photo state
+        setUploadedPhotos((prev) => [
+          ...prev,
+          {
+            cdn_url: cdnUrl,
+            key: key,
+            is_primary: prev.length === 0, // Set first photo as primary
+          },
+        ]);
+      }
+    } catch (err: any) {
+      console.error("Upload error:", err);
+      alert("File upload failed: " + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removePhoto = (idx: number) => {
+    setUploadedPhotos((prev) => {
+      const copy = prev.filter((_, i) => i !== idx);
+      if (copy.length > 0 && !copy.some((p) => p.is_primary)) {
+        copy[0].is_primary = true;
+      }
+      return copy;
+    });
+  };
+
+  const goNext = async () => {
+    if (step < stepsList.length) {
+      setStep(step + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    // Step 4 Submit: Publish Listing
+    if (!landlordId) {
+      alert("Error: Landlord profile not loaded.");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // 1. Write property parameters to DB
+      const { data: prop, error: propErr } = await supabase
+        .from("properties")
+        .insert({
+          landlord_id: landlordId,
+          title: step4.titel,
+          description: step4.beschreibung,
+          street: step1.strasse,
+          city: step1.stadt,
+          zip: step1.plz,
+          property_type: step1.typ,
+          size_sqm: parseFloat(step2.flaeche),
+          rooms: parseFloat(step2.zimmer),
+          rent_cold: parseFloat(step2.kaltmiete),
+          rent_utilities: parseFloat(step2.nebenkosten || "0"),
+          rent_heating: 0.00,
+          deposit_months: 3,
+          available_from: new Date().toISOString().split("T")[0],
+          furnished: amenities.includes(language === "de" ? "Möbliert" : "Furnished") || false,
+          pets_allowed: amenities.includes(t("petsAllowed")),
+          amenities: amenities,
+          status: "active"
+        })
+        .select()
+        .single();
+
+      if (propErr) throw propErr;
+
+      // 2. Write photo parameters to DB
+      if (uploadedPhotos.length > 0) {
+        const photoRows = uploadedPhotos.map((p, idx) => ({
+          property_id: prop.id,
+          s3_key: p.key,
+          cdn_url: p.cdn_url,
+          order_index: idx,
+          is_primary: p.is_primary,
+          alt_text: step4.titel
+        }));
+
+        const { error: photoErr } = await supabase
+          .from("property_photos")
+          .insert(photoRows);
+
+        if (photoErr) throw photoErr;
+      }
+
       alert(
         language === "de"
-          ? "Vielen Dank! Ihr Inserat wird nun geprüft und innerhalb von 24 Stunden veröffentlicht."
-          : "Thank you! Your listing is now being verified and will be published within 24 hours."
+          ? "Vielen Dank! Ihr Inserat wurde erfolgreich veröffentlicht."
+          : "Thank you! Your listing has been successfully published."
       );
+      router.push("/dashboard/landlord");
+    } catch (err: any) {
+      console.error("Error publishing property:", err);
+      alert("Error publishing property: " + err.message);
+    } finally {
+      setUploading(false);
     }
-    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const goPrev = () => {
     if (step > 1) setStep(step - 1);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  if (loading) {
+    return (
+      <div className="flex-grow flex items-center justify-center min-h-[600px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -249,32 +423,58 @@ export default function InserierenPage() {
                 {/* Drop zone */}
                 <div
                   id="dropzone"
-                  className="border-2 border-dashed border-outline rounded-xl p-10 md:p-12 text-center bg-surface-container-lowest hover:bg-surface-container transition-colors group cursor-pointer"
+                  onClick={handleDropzoneClick}
+                  className="border-2 border-dashed border-outline rounded-xl p-10 md:p-12 text-center bg-surface-container-lowest hover:bg-surface-container transition-colors group cursor-pointer relative"
                 >
-                  <span className="material-symbols-outlined text-[64px] text-outline-variant group-hover:text-primary mb-4 transition-colors block">
-                    cloud_upload
-                  </span>
-                  <p className="text-headline-md mb-2">{t("dragDropText")}</p>
-                  <p className="text-on-surface-variant text-body-md mb-6">
-                    {t("dragDropSubtext")}
-                  </p>
-                  <button
-                    id="btn-select-files"
-                    type="button"
-                    className="bg-primary text-on-primary px-8 py-3 rounded-lg text-label-md transition-all active:scale-95 font-semibold cursor-pointer"
-                  >
-                    {t("selectFilesBtn")}
-                  </button>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    className="hidden"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                  />
+                  {uploading ? (
+                    <div className="py-6 flex flex-col items-center gap-3">
+                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
+                      <p className="text-body-md text-primary font-bold">
+                        {language === "de" ? "Bilder werden hochgeladen..." : "Uploading images..."}
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-[64px] text-outline-variant group-hover:text-primary mb-4 transition-colors block">
+                        cloud_upload
+                      </span>
+                      <p className="text-headline-md mb-2">{t("dragDropText")}</p>
+                      <p className="text-on-surface-variant text-body-md mb-6">
+                        {t("dragDropSubtext")}
+                      </p>
+                      <button
+                        id="btn-select-files"
+                        type="button"
+                        className="bg-primary text-on-primary px-8 py-3 rounded-lg text-label-md transition-all active:scale-95 font-semibold cursor-pointer"
+                      >
+                        {t("selectFilesBtn")}
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 {/* Preview grid */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-                  {PHOTO_PREVIEWS.map((p, i) => (
-                    <div key={i} className="aspect-video bg-surface-container rounded-lg relative overflow-hidden group">
-                      <img src={p.src} alt={p.alt} className="w-full h-full object-cover" />
+                  {uploadedPhotos.map((p, i) => (
+                    <div key={i} className="aspect-video bg-surface-container rounded-lg relative overflow-hidden group border border-outline-variant">
+                      <img src={p.cdn_url} alt="Uploaded Room" className="w-full h-full object-cover" />
+                      {p.is_primary && (
+                        <div className="absolute bottom-2 left-2 bg-primary text-on-primary text-[10px] px-2 py-0.5 rounded font-bold uppercase shadow">
+                          {language === "de" ? "Hauptbild" : "Primary"}
+                        </div>
+                      )}
                       <button
                         type="button"
-                        className="absolute top-2 right-2 w-8 h-8 bg-black/50 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                        onClick={() => removePhoto(i)}
+                        className="absolute top-2 right-2 w-8 h-8 bg-black/50 text-white rounded-full flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity cursor-pointer animate-fade-in"
                       >
                         <span className="material-symbols-outlined text-[16px]">close</span>
                       </button>
@@ -283,6 +483,7 @@ export default function InserierenPage() {
                   {[0, 1].map((i) => (
                     <div
                       key={`empty-${i}`}
+                      onClick={handleDropzoneClick}
                       className="aspect-video bg-surface-container border-2 border-dashed border-outline-variant rounded-lg flex items-center justify-center text-outline-variant cursor-pointer hover:border-primary hover:text-primary transition-colors"
                     >
                       <span className="material-symbols-outlined text-[28px]">add</span>
@@ -381,12 +582,16 @@ export default function InserierenPage() {
                   id="btn-next"
                   type="button"
                   onClick={goNext}
-                  className={`flex items-center gap-2 text-label-md px-8 py-3 rounded-lg hover:opacity-90 shadow-lg transition-all active:scale-95 font-semibold cursor-pointer ${
+                  disabled={uploading}
+                  className={`flex items-center gap-2 text-label-md px-8 py-3 rounded-lg hover:opacity-90 shadow-lg transition-all active:scale-95 font-semibold cursor-pointer disabled:opacity-50 ${
                     step === stepsList.length
                       ? "bg-secondary text-on-secondary shadow-secondary/20"
                       : "bg-primary text-on-primary shadow-primary/20"
                   }`}
                 >
+                  {uploading ? (
+                    <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                  ) : null}
                   {step === stepsList.length ? (
                     <>
                       {t("publishBtn")}
