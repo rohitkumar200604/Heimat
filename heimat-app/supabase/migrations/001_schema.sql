@@ -27,7 +27,7 @@ CREATE TABLE public.profiles (
 
 -- 2. Create Landlord Profiles
 CREATE TABLE public.landlord_profiles (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID UNIQUE NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     stripe_account_id TEXT,
     iban_last4 VARCHAR(4),
@@ -38,7 +38,7 @@ CREATE TABLE public.landlord_profiles (
 
 -- 3. Create Tenant Profiles
 CREATE TABLE public.tenant_profiles (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID UNIQUE NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     nationality TEXT,
     university TEXT,
@@ -54,7 +54,7 @@ CREATE TABLE public.tenant_profiles (
 
 -- 4. Create Properties
 CREATE TABLE public.properties (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     landlord_id UUID NOT NULL REFERENCES public.landlord_profiles(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     description TEXT,
@@ -89,7 +89,7 @@ CREATE TABLE public.properties (
 
 -- 5. Create Property Photos
 CREATE TABLE public.property_photos (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     property_id UUID NOT NULL REFERENCES public.properties(id) ON DELETE CASCADE,
     s3_key TEXT NOT NULL,
     cdn_url TEXT NOT NULL,
@@ -101,7 +101,7 @@ CREATE TABLE public.property_photos (
 
 -- 6. Create Verification Documents
 CREATE TABLE public.verification_documents (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     doc_type document_type NOT NULL,
     s3_key TEXT NOT NULL,
@@ -116,7 +116,7 @@ CREATE TABLE public.verification_documents (
 
 -- 7. Create Subscriptions
 CREATE TABLE public.subscriptions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     stripe_subscription_id TEXT UNIQUE NOT NULL,
     plan subscription_plan NOT NULL,
@@ -129,7 +129,7 @@ CREATE TABLE public.subscriptions (
 
 -- 8. Create Bookings
 CREATE TABLE public.bookings (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     property_id UUID NOT NULL REFERENCES public.properties(id) ON DELETE RESTRICT,
     tenant_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT,
     landlord_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT,
@@ -149,7 +149,7 @@ CREATE TABLE public.bookings (
 
 -- 9. Create AI Tenant Scores
 CREATE TABLE public.ai_tenant_scores (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     booking_id UUID NOT NULL REFERENCES public.bookings(id) ON DELETE CASCADE,
     tenant_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     overall_score INT NOT NULL CHECK (overall_score >= 0 AND overall_score <= 100),
@@ -165,7 +165,7 @@ CREATE TABLE public.ai_tenant_scores (
 
 -- 10. Create Messages / Notifications
 CREATE TABLE public.messages (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     sender_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     recipient_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     booking_id UUID REFERENCES public.bookings(id) ON DELETE SET NULL,

@@ -66,6 +66,22 @@ export default function LoginPage() {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    setErrorMsg("");
+    setSuccessMsg("");
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/login`,
+        },
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      setErrorMsg(err.message || "An error occurred during Google sign-in");
+    }
+  };
+
   return (
     <>
       <div className="flex-grow flex items-center justify-center py-16 px-5 bg-gradient-to-br from-surface-container-low via-background to-surface-container">
@@ -166,14 +182,31 @@ export default function LoginPage() {
             <p className="text-center text-[12px] text-on-surface-variant font-semibold mb-4 uppercase tracking-wider">
               {language === "de" ? "Oder fortfahren mit" : "Or continue with"}
             </p>
-            <div className="grid grid-cols-2 gap-4">
-              <button className="flex items-center justify-center gap-2 h-12 border border-outline-variant rounded-xl hover:bg-surface-container-low transition-colors cursor-pointer text-label-md">
-                <span>Google</span>
-              </button>
-              <button className="flex items-center justify-center gap-2 h-12 border border-outline-variant rounded-xl hover:bg-surface-container-low transition-colors cursor-pointer text-label-md">
-                <span>Apple</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              className="w-full flex items-center justify-center gap-3 h-12 border border-outline-variant rounded-xl hover:bg-surface-container-low transition-colors cursor-pointer text-label-md font-semibold"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path
+                  fill="#EA4335"
+                  d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.67 1.57 15.02 1 12 1 7.24 1 3.21 3.73 1.24 7.72l3.87 3a7.16 7.16 0 0 1 6.89-5.68z"
+                />
+                <path
+                  fill="#4285F4"
+                  d="M23.49 12.27c0-.81-.07-1.59-.2-2.36H12v4.51h6.46a5.5 5.5 0 0 1-2.4 3.6l3.73 2.9c2.18-2 3.7-5.07 3.7-8.65z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.11 14.78a7.12 7.12 0 0 1 0-4.56L1.24 7.22a11.96 11.96 0 0 0 0 9.56l3.87-3z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c3.24 0 5.97-1.07 7.96-2.9l-3.73-2.9a7.12 7.12 0 0 1-10.9-4.42l-3.87 3A11.96 11.96 0 0 0 12 23z"
+                />
+              </svg>
+              <span>Google</span>
+            </button>
           </div>
 
           <div className="mt-8 text-center text-body-md">
