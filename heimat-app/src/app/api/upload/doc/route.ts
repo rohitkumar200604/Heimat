@@ -1,10 +1,46 @@
 import { NextResponse } from "next/server";
 
 /**
- * Document upload presigned URL using GCS Interop (S3-compatible) API.
+ * Document upload using GCS Interop (S3-compatible HMAC) API.
  * Supports legacy JSON metadata request (returns presigned PUT URL)
  * as well as direct FormData multipart upload (uploads to GCS server-side).
  */
+
+/** Produce correctly formatted SigV4 date strings without regex fragility. */
+function getDateStrings() {
+  const now = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  const datestamp = `${now.getUTCFullYear()}${p(now.getUTCMonth() + 1)}${p(now.getUTCDate())}`;
+  const amzdate = `${datestamp}T${p(now.getUTCHours())}${p(now.getUTCMinutes())}${p(now.getUTCSeconds())}Z`;
+  return { datestamp, amzdate };
+}
+
+const enc = new TextEncoder();
+
+async function hmac(keyData: ArrayBuffer | Uint8Array, data: string): Promise<ArrayBuffer> {
+  const k = await crypto.subtle.importKey(
+    "raw",
+    keyData as ArrayBuffer,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  return crypto.subtle.sign("HMAC", k, enc.encode(data));
+}
+
+async function sha256hex(s: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", enc.encode(s));
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function toHex(buf: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 export async function POST(req: Request) {
   try {
     const contentType = req.headers.get("content-type") || "";
@@ -18,77 +54,66 @@ export async function POST(req: Request) {
       isDirectUpload = true;
       const formData = await req.formData();
       file = formData.get("file") as File;
-      userId = formData.get("userId") as string || "anon";
+      userId = (formData.get("userId") as string) || "anon";
       if (!file) throw new Error("No file uploaded in form data");
       fileName = file.name;
-      fileType = file.type;
+      fileType = file.type || "application/octet-stream";
     } else {
       const body = await req.json();
       fileName = body.fileName;
-      fileType = body.fileType;
-      userId = body.userId;
+      fileType = body.fileType || "application/octet-stream";
+      userId = body.userId || "anon";
     }
 
     const bucket = process.env.GCS_BUCKET_NAME;
     const accessKeyId = process.env.GCS_ACCESS_KEY_ID;
     const secretAccessKey = process.env.GCS_SECRET_ACCESS_KEY;
 
-    // ── Dev mock fallback ──
+    // ── Dev mock fallback ──────────────────────────────────────────────────────
     if (!bucket || !accessKeyId || !secretAccessKey) {
-      const key = `${userId ?? "anon"}/docs/${Date.now()}-${fileName}`;
+      const key = `${userId}/docs/${Date.now()}-${fileName}`;
       return NextResponse.json({
         success: true,
         mock: true,
-        uploadUrl: `https://storage.googleapis.com/${bucket || "mock-bucket"}/${key}?mock=true`,
-        cdnUrl: `https://storage.googleapis.com/${bucket || "mock-bucket"}/${key}`,
+        uploadUrl: `https://storage.googleapis.com/mock-bucket/${key}?mock=true`,
+        cdnUrl: `https://storage.googleapis.com/mock-bucket/${key}`,
         key,
       });
     }
 
-    // ── Production: GCS XML API with SigV4 presigned PUT URL ──
+    // ── Production: GCS XML API with SigV4 HMAC presigned PUT URL ─────────────
     const key = `${userId}/docs/${Date.now()}-${fileName}`;
-    const expires = 900; // 15 minutes
-
     const host = "storage.googleapis.com";
     const region = "auto";
-    const now = new Date();
-    const datestamp = now.toISOString().replace(/[:-]|\\.\\d{3}/g, "").slice(0, 8);
-    const amzdate = now.toISOString().replace(/[:-]|\\.\\d{3}/g, "");
+    const { datestamp, amzdate } = getDateStrings();
 
     const credentialScope = `${datestamp}/${region}/s3/aws4_request`;
     const credential = `${accessKeyId}/${credentialScope}`;
 
-    const queryParams = new URLSearchParams({
-      "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
-      "X-Amz-Credential": credential,
-      "X-Amz-Date": amzdate,
-      "X-Amz-Expires": String(expires),
-      "X-Amz-SignedHeaders": "host",
-    }).toString();
+    // Query params must be alphabetically sorted for canonical request
+    const queryParams = new URLSearchParams([
+      ["X-Amz-Algorithm", "AWS4-HMAC-SHA256"],
+      ["X-Amz-Credential", credential],
+      ["X-Amz-Date", amzdate],
+      ["X-Amz-Expires", "900"],
+      ["X-Amz-SignedHeaders", "host"],
+    ]).toString();
+
+    // Canonical URI: each path segment must be URI-encoded separately
+    const encodedKey = key
+      .split("/")
+      .map((s) => encodeURIComponent(s))
+      .join("/");
+    const canonicalUri = `/${bucket}/${encodedKey}`;
 
     const canonicalRequest = [
       "PUT",
-      `/${bucket}/${key}`,
+      canonicalUri,
       queryParams,
       `host:${host}\n`,
       "host",
       "UNSIGNED-PAYLOAD",
     ].join("\n");
-
-    const enc = new TextEncoder();
-
-    async function hmac(keyData: ArrayBuffer | Uint8Array, data: string): Promise<ArrayBuffer> {
-      const k = await crypto.subtle.importKey("raw", keyData as ArrayBuffer, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-      return crypto.subtle.sign("HMAC", k, enc.encode(data));
-    }
-
-    const sha256hex = async (s: string) => {
-      const buf = await crypto.subtle.digest("SHA-256", enc.encode(s));
-      return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
-    };
-
-    const toHex = (buf: ArrayBuffer) =>
-      Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
 
     const stringToSign = [
       "AWS4-HMAC-SHA256",
@@ -101,34 +126,38 @@ export async function POST(req: Request) {
     const kRegion = await hmac(kDate, region);
     const kService = await hmac(kRegion, "s3");
     const kSigning = await hmac(kService, "aws4_request");
-    const sigBuf = await hmac(kSigning, stringToSign);
-    const signature = toHex(sigBuf);
+    const signature = toHex(await hmac(kSigning, stringToSign));
 
     const uploadUrl = `https://${host}/${bucket}/${key}?${queryParams}&X-Amz-Signature=${signature}`;
     const cdnUrl = `https://${host}/${bucket}/${key}`;
 
     if (isDirectUpload && file) {
-      // Direct server-side PUT to GCS
+      // Server-side PUT to GCS — avoids browser CORS restrictions
       const arrayBuffer = await file.arrayBuffer();
       const uploadRes = await fetch(uploadUrl, {
         method: "PUT",
         headers: {
           "Content-Type": fileType,
+          "Content-Length": String(arrayBuffer.byteLength),
         },
         body: arrayBuffer,
       });
 
       if (!uploadRes.ok) {
         const errText = await uploadRes.text();
-        console.error("GCS direct document upload failed:", errText);
-        throw new Error(`GCS upload failed: ${uploadRes.statusText}`);
+        console.error("GCS document upload failed:", uploadRes.status, errText);
+        throw new Error(
+          `GCS upload failed (${uploadRes.status} ${uploadRes.statusText}): ${errText}`,
+        );
       }
 
       return NextResponse.json({ success: true, key, cdnUrl });
     }
 
     return NextResponse.json({ success: true, uploadUrl, cdnUrl, key });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    console.error("Upload doc route error:", msg);
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
