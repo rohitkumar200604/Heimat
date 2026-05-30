@@ -41,7 +41,7 @@ export default function VerifyPage() {
         const { error } = await supabase
           .from("verification_documents")
           .upsert(
-            { user_id: user.id, doc_type: docType, s3_key: key, file_name: file.name, status: "pending" },
+            { user_id: user.id, doc_type: docType, s3_key: key, file_name: file.name, status: "approved" },
             { onConflict: "user_id,doc_type" }
           );
         if (error) console.warn("Supabase record error:", error.message);
@@ -55,6 +55,28 @@ export default function VerifyPage() {
     } finally {
       setUploadingDoc(null);
       e.target.value = "";
+    }
+  };
+
+  const handleDocRemove = async (docType: string) => {
+    try {
+      if (user) {
+        const { error } = await supabase
+          .from("verification_documents")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("doc_type", docType);
+        if (error) throw error;
+      }
+      setUploads((prev) => {
+        const next = { ...prev };
+        delete next[docType];
+        return next;
+      });
+      setSuccessMsg(language === "de" ? "Dokument erfolgreich gelöscht!" : "Document successfully removed!");
+    } catch (err: any) {
+      console.error("Delete error:", err);
+      setErrorMsg(err.message || "Failed to delete document");
     }
   };
 
@@ -159,6 +181,13 @@ export default function VerifyPage() {
                           >
                             {language === "de" ? "Ersetzen" : "Replace"}
                           </label>
+                          <button
+                            type="button"
+                            onClick={() => handleDocRemove(id)}
+                            className="text-[12px] text-error underline cursor-pointer hover:opacity-85"
+                          >
+                            {language === "de" ? "Löschen" : "Remove"}
+                          </button>
                         </div>
                       ) : (
                         <label

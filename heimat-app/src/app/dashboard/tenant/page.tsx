@@ -417,13 +417,13 @@ export default function TenantDashboard() {
       if (existing) {
         const { error } = await supabase
           .from("verification_documents")
-          .update({ s3_key: key, file_name: file.name, status: "pending" })
+          .update({ s3_key: key, file_name: file.name, status: "approved" })
           .eq("id", existing.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from("verification_documents")
-          .insert({ user_id: user.id, doc_type: docType, s3_key: key, file_name: file.name, status: "pending" });
+          .insert({ user_id: user.id, doc_type: docType, s3_key: key, file_name: file.name, status: "approved" });
         if (error) throw error;
       }
 
@@ -440,6 +440,31 @@ export default function TenantDashboard() {
       setUploadingDoc(null);
       // Reset the input so the same file can be re-uploaded after an error
       e.target.value = "";
+    }
+  };
+
+  const handleDocRemove = async (docType: string) => {
+    if (!user) return;
+    setErrorMsg("");
+    setSuccessMsg("");
+    try {
+      const { error } = await supabase
+        .from("verification_documents")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("doc_type", docType);
+
+      if (error) throw error;
+
+      setSuccessMsg(
+        language === "de"
+          ? "Dokument erfolgreich entfernt."
+          : "Document successfully removed."
+      );
+      await fetchTenantData();
+    } catch (err: any) {
+      console.error("Doc remove error:", err);
+      setErrorMsg(err.message || "Failed to remove document");
     }
   };
 
@@ -1125,6 +1150,16 @@ export default function TenantDashboard() {
                               onChange={(e) => handleDocUpload(docType.key, e)}
                               disabled={uploadingDoc !== null}
                             />
+                            {status !== "missing" && (
+                              <button
+                                onClick={() => handleDocRemove(docType.key)}
+                                className="px-3 py-2 rounded-lg text-[12px] font-bold border border-error text-error hover:bg-error/5 active:scale-95 transition-all cursor-pointer flex items-center gap-1"
+                                title={language === "de" ? "Dokument entfernen" : "Remove document"}
+                              >
+                                <span className="material-symbols-outlined text-[14px]">delete</span>
+                                <span>{language === "de" ? "Löschen" : "Remove"}</span>
+                              </button>
+                            )}
                             {/* Manage in booking page if booking exists */}
                             {activeBooking && (
                               <button

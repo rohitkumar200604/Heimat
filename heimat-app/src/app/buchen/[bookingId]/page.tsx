@@ -156,7 +156,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ bookin
           doc_type: docType,
           s3_key: key,
           file_name: file.name,
-          status: "pending"
+          status: "approved"
         });
       if (error) throw error;
 
@@ -167,6 +167,25 @@ export default function BookingDetailPage({ params }: { params: Promise<{ bookin
       alert(language === "de" ? `Upload-Fehler: ${err.message}` : `Upload error: ${err.message}`);
     } finally {
       setUploadingDoc(null);
+    }
+  };
+
+  const handleDocRemove = async (docType: string) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from("verification_documents")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("doc_type", docType);
+
+      if (error) throw error;
+
+      alert(language === "de" ? "Dokument erfolgreich gelöscht!" : "Document successfully removed!");
+      await loadBookingData();
+    } catch (err: any) {
+      console.error("Error removing document:", err);
+      alert(language === "de" ? `Lösch-Fehler: ${err.message}` : `Remove error: ${err.message}`);
     }
   };
 
@@ -432,7 +451,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ bookin
                         )}
 
                         {isTenant && booking?.status === "pending" && (
-                          <div>
+                          <div className="flex items-center gap-2">
                             <input 
                               type="file" 
                               id={`upload-${key}`} 
@@ -443,7 +462,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ bookin
                             />
                             <label 
                               htmlFor={`upload-${key}`}
-                              className="bg-primary text-on-primary px-4 py-2 rounded-xl text-[12px] font-bold hover:opacity-95 active:scale-98 transition-all cursor-pointer block text-center"
+                              className="bg-primary text-on-primary px-4 py-2 rounded-xl text-[12px] font-bold hover:opacity-95 active:scale-98 transition-all cursor-pointer block text-center select-none"
                             >
                               {uploadingDoc === type ? (
                                 <span className="flex items-center gap-1.5">
@@ -451,9 +470,20 @@ export default function BookingDetailPage({ params }: { params: Promise<{ bookin
                                   ...
                                 </span>
                               ) : (
-                                language === "de" ? "Hochladen" : "Upload"
+                                hasDoc ? (language === "de" ? "Ersetzen" : "Replace") : (language === "de" ? "Hochladen" : "Upload")
                               )}
                             </label>
+
+                            {hasDoc && (
+                              <button
+                                onClick={() => handleDocRemove(type)}
+                                className="px-3 py-2 rounded-xl text-[12px] font-bold border border-error text-error hover:bg-error/5 active:scale-95 transition-all cursor-pointer flex items-center gap-1"
+                                title={language === "de" ? "Dokument entfernen" : "Remove document"}
+                              >
+                                <span className="material-symbols-outlined text-[14px]">delete</span>
+                                <span>{language === "de" ? "Löschen" : "Remove"}</span>
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
