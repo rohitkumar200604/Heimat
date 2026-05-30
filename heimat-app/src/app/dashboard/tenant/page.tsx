@@ -412,19 +412,34 @@ export default function TenantDashboard() {
 
       const { key } = data;
 
-      // 3. Upsert document record in Supabase (replace existing doc of same type)
-      const existing = docs.find((d) => d.doc_type === docType);
-      if (existing) {
-        const { error } = await supabase
-          .from("verification_documents")
-          .update({ s3_key: key, file_name: file.name, status: "approved" })
-          .eq("id", existing.id);
-        if (error) throw error;
+      const isConfigured =
+        process.env.NEXT_PUBLIC_SUPABASE_URL &&
+        process.env.NEXT_PUBLIC_SUPABASE_URL !== "https://mock-project.supabase.co" &&
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY !== "mock-anon-key";
+
+      if (isConfigured) {
+        // 3. Upsert document record in Supabase (replace existing doc of same type)
+        const existing = docs.find((d) => d.doc_type === docType);
+        if (existing) {
+          const { error } = await supabase
+            .from("verification_documents")
+            .update({ s3_key: key, file_name: file.name, status: "approved" })
+            .eq("id", existing.id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase
+            .from("verification_documents")
+            .insert({ user_id: user.id, doc_type: docType, s3_key: key, file_name: file.name, status: "approved" });
+          if (error) throw error;
+        }
+        await fetchTenantData();
       } else {
-        const { error } = await supabase
-          .from("verification_documents")
-          .insert({ user_id: user.id, doc_type: docType, s3_key: key, file_name: file.name, status: "approved" });
-        if (error) throw error;
+        // Mock mode local state update
+        setDocs((prev) => {
+          const filtered = prev.filter((d) => d.doc_type !== docType);
+          return [...filtered, { doc_type: docType, file_name: file.name, status: "approved" }];
+        });
       }
 
       setSuccessMsg(
@@ -432,7 +447,6 @@ export default function TenantDashboard() {
           ? `"${file.name}" wurde erfolgreich hochgeladen!`
           : `"${file.name}" uploaded successfully!`
       );
-      await fetchTenantData();
     } catch (err: any) {
       console.error("Doc upload error:", err);
       setErrorMsg(err.message || "Upload failed");
@@ -448,20 +462,31 @@ export default function TenantDashboard() {
     setErrorMsg("");
     setSuccessMsg("");
     try {
-      const { error } = await supabase
-        .from("verification_documents")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("doc_type", docType);
+      const isConfigured =
+        process.env.NEXT_PUBLIC_SUPABASE_URL &&
+        process.env.NEXT_PUBLIC_SUPABASE_URL !== "https://mock-project.supabase.co" &&
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY !== "mock-anon-key";
 
-      if (error) throw error;
+      if (isConfigured) {
+        const { error } = await supabase
+          .from("verification_documents")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("doc_type", docType);
+
+        if (error) throw error;
+        await fetchTenantData();
+      } else {
+        // Mock mode local state update
+        setDocs((prev) => prev.filter((d) => d.doc_type !== docType));
+      }
 
       setSuccessMsg(
         language === "de"
           ? "Dokument erfolgreich entfernt."
           : "Document successfully removed."
       );
-      await fetchTenantData();
     } catch (err: any) {
       console.error("Doc remove error:", err);
       setErrorMsg(err.message || "Failed to remove document");

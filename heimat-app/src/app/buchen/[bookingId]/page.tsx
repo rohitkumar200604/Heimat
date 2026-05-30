@@ -148,20 +148,34 @@ export default function BookingDetailPage({ params }: { params: Promise<{ bookin
 
       const { key } = data;
 
-      // 3. Write document reference to Supabase
-      const { error } = await supabase
-        .from("verification_documents")
-        .insert({
-          user_id: user.id,
-          doc_type: docType,
-          s3_key: key,
-          file_name: file.name,
-          status: "approved"
+      const isConfigured =
+        process.env.NEXT_PUBLIC_SUPABASE_URL &&
+        process.env.NEXT_PUBLIC_SUPABASE_URL !== "https://mock-project.supabase.co" &&
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY !== "mock-anon-key";
+
+      if (isConfigured && !bookingId.startsWith("mock")) {
+        // 3. Write document reference to Supabase
+        const { error } = await supabase
+          .from("verification_documents")
+          .insert({
+            user_id: user.id,
+            doc_type: docType,
+            s3_key: key,
+            file_name: file.name,
+            status: "approved"
+          });
+        if (error) throw error;
+        await loadBookingData();
+      } else {
+        // Mock mode local state update
+        setDocuments((prev) => {
+          const filtered = prev.filter((d) => d.doc_type !== docType);
+          return [...filtered, { doc_type: docType, file_name: file.name, status: "approved" }];
         });
-      if (error) throw error;
+      }
 
       alert(language === "de" ? "Dokument erfolgreich hochgeladen!" : "Document uploaded successfully!");
-      await loadBookingData();
     } catch (err: any) {
       console.error("Error uploading document:", err);
       alert(language === "de" ? `Upload-Fehler: ${err.message}` : `Upload error: ${err.message}`);
@@ -173,16 +187,27 @@ export default function BookingDetailPage({ params }: { params: Promise<{ bookin
   const handleDocRemove = async (docType: string) => {
     if (!user) return;
     try {
-      const { error } = await supabase
-        .from("verification_documents")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("doc_type", docType);
+      const isConfigured =
+        process.env.NEXT_PUBLIC_SUPABASE_URL &&
+        process.env.NEXT_PUBLIC_SUPABASE_URL !== "https://mock-project.supabase.co" &&
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY !== "mock-anon-key";
 
-      if (error) throw error;
+      if (isConfigured && !bookingId.startsWith("mock")) {
+        const { error } = await supabase
+          .from("verification_documents")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("doc_type", docType);
+
+        if (error) throw error;
+        await loadBookingData();
+      } else {
+        // Mock mode local state update
+        setDocuments((prev) => prev.filter((d) => d.doc_type !== docType));
+      }
 
       alert(language === "de" ? "Dokument erfolgreich gelöscht!" : "Document successfully removed!");
-      await loadBookingData();
     } catch (err: any) {
       console.error("Error removing document:", err);
       alert(language === "de" ? `Lösch-Fehler: ${err.message}` : `Remove error: ${err.message}`);
