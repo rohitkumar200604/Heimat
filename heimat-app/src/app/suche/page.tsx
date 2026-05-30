@@ -1,34 +1,212 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense, useCallback } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
 import { supabase } from "@/utils/supabase/client";
 import Footer from "@/components/layout/Footer";
 
+// ── Reusable dropdown wrapper ──────────────────────────────────────────────
+function Dropdown({
+  label,
+  icon,
+  badge,
+  children,
+  id,
+}: {
+  label: string;
+  icon: string;
+  badge?: number;
+  children: React.ReactNode;
+  id: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handle = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative flex-shrink-0">
+      <button
+        id={id}
+        onClick={() => setOpen((o) => !o)}
+        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-label-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
+          open || (badge && badge > 0)
+            ? "bg-primary text-on-primary border-primary shadow-sm"
+            : "bg-white border-outline-variant text-on-surface hover:border-primary hover:bg-surface-container"
+        }`}
+      >
+        <span className="material-symbols-outlined text-[17px]">{icon}</span>
+        <span>{label}</span>
+        {badge ? (
+          <span className="bg-white text-primary text-[10px] font-black rounded-full w-4 h-4 flex items-center justify-center leading-none">
+            {badge}
+          </span>
+        ) : (
+          <span className="material-symbols-outlined text-[15px] opacity-70">
+            {open ? "expand_less" : "expand_more"}
+          </span>
+        )}
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-2 z-50 bg-white border border-outline-variant rounded-2xl shadow-2xl min-w-[320px] max-h-[80vh] overflow-y-auto overflow-x-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Filter checkbox item ───────────────────────────────────────────────────
+function FilterCheck({
+  id,
+  label,
+  icon,
+  checked,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  icon: string;
+  checked: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <label
+      htmlFor={`fc-${id}`}
+      className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-container cursor-pointer transition-colors"
+    >
+      <input
+        id={`fc-${id}`}
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        className="accent-primary w-4 h-4 rounded"
+      />
+      <span className="material-symbols-outlined text-[18px] text-secondary">{icon}</span>
+      <span className="text-label-sm text-on-surface font-medium">{label}</span>
+    </label>
+  );
+}
+
 function SuchePageContent() {
   const { t, language } = useLanguage();
   const searchParams = useSearchParams();
-  
+  const router = useRouter();
+
   const stadtParam = searchParams.get("stadt") || "";
   const zimmerParam = searchParams.get("zimmer") || "all";
   const preisParam = searchParams.get("preis") || "";
 
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeFilters, setActiveFilters] = useState<string[]>([]);
-  const [sort, setSort] = useState("newest");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [showMap, setShowMap] = useState(true);
 
-  const filterChips = [
-    { id: "balcony", icon: "balcony", label: t("balcony") },
-    { id: "kitchen", icon: "countertops", label: t("kitchen") },
-    { id: "pets", icon: "pets", label: t("petsAllowed") },
-    { id: "price", icon: "euro", label: t("priceUpTo") },
+  // ── Filter state ──────────────────────────────────────────────────────
+  const [searchInput, setSearchInput] = useState(stadtParam);
+  const [priceRange, setPriceRange] = useState(preisParam || "");
+  const [propertyType, setPropertyType] = useState(zimmerParam);
+  const [distance, setDistance] = useState("any");
+  const [sort, setSort] = useState("newest");
+  const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  const [favorites, setFavorites] = useState<string[]>([]);
+
+  // Load favorites from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem("heimat_favorites");
+    if (saved) {
+      try {
+        setFavorites(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to load favorites", e);
+      }
+    }
+  }, []);
+
+  const toggleFavorite = (id: string) => {
+    const next = favorites.includes(id)
+      ? favorites.filter((x) => x !== id)
+      : [...favorites, id];
+    setFavorites(next);
+    localStorage.setItem("heimat_favorites", JSON.stringify(next));
+  };
+
+  // Sync searchInput with URL param on mount / param change
+  useEffect(() => { setSearchInput(stadtParam); }, [stadtParam]);
+
+  // Push URL when city search is submitted
+  const applySearch = useCallback(() => {
+    const params = new URLSearchParams();
+    if (searchInput.trim()) params.set("stadt", searchInput.trim());
+    if (propertyType && propertyType !== "all") params.set("zimmer", propertyType);
+    if (priceRange) params.set("preis", priceRange);
+    router.push(`/suche?${params.toString()}`);
+  }, [searchInput, propertyType, priceRange, router]);
+
+  const amenityFilters = [
+    { id: "furnished", label: language === "de" ? "Möbliert" : "Furnished", icon: "weekend" },
+    { id: "balcony", label: language === "de" ? "Balkon" : "Balcony", icon: "balcony" },
+    { id: "kitchen", label: language === "de" ? "Einbauküche" : "Fitted Kitchen", icon: "countertops" },
+    { id: "garden", label: language === "de" ? "Garten" : "Garden", icon: "yard" },
+    { id: "parking", label: language === "de" ? "Parkplatz" : "Parking", icon: "local_parking" },
+    { id: "pets", label: language === "de" ? "Haustiere erlaubt" : "Pets Allowed", icon: "pets" },
+    { id: "wheelchair", label: language === "de" ? "Barrierefrei" : "Wheelchair Access", icon: "accessible" },
   ];
 
+  const toggleFilter = (id: string) =>
+    setActiveFilters((prev) =>
+      prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]
+    );
+
+  const priceBands = [
+    { value: "", label: language === "de" ? "Jeder Preis" : "Any price" },
+    { value: "500", label: "< 500 €" },
+    { value: "700", label: "< 700 €" },
+    { value: "1000", label: "< 1.000 €" },
+    { value: "1500", label: "< 1.500 €" },
+    { value: "2000", label: "< 2.000 €" },
+    { value: "3000", label: "< 3.000 €" },
+  ];
+
+  const typeOptions = [
+    { value: "all", label: language === "de" ? "Alle Typen" : "All Types" },
+    { value: "1", label: "1-Zimmer" },
+    { value: "2", label: "2-Zimmer" },
+    { value: "3", label: "3-Zimmer" },
+    { value: "4", label: "4+ Zimmer" },
+    { value: "house", label: language === "de" ? "Haus" : "House" },
+    { value: "shared", label: language === "de" ? "WG / Shared" : "Shared Room" },
+  ];
+
+  const distanceOptions = [
+    { value: "any", label: language === "de" ? "Jede Entfernung" : "Any distance" },
+    { value: "1", label: "< 1 km" },
+    { value: "5", label: "< 5 km" },
+    { value: "10", label: "< 10 km" },
+    { value: "20", label: "< 20 km" },
+    { value: "50", label: "< 50 km" },
+  ];
+
+  const sortOptions = [
+    { value: "newest", label: language === "de" ? "Neueste zuerst" : "Newest first" },
+    { value: "price_asc", label: language === "de" ? "Preis: aufsteigend" : "Price: low to high" },
+    { value: "price_desc", label: language === "de" ? "Preis: absteigend" : "Price: high to low" },
+    { value: "size_desc", label: language === "de" ? "Größe: absteigend" : "Size: largest first" },
+    { value: "rooms_asc", label: language === "de" ? "Zimmer: aufsteigend" : "Rooms: fewest first" },
+    { value: "relevance", label: language === "de" ? "Relevanz" : "Best match" },
+  ];
+
+  const activeBadgeCount = activeFilters.length;
+
+  // ── Data fetching ─────────────────────────────────────────────────────
   useEffect(() => {
     const fetchListings = async () => {
       setLoading(true);
@@ -37,15 +215,9 @@ function SuchePageContent() {
         {
           id: "berlin-studio",
           title: language === "de" ? "Helles Studio-Apartment nahe Alexanderplatz" : "Bright Studio Apartment near Alexanderplatz",
-          city: "Berlin",
-          street: "Karl-Liebknecht-Str. 12",
-          zip: "10178",
-          rooms: 1,
-          size_sqm: 38,
-          rent_cold: 720,
-          rent_utilities: 80,
-          rent_heating: 70,
-          pets_allowed: true,
+          city: "Berlin", street: "Karl-Liebknecht-Str. 12", zip: "10178",
+          rooms: 1, size_sqm: 38, rent_cold: 720, rent_utilities: 80, rent_heating: 70,
+          pets_allowed: true, furnished: false,
           amenities: ["balcony", "kitchen"],
           status: "active",
           property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80", is_primary: true }]
@@ -53,88 +225,67 @@ function SuchePageContent() {
         {
           id: "munich-expat",
           title: language === "de" ? "Premium 3-Zimmer-Wohnung am Englischen Garten" : "Premium 3-Room Apartment at Englischen Garten",
-          city: "München",
-          street: "Königinstraße 44",
-          zip: "80539",
-          rooms: 3,
-          size_sqm: 82,
-          rent_cold: 1650,
-          rent_utilities: 150,
-          rent_heating: 110,
-          pets_allowed: false,
-          amenities: ["kitchen"],
+          city: "München", street: "Königinstraße 44", zip: "80539",
+          rooms: 3, size_sqm: 82, rent_cold: 1650, rent_utilities: 150, rent_heating: 110,
+          pets_allowed: false, furnished: true,
+          amenities: ["kitchen", "parking"],
           status: "active",
           property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80", is_primary: true }]
         },
         {
           id: "hamburg-loft",
           title: language === "de" ? "Stilvolles Loft in der Speicherstadt" : "Stylish Loft in Speicherstadt",
-          city: "Hamburg",
-          street: "Am Sandtorkai 10",
-          zip: "20457",
-          rooms: 2,
-          size_sqm: 65,
-          rent_cold: 1120,
-          rent_utilities: 110,
-          rent_heating: 90,
-          pets_allowed: true,
-          amenities: ["balcony", "kitchen"],
+          city: "Hamburg", street: "Am Sandtorkai 10", zip: "20457",
+          rooms: 2, size_sqm: 65, rent_cold: 1120, rent_utilities: 110, rent_heating: 90,
+          pets_allowed: true, furnished: true,
+          amenities: ["balcony", "kitchen", "garden"],
           status: "active",
           property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80", is_primary: true }]
         },
         {
           id: "berlin-wg",
           title: language === "de" ? "Gemütliches Zimmer in Studenten-WG" : "Cozy Room in Student Shared Apartment",
-          city: "Berlin",
-          street: "Königin-Luise-Str. 15",
-          zip: "14195",
-          rooms: 1,
-          size_sqm: 20,
-          rent_cold: 450,
-          rent_utilities: 60,
-          rent_heating: 40,
-          pets_allowed: true,
+          city: "Berlin", street: "Königin-Luise-Str. 15", zip: "14195",
+          rooms: 1, size_sqm: 20, rent_cold: 450, rent_utilities: 60, rent_heating: 40,
+          pets_allowed: true, furnished: false,
           amenities: ["kitchen"],
           status: "active",
           property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=800&q=80", is_primary: true }]
-        }
+        },
+        {
+          id: "cologne-studio",
+          title: language === "de" ? "Modernes Studio im Herzen Kölns" : "Modern Studio in Cologne City Centre",
+          city: "Köln", street: "Schildergasse 8", zip: "50667",
+          rooms: 1, size_sqm: 32, rent_cold: 680, rent_utilities: 75, rent_heating: 55,
+          pets_allowed: false, furnished: true,
+          amenities: ["kitchen", "wheelchair"],
+          status: "active",
+          property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1512918728675-ed5a9ecdebfd?auto=format&fit=crop&w=800&q=80", is_primary: true }]
+        },
       ];
 
       const applyInMemoryFilters = () => {
-        let filtered = [...mockListings];
-        if (stadtParam) {
-          filtered = filtered.filter(l => l.city.toLowerCase().includes(stadtParam.toLowerCase()));
+        let f = [...mockListings];
+        if (stadtParam) f = f.filter(l => l.city.toLowerCase().includes(stadtParam.toLowerCase()));
+        if (propertyType !== "all") {
+          if (propertyType === "house") f = f.filter(l => l.id.includes("house") || l.id.includes("haus"));
+          else if (propertyType === "shared") f = f.filter(l => l.id.includes("wg") || l.id.includes("shared"));
+          else f = f.filter(l => l.rooms >= parseFloat(propertyType));
         }
-        if (zimmerParam !== "all") {
-          if (zimmerParam === "house") {
-            filtered = filtered.filter(l => l.property_type === "house" || l.id.toLowerCase().includes("house") || l.id.toLowerCase().includes("haus"));
-          } else if (zimmerParam === "shared") {
-            filtered = filtered.filter(l => l.property_type === "sharedRoom" || l.id.toLowerCase().includes("wg") || l.id.toLowerCase().includes("shared"));
-          } else {
-            filtered = filtered.filter(l => l.rooms >= parseFloat(zimmerParam));
-          }
-        }
-        if (preisParam) {
-          filtered = filtered.filter(l => l.rent_cold <= parseFloat(preisParam));
-        }
-        if (activeFilters.includes("balcony")) {
-          filtered = filtered.filter(l => l.amenities.includes("balcony"));
-        }
-        if (activeFilters.includes("kitchen")) {
-          filtered = filtered.filter(l => l.amenities.includes("kitchen"));
-        }
-        if (activeFilters.includes("pets")) {
-          filtered = filtered.filter(l => l.pets_allowed === true);
-        }
-        if (activeFilters.includes("price")) {
-          filtered = filtered.filter(l => l.rent_cold <= 1500);
-        }
-        if (sort === "price_asc") {
-          filtered.sort((a, b) => a.rent_cold - b.rent_cold);
-        } else if (sort === "size_desc") {
-          filtered.sort((a, b) => b.size_sqm - a.size_sqm);
-        }
-        setListings(filtered);
+        if (priceRange) f = f.filter(l => l.rent_cold <= parseFloat(priceRange));
+        if (activeFilters.includes("furnished")) f = f.filter(l => l.furnished === true);
+        if (activeFilters.includes("balcony")) f = f.filter(l => l.amenities.includes("balcony"));
+        if (activeFilters.includes("kitchen")) f = f.filter(l => l.amenities.includes("kitchen"));
+        if (activeFilters.includes("garden")) f = f.filter(l => l.amenities.includes("garden"));
+        if (activeFilters.includes("parking")) f = f.filter(l => l.amenities.includes("parking"));
+        if (activeFilters.includes("pets")) f = f.filter(l => l.pets_allowed === true);
+        if (activeFilters.includes("wheelchair")) f = f.filter(l => l.amenities.includes("wheelchair"));
+        // Sorting
+        if (sort === "price_asc") f.sort((a, b) => a.rent_cold - b.rent_cold);
+        else if (sort === "price_desc") f.sort((a, b) => b.rent_cold - a.rent_cold);
+        else if (sort === "size_desc") f.sort((a, b) => b.size_sqm - a.size_sqm);
+        else if (sort === "rooms_asc") f.sort((a, b) => a.rooms - b.rooms);
+        setListings(f);
       };
 
       try {
@@ -144,71 +295,35 @@ function SuchePageContent() {
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY !== "mock-anon-key";
 
-        if (!isConfigured) {
-          applyInMemoryFilters();
-          return;
-        }
+        if (!isConfigured) { applyInMemoryFilters(); return; }
 
-        let query = supabase
-          .from("properties")
-          .select(`
-            *,
-            property_photos (
-              cdn_url,
-              is_primary
-            )
-          `)
-          .eq("status", "active");
-
-        if (stadtParam) {
-          query = query.ilike("city", `%${stadtParam}%`);
+        let query = supabase.from("properties").select(`*, property_photos(cdn_url,is_primary)`).eq("status", "active");
+        if (stadtParam) query = query.ilike("city", `%${stadtParam}%`);
+        if (propertyType !== "all") {
+          if (propertyType === "house") query = query.eq("property_type", "house");
+          else if (propertyType === "shared") query = query.eq("property_type", "sharedRoom");
+          else query = query.gte("rooms", parseFloat(propertyType));
         }
-        if (zimmerParam !== "all") {
-          if (zimmerParam === "house") {
-            query = query.eq("property_type", "house");
-          } else if (zimmerParam === "shared") {
-            query = query.eq("property_type", "sharedRoom");
-          } else {
-            query = query.gte("rooms", parseFloat(zimmerParam));
-          }
-        }
-        if (preisParam) {
-          query = query.lte("rent_cold", parseFloat(preisParam));
-        }
-
-        // Apply filters
-        if (activeFilters.includes("balcony")) {
-          query = query.contains("amenities", ["balcony"]);
-        }
-        if (activeFilters.includes("kitchen")) {
-          query = query.contains("amenities", ["kitchen"]);
-        }
-        if (activeFilters.includes("pets")) {
-          query = query.eq("pets_allowed", true);
-        }
-        if (activeFilters.includes("price")) {
-          query = query.lte("rent_cold", 1500);
-        }
-
-        // Apply sorting
-        if (sort === "newest") {
-          query = query.order("created_at", { ascending: false });
-        } else if (sort === "price_asc") {
-          query = query.order("rent_cold", { ascending: true });
-        } else if (sort === "size_desc") {
-          query = query.order("size_sqm", { ascending: false });
-        }
+        if (priceRange) query = query.lte("rent_cold", parseFloat(priceRange));
+        if (activeFilters.includes("furnished")) query = query.eq("furnished", true);
+        if (activeFilters.includes("balcony")) query = query.contains("amenities", ["balcony"]);
+        if (activeFilters.includes("kitchen")) query = query.contains("amenities", ["kitchen"]);
+        if (activeFilters.includes("garden")) query = query.contains("amenities", ["garden"]);
+        if (activeFilters.includes("parking")) query = query.contains("amenities", ["parking"]);
+        if (activeFilters.includes("pets")) query = query.eq("pets_allowed", true);
+        if (activeFilters.includes("wheelchair")) query = query.eq("wheelchair_accessible", true);
+        if (sort === "newest") query = query.order("created_at", { ascending: false });
+        else if (sort === "price_asc") query = query.order("rent_cold", { ascending: true });
+        else if (sort === "price_desc") query = query.order("rent_cold", { ascending: false });
+        else if (sort === "size_desc") query = query.order("size_sqm", { ascending: false });
+        else if (sort === "rooms_asc") query = query.order("rooms", { ascending: true });
 
         const { data, error } = await query;
         if (error) throw error;
-        if (data && data.length > 0) {
-          setListings(data);
-        } else {
-          console.log("No active properties in database, falling back to mock listings.");
-          applyInMemoryFilters();
-        }
+        if (data && data.length > 0) setListings(data);
+        else { console.log("No active DB properties, using mock data."); applyInMemoryFilters(); }
       } catch (err) {
-        console.warn("Supabase fetch failed, falling back to mock data:", err);
+        console.warn("Supabase failed, using mock data:", err);
         applyInMemoryFilters();
       } finally {
         setLoading(false);
@@ -216,95 +331,237 @@ function SuchePageContent() {
     };
 
     fetchListings();
-  }, [stadtParam, zimmerParam, preisParam, activeFilters, sort, language]);
-
-  const toggleFilter = (id: string) => {
-    setActiveFilters((prev) =>
-      prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]
-    );
-  };
-
-  // Helper to map unique map positions based on property ID
-  const getMapPosition = (id: string) => {
-    let hash = 0;
-    for (let i = 0; i < id.length; i++) {
-      hash = id.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const top = 15 + Math.abs((hash >> 8) % 65);
-    const left = 15 + Math.abs((hash >> 16) % 65);
-    return { top: `${top}%`, left: `${left}%` };
-  };
+  }, [stadtParam, propertyType, priceRange, activeFilters, sort, language]);
 
   const getPrimaryPhoto = (l: any) => {
-    if (l.property_photos && l.property_photos.length > 0) {
-      const primary = l.property_photos.find((p: any) => p.is_primary);
-      return primary ? primary.cdn_url : l.property_photos[0].cdn_url;
+    if (l.property_photos?.length > 0) {
+      const p = l.property_photos.find((ph: any) => ph.is_primary);
+      return p ? p.cdn_url : l.property_photos[0].cdn_url;
     }
-    // High-quality fallback image
-    return "https://lh3.googleusercontent.com/aida-public/AB6AXuD_QulQvOFrVJRkkGsX2BrsSp14xkqlPqes9s9_Il_VRVqvAqO0_bCK4yxVerPirBDIW3TDbPLv5sE7M00UxeZ9xClyqhXSPIbY9FDe4h_7n5Z2XI6OTw2izd62YFf8NOSOHA26K2WlfkuKn8VWj3Jz8sfVyYSiEGkuLLDxNk_86vz9vPOvqxkUnsTOaydTEtWwactXRqb97FZN6qAVv0jTCBlvpzbPliTshl68mBbdX12Eji_WHSNNmt4OwSjNx-7P66bXjvllR5Qy";
+    return "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80";
   };
+
+  const currentPriceLabel = priceBands.find(p => p.value === priceRange)?.label || (language === "de" ? "Preis" : "Price");
+  const currentTypeLabel = typeOptions.find(t => t.value === propertyType)?.label || (language === "de" ? "Typ" : "Type");
+  const currentDistLabel = distanceOptions.find(d => d.value === distance)?.label || (language === "de" ? "Entfernung" : "Distance");
+  const currentSortLabel = sortOptions.find(s => s.value === sort)?.label || (language === "de" ? "Sortierung" : "Sort");
 
   return (
     <div className="flex flex-col w-full h-[calc(100vh-65px)]">
-      {/* Filter Bar */}
-      <section className="bg-surface-container-lowest border-b border-outline-variant px-5 md:px-[48px] py-4 z-40 sticky top-[65px]">
-        <div className="max-w-[1280px] mx-auto flex flex-wrap items-center gap-3">
-          <button
-            id="filter-all"
-            className="flex items-center gap-2 px-4 py-2 bg-surface-container rounded-lg border border-outline-variant hover:bg-surface-container-high transition-colors cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-primary text-[20px]">filter_list</span>
-            <span className="text-label-md">{t("allFilters")}</span>
-          </button>
 
-          <div className="h-6 w-px bg-outline-variant mx-1 hidden md:block" />
+      {/* ── Single-row Filter Toolbar ───────────────────────────────────── */}
+      <section className="bg-white border-b border-outline-variant px-4 md:px-8 py-3 z-40 sticky top-[65px] shadow-sm">
+        <div className="max-w-[1280px] mx-auto flex items-center gap-2 min-w-0">
 
-          {filterChips.map(({ id, icon, label }) => {
-            const active = activeFilters.includes(id);
-            return (
+          {/* City search — takes remaining space */}
+          <div className="flex-1 min-w-0 relative">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px] pointer-events-none">
+              search
+            </span>
+            <input
+              id="suche-city-search"
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && applySearch()}
+              placeholder={language === "de" ? "Stadt oder Adresse suchen…" : "Search city or address…"}
+              className="w-full pl-9 pr-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-label-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+            />
+            {searchInput && (
               <button
-                key={id}
-                id={`filter-${id}`}
-                onClick={() => toggleFilter(id)}
-                className={`flex items-center gap-2 px-4 py-2 border rounded-full transition-all cursor-pointer ${
-                  active
-                    ? "bg-primary-container text-on-primary-container border-primary"
-                    : "bg-white border-outline-variant hover:border-primary"
-                }`}
+                onClick={() => { setSearchInput(""); router.push("/suche"); }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface transition-colors cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[18px]">{icon}</span>
-                <span className="text-label-md">{label}</span>
+                <span className="material-symbols-outlined text-[16px]">close</span>
               </button>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="h-7 w-px bg-outline-variant hidden sm:block flex-shrink-0" />
+
+          {/* ── Unified Filters dropdown (Amenities + Price + Type + Distance) ── */}
+          {(() => {
+            const totalBadge =
+              activeFilters.length +
+              (priceRange ? 1 : 0) +
+              (propertyType !== "all" ? 1 : 0) +
+              (distance !== "any" ? 1 : 0);
+
+            const clearAll = () => {
+              setActiveFilters([]);
+              setPriceRange("");
+              setPropertyType("all");
+              setDistance("any");
+            };
+
+            return (
+              <Dropdown
+                id="dd-filters"
+                label={language === "de" ? "Filter" : "Filters"}
+                icon="tune"
+                badge={totalBadge || undefined}
+              >
+                {/* ── Amenities ── */}
+                <div className="px-4 pt-4 pb-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
+                    {language === "de" ? "Ausstattung & Merkmale" : "Amenities & Features"}
+                  </p>
+                </div>
+                <div className="pb-1">
+                  {amenityFilters.map(({ id, label, icon }) => (
+                    <FilterCheck
+                      key={id}
+                      id={id}
+                      label={label}
+                      icon={icon}
+                      checked={activeFilters.includes(id)}
+                      onChange={() => toggleFilter(id)}
+                    />
+                  ))}
+                </div>
+
+                {/* ── Price Range ── */}
+                <div className="border-t border-outline-variant mx-4" />
+                <div className="px-4 pt-3 pb-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
+                    {language === "de" ? "Maximale Warmmiete" : "Max. Rent (warm)"}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-1 px-3 pb-2">
+                  {priceBands.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      onClick={() => setPriceRange(value)}
+                      className={`px-3 py-2 rounded-lg text-label-sm text-left transition-all border cursor-pointer ${
+                        priceRange === value
+                          ? "bg-primary text-on-primary border-primary font-bold"
+                          : "border-outline-variant text-on-surface hover:bg-surface-container"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* ── Property Type ── */}
+                <div className="border-t border-outline-variant mx-4" />
+                <div className="px-4 pt-3 pb-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
+                    {language === "de" ? "Wohnungstyp" : "Property Type"}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-1 px-3 pb-2">
+                  {typeOptions.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      onClick={() => setPropertyType(value)}
+                      className={`px-3 py-2 rounded-lg text-label-sm text-left transition-all border cursor-pointer ${
+                        propertyType === value
+                          ? "bg-primary text-on-primary border-primary font-bold"
+                          : "border-outline-variant text-on-surface hover:bg-surface-container"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* ── Distance ── */}
+                <div className="border-t border-outline-variant mx-4" />
+                <div className="px-4 pt-3 pb-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
+                    {language === "de" ? "Entfernung vom Zentrum" : "Distance from Centre"}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-1 px-3 pb-3">
+                  {distanceOptions.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      onClick={() => setDistance(value)}
+                      className={`px-3 py-2 rounded-lg text-label-sm text-left transition-all border cursor-pointer ${
+                        distance === value
+                          ? "bg-primary text-on-primary border-primary font-bold"
+                          : "border-outline-variant text-on-surface hover:bg-surface-container"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* ── Footer: clear all ── */}
+                {totalBadge > 0 && (
+                  <div className="border-t border-outline-variant px-4 py-3 flex justify-between items-center">
+                    <span className="text-[12px] text-on-surface-variant">
+                      {totalBadge} {language === "de" ? "aktiv" : "active"}
+                    </span>
+                    <button
+                      onClick={clearAll}
+                      className="text-[12px] font-bold text-primary hover:underline cursor-pointer"
+                    >
+                      {language === "de" ? "Alle zurücksetzen" : "Clear all"}
+                    </button>
+                  </div>
+                )}
+              </Dropdown>
             );
-          })}
+          })()}
+
+          {/* Divider */}
+          <div className="h-7 w-px bg-outline-variant hidden sm:block flex-shrink-0" />
+
+          {/* ── Sort By dropdown ─────────────── */}
+          <Dropdown
+            id="dd-sort"
+            label={language === "de" ? "Sortierung" : "Sort"}
+            icon="swap_vert"
+          >
+            <div className="px-4 pt-3 pb-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
+                {language === "de" ? "Sortieren nach" : "Sort by"}
+              </p>
+            </div>
+            <div className="pb-3">
+              {sortOptions.map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setSort(value)}
+                  className={`w-full text-left px-4 py-2.5 text-label-sm hover:bg-surface-container transition-colors flex items-center justify-between ${
+                    sort === value ? "text-primary font-bold bg-primary/5" : "text-on-surface"
+                  }`}
+                >
+                  <span>{label}</span>
+                  {sort === value && <span className="material-symbols-outlined text-[16px] text-primary">check</span>}
+                </button>
+              ))}
+            </div>
+          </Dropdown>
+
+          {/* Search button */}
+          <button
+            id="btn-suche-search"
+            onClick={applySearch}
+            className="flex items-center gap-1.5 bg-primary text-on-primary px-3 py-2 rounded-lg text-label-sm font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer flex-shrink-0 shadow-sm"
+          >
+            <span className="material-symbols-outlined text-[17px]">search</span>
+            <span className="hidden md:block">{language === "de" ? "Suchen" : "Search"}</span>
+          </button>
 
           {/* Mobile map toggle */}
           <button
             id="toggle-map"
             onClick={() => setShowMap(!showMap)}
-            className="md:hidden ml-auto flex items-center gap-2 px-4 py-2 bg-surface-container rounded-lg border border-outline-variant text-label-md cursor-pointer"
+            className="md:hidden flex items-center gap-1.5 px-3 py-2 bg-surface-container rounded-lg border border-outline-variant text-label-sm font-medium cursor-pointer flex-shrink-0"
+            title={showMap ? "Hide map" : "Show map"}
           >
-            <span className="material-symbols-outlined text-[18px]">map</span>
-            {showMap ? t("mapOff") : t("mapOn")}
+            <span className="material-symbols-outlined text-[17px]">{showMap ? "map" : "list"}</span>
           </button>
-
-          <div className="hidden md:flex items-center gap-2 ml-auto">
-            <span className="text-label-sm text-on-surface-variant">{t("sortBy")}:</span>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
-              id="sort-select"
-              className="bg-transparent border-none text-label-md text-primary focus:ring-0 cursor-pointer font-medium"
-            >
-              <option value="newest">{t("newest")}</option>
-              <option value="price_asc">{t("priceAsc")}</option>
-              <option value="size_desc">{t("sizeDesc")}</option>
-            </select>
-          </div>
         </div>
       </section>
 
-      {/* Split View */}
+
+      {/* ── Split View ─────────────────────────────────────────────────── */}
       <div className="flex flex-grow overflow-hidden">
         {/* Map */}
         <aside className={`${showMap ? "block" : "hidden"} md:block w-full md:w-[40%] relative bg-surface-dim flex-shrink-0 border-r border-outline-variant`}>
@@ -317,8 +574,8 @@ function SuchePageContent() {
               loading="lazy"
               allowFullScreen
               src={`https://maps.google.com/maps?q=${encodeURIComponent(
-                stadtParam ? `${stadtParam}, Germany` : "Germany"
-              )}&t=&z=${stadtParam ? 12 : 9}&ie=UTF8&iwloc=&output=embed`}
+                searchInput || stadtParam ? `${searchInput || stadtParam}, Germany` : "Germany"
+              )}&t=&z=${(searchInput || stadtParam) ? 12 : 9}&ie=UTF8&iwloc=&output=embed`}
               className="w-full h-full grayscale-[15%] contrast-[105%] opacity-90 transition-opacity duration-300"
             />
           </div>
@@ -329,11 +586,18 @@ function SuchePageContent() {
           <div className="flex justify-between items-end mb-8 flex-wrap gap-4">
             <div>
               <h1 className="text-headline-lg-mobile md:text-headline-lg text-primary">
-                {stadtParam 
-                  ? (language === "de" ? `Wohnungen in ${stadtParam}` : `Apartments in ${stadtParam}`) 
+                {(searchInput || stadtParam)
+                  ? (language === "de" ? `Wohnungen in ${searchInput || stadtParam}` : `Apartments in ${searchInput || stadtParam}`)
                   : (language === "de" ? "Alle Wohnungen" : "All Apartments")}
               </h1>
-              <p className="text-body-md text-on-surface-variant">{listings.length} {t("resultsFound")}</p>
+              <p className="text-body-md text-on-surface-variant">
+                {listings.length} {t("resultsFound")}
+                {sort !== "newest" && (
+                  <span className="ml-2 text-[12px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">
+                    {currentSortLabel}
+                  </span>
+                )}
+              </p>
             </div>
             <div className="hidden sm:flex gap-2">
               <button
@@ -353,13 +617,50 @@ function SuchePageContent() {
             </div>
           </div>
 
+          {/* Active filter pills */}
+          {(activeBadgeCount > 0 || priceRange || propertyType !== "all" || distance !== "any") && (
+            <div className="flex flex-wrap gap-2 mb-6">
+              {activeFilters.map((f) => {
+                const af = amenityFilters.find(a => a.id === f);
+                return af ? (
+                  <span key={f} className="flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1 rounded-full text-[12px] font-bold border border-primary/20">
+                    <span className="material-symbols-outlined text-[13px]">{af.icon}</span>
+                    {af.label}
+                    <button onClick={() => toggleFilter(f)} className="ml-1 cursor-pointer hover:opacity-70"><span className="material-symbols-outlined text-[13px]">close</span></button>
+                  </span>
+                ) : null;
+              })}
+              {priceRange && (
+                <span className="flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1 rounded-full text-[12px] font-bold border border-primary/20">
+                  <span className="material-symbols-outlined text-[13px]">euro</span>
+                  {currentPriceLabel}
+                  <button onClick={() => setPriceRange("")} className="ml-1 cursor-pointer hover:opacity-70"><span className="material-symbols-outlined text-[13px]">close</span></button>
+                </span>
+              )}
+              {propertyType !== "all" && (
+                <span className="flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1 rounded-full text-[12px] font-bold border border-primary/20">
+                  <span className="material-symbols-outlined text-[13px]">apartment</span>
+                  {currentTypeLabel}
+                  <button onClick={() => setPropertyType("all")} className="ml-1 cursor-pointer hover:opacity-70"><span className="material-symbols-outlined text-[13px]">close</span></button>
+                </span>
+              )}
+              {distance !== "any" && (
+                <span className="flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1 rounded-full text-[12px] font-bold border border-primary/20">
+                  <span className="material-symbols-outlined text-[13px]">near_me</span>
+                  {currentDistLabel}
+                  <button onClick={() => setDistance("any")} className="ml-1 cursor-pointer hover:opacity-70"><span className="material-symbols-outlined text-[13px]">close</span></button>
+                </span>
+              )}
+            </div>
+          )}
+
           {loading ? (
             <div className="flex justify-center items-center py-24 w-full">
               <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
             </div>
           ) : listings.length === 0 ? (
             <div className="text-center py-24 text-on-surface-variant text-body-md w-full border-2 border-dashed border-outline-variant/40 rounded-2xl bg-white">
-              {language === "de" ? "Keine Objekte gefunden." : "No listings found."}
+              {language === "de" ? "Keine Objekte gefunden. Bitte Filter anpassen." : "No listings found. Try adjusting your filters."}
             </div>
           ) : (
             <div className={`grid gap-[24px] ${view === "grid" ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1"}`}>
@@ -376,25 +677,35 @@ function SuchePageContent() {
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         loading="lazy"
                       />
-                      {l.status !== "active" && (
-                        <div className="absolute top-4 left-4 bg-error text-on-error px-3 py-1 rounded text-[12px] font-semibold uppercase tracking-wider">
-                          {l.status}
-                        </div>
+                      {/* Furnished badge */}
+                      {l.furnished && (
+                        <span className="absolute top-4 left-4 bg-black/60 backdrop-blur-sm text-white px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[13px]">weekend</span>
+                          {language === "de" ? "Möbliert" : "Furnished"}
+                        </span>
                       )}
                       <button
                         id={`fav-${l.id}`}
-                        onClick={(e) => e.preventDefault()}
-                        className="absolute top-4 right-4 bg-white/80 backdrop-blur-sm p-2 rounded-full hover:bg-white transition-colors cursor-pointer"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          toggleFavorite(l.id);
+                        }}
+                        className="absolute top-4 right-4 bg-white/80 backdrop-blur-sm p-2 rounded-full hover:bg-white transition-colors cursor-pointer group/fav"
                       >
-                        <span className="material-symbols-outlined text-[20px] text-on-surface-variant">
+                        <span 
+                          className={`material-symbols-outlined text-[20px] transition-colors ${
+                            favorites.includes(l.id) 
+                              ? "text-red-500" 
+                              : "text-on-surface-variant group-hover/fav:text-red-400"
+                          }`}
+                          style={{ fontVariationSettings: favorites.includes(l.id) ? "'FILL' 1" : "'FILL' 0" }}
+                        >
                           favorite
                         </span>
                       </button>
                     </div>
                     <div className="p-6">
-                      <h3 className="text-headline-md text-primary leading-tight mb-1 line-clamp-1">
-                        {l.title}
-                      </h3>
+                      <h3 className="text-headline-md text-primary leading-tight mb-1 line-clamp-1">{l.title}</h3>
                       <p className="text-body-md text-on-surface-variant mb-4 line-clamp-1">{l.street}, {l.zip} {l.city}</p>
                       <div className="flex items-center gap-6 mb-5">
                         {[
@@ -404,18 +715,13 @@ function SuchePageContent() {
                         ].map(({ label, value, bold }) => (
                           <div key={label} className="flex flex-col">
                             <span className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wide">{label}</span>
-                            <span className={`text-[18px] leading-7 ${bold ? "text-primary font-bold" : "text-primary font-semibold"}`}>
-                              {value}
-                            </span>
+                            <span className={`text-[18px] leading-7 ${bold ? "text-primary font-bold" : "text-primary font-semibold"}`}>{value}</span>
                           </div>
                         ))}
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {l.amenities && l.amenities.map((tag: string) => (
-                          <span
-                            key={tag}
-                            className="bg-surface-variant text-on-surface-variant px-3 py-1 rounded-lg text-[12px] font-semibold flex items-center gap-1 capitalize"
-                          >
+                          <span key={tag} className="bg-surface-variant text-on-surface-variant px-3 py-1 rounded-lg text-[12px] font-semibold flex items-center gap-1 capitalize">
                             {tag}
                           </span>
                         ))}
@@ -429,21 +735,11 @@ function SuchePageContent() {
 
           {/* Pagination */}
           <div className="mt-12 flex justify-center items-center gap-4 pb-8">
-            <button
-              disabled
-              className="p-2 border border-outline-variant rounded-full hover:bg-surface-container transition-colors disabled:opacity-30 cursor-pointer"
-            >
+            <button disabled className="p-2 border border-outline-variant rounded-full hover:bg-surface-container transition-colors disabled:opacity-30 cursor-pointer">
               <span className="material-symbols-outlined text-[20px]">chevron_left</span>
             </button>
             <div className="flex gap-2">
-              {[1].map((p) => (
-                <button
-                  key={p}
-                  className={`w-10 h-10 rounded-full font-semibold transition-colors cursor-pointer bg-primary text-on-primary`}
-                >
-                  {p}
-                </button>
-              ))}
+              <button className="w-10 h-10 rounded-full font-semibold transition-colors cursor-pointer bg-primary text-on-primary">1</button>
             </div>
             <button disabled className="p-2 border border-outline-variant rounded-full hover:bg-surface-container transition-colors cursor-pointer disabled:opacity-30">
               <span className="material-symbols-outlined text-[20px]">chevron_right</span>
@@ -468,3 +764,4 @@ export default function SuchePage() {
     </Suspense>
   );
 }
+

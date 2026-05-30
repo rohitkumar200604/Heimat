@@ -14,7 +14,7 @@ export default function TenantDashboard() {
   const { t, language } = useLanguage();
   
   // Navigation State
-  const [activeTab, setActiveTab] = useState<"overview" | "profile" | "bookings" | "documents" | "analyzer">("overview");
+  const [activeTab, setActiveTab] = useState<"profile" | "bookings" | "documents" | "favorites">("profile");
 
   // Database Data States
   const [docs, setDocs] = useState<any[]>([]);
@@ -22,6 +22,8 @@ export default function TenantDashboard() {
   const [tenantProfile, setTenantProfile] = useState<any | null>(null);
   const [aiScore, setAiScore] = useState<any | null>(null);
   const [loadingDashboard, setLoadingDashboard] = useState(true);
+  const [favoriteListings, setFavoriteListings] = useState<any[]>([]);
+  const [loadingFavorites, setLoadingFavorites] = useState(false);
   
   // Form State
   const [profileForm, setProfileForm] = useState({
@@ -143,6 +145,131 @@ export default function TenantDashboard() {
   useEffect(() => {
     fetchTenantData();
   }, [user, profile]);
+
+  const fetchFavorites = async () => {
+    setLoadingFavorites(true);
+    const saved = localStorage.getItem("heimat_favorites");
+    if (!saved) {
+      setFavoriteListings([]);
+      setLoadingFavorites(false);
+      return;
+    }
+    try {
+      const favIds = JSON.parse(saved) as string[];
+      if (favIds.length === 0) {
+        setFavoriteListings([]);
+        setLoadingFavorites(false);
+        return;
+      }
+
+      // Check if Supabase is configured
+      const isConfigured =
+        process.env.NEXT_PUBLIC_SUPABASE_URL &&
+        process.env.NEXT_PUBLIC_SUPABASE_URL !== "https://mock-project.supabase.co" &&
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY !== "mock-anon-key";
+
+      let dbListings: any[] = [];
+      if (isConfigured) {
+        const { data, error } = await supabase
+          .from("properties")
+          .select(`*, property_photos(cdn_url,is_primary)`)
+          .in("id", favIds);
+        if (!error && data) {
+          dbListings = data;
+        }
+      }
+
+      // Fallback/Mock listings if we don't have db listings
+      const mockListings: any[] = [
+        {
+          id: "berlin-studio",
+          title: language === "de" ? "Helles Studio-Apartment nahe Alexanderplatz" : "Bright Studio Apartment near Alexanderplatz",
+          city: "Berlin", street: "Karl-Liebknecht-Str. 12", zip: "10178",
+          rooms: 1, size_sqm: 38, rent_cold: 720, rent_utilities: 80, rent_heating: 70,
+          pets_allowed: true, furnished: false,
+          amenities: ["balcony", "kitchen"],
+          status: "active",
+          property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80", is_primary: true }]
+        },
+        {
+          id: "munich-expat",
+          title: language === "de" ? "Premium 3-Zimmer-Wohnung am Englischen Garten" : "Premium 3-Room Apartment at Englischen Garten",
+          city: "München", street: "Königinstraße 44", zip: "80539",
+          rooms: 3, size_sqm: 82, rent_cold: 1650, rent_utilities: 150, rent_heating: 110,
+          pets_allowed: false, furnished: true,
+          amenities: ["kitchen", "parking"],
+          status: "active",
+          property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80", is_primary: true }]
+        },
+        {
+          id: "hamburg-loft",
+          title: language === "de" ? "Stilvolles Loft in der Speicherstadt" : "Stylish Loft in Speicherstadt",
+          city: "Hamburg", street: "Am Sandtorkai 10", zip: "20457",
+          rooms: 2, size_sqm: 65, rent_cold: 1120, rent_utilities: 110, rent_heating: 90,
+          pets_allowed: true, furnished: true,
+          amenities: ["balcony", "kitchen", "garden"],
+          status: "active",
+          property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80", is_primary: true }]
+        },
+        {
+          id: "berlin-wg",
+          title: language === "de" ? "Gemütliches Zimmer in Studenten-WG" : "Cozy Room in Student Shared Apartment",
+          city: "Berlin", street: "Königin-Luise-Str. 15", zip: "14195",
+          rooms: 1, size_sqm: 20, rent_cold: 450, rent_utilities: 60, rent_heating: 40,
+          pets_allowed: true, furnished: false,
+          amenities: ["kitchen"],
+          status: "active",
+          property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=800&q=80", is_primary: true }]
+        },
+        {
+          id: "cologne-studio",
+          title: language === "de" ? "Modernes Studio im Herzen Kölns" : "Modern Studio in Cologne City Centre",
+          city: "Köln", street: "Schildergasse 8", zip: "50667",
+          rooms: 1, size_sqm: 32, rent_cold: 680, rent_utilities: 75, rent_heating: 55,
+          pets_allowed: false, furnished: true,
+          amenities: ["kitchen", "wheelchair"],
+          status: "active",
+          property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1512918728675-ed5a9ecdebfd?auto=format&fit=crop&w=800&q=80", is_primary: true }]
+        },
+      ];
+
+      // Merge / filter
+      const combined = [...dbListings];
+      favIds.forEach((id) => {
+        if (!combined.some((l) => l.id === id)) {
+          const mockItem = mockListings.find((m) => m.id === id);
+          if (mockItem) combined.push(mockItem);
+        }
+      });
+
+      setFavoriteListings(combined);
+    } catch (e) {
+      console.error("Failed to load favorite details", e);
+    } finally {
+      setLoadingFavorites(false);
+    }
+  };
+
+  const handleRemoveFavorite = (id: string) => {
+    const saved = localStorage.getItem("heimat_favorites");
+    if (saved) {
+      try {
+        const favIds = JSON.parse(saved) as string[];
+        const next = favIds.filter((x) => x !== id);
+        localStorage.setItem("heimat_favorites", JSON.stringify(next));
+        setFavoriteListings((prev) => prev.filter((l) => l.id !== id));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "favorites") {
+      fetchFavorites();
+    }
+  }, [activeTab]);
 
   const handleRunProfileAnalyzer = async () => {
     setErrorMsg("");
@@ -417,18 +544,6 @@ export default function TenantDashboard() {
           {/* ── Sidebar Navigation ─────────────────────────── */}
           <aside className="w-full lg:w-64 bg-white/90 backdrop-blur-md border border-outline-variant rounded-2xl p-4 shadow-sm flex flex-col gap-1.5 flex-shrink-0">
             <button
-              onClick={() => setActiveTab("overview")}
-              className={`flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-left text-label-md font-bold transition-all ${
-                activeTab === "overview"
-                  ? "bg-primary text-on-primary shadow-md"
-                  : "text-on-surface-variant hover:bg-surface-container-low hover:text-primary"
-              }`}
-            >
-              <span className="material-symbols-outlined text-[20px]">space_dashboard</span>
-              <span>{language === "de" ? "Übersicht" : "Overview"}</span>
-            </button>
-            
-            <button
               onClick={() => setActiveTab("profile")}
               className={`flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-left text-label-md font-bold transition-all ${
                 activeTab === "profile"
@@ -465,231 +580,113 @@ export default function TenantDashboard() {
             </button>
 
             <button
-              onClick={() => setActiveTab("analyzer")}
-              className={`flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-left text-label-md font-bold transition-all relative ${
-                activeTab === "analyzer"
+              onClick={() => setActiveTab("favorites")}
+              className={`flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-left text-label-md font-bold transition-all ${
+                activeTab === "favorites"
                   ? "bg-primary text-on-primary shadow-md"
                   : "text-on-surface-variant hover:bg-surface-container-low hover:text-primary"
               }`}
             >
-              <span className="material-symbols-outlined text-[20px] animate-pulse">insights</span>
-              <span>{language === "de" ? "AI Eignungsanalyse" : "AI Profile Analyzer"}</span>
-              {tenantProfile?.ai_score === null && (
-                <span className="absolute top-1/2 right-4 -translate-y-1/2 w-2 h-2 bg-red-500 rounded-full animate-ping" />
-              )}
+              <span className="material-symbols-outlined text-[20px]">favorite</span>
+              <span>{language === "de" ? "Favoriten" : "Favourites"}</span>
             </button>
           </aside>
 
           {/* ── Main Tab Contents ─────────────────────────── */}
           <main className="flex-grow w-full space-y-6">
             
-            {/* 1. Tab: Overview */}
-            {activeTab === "overview" && (
-              <div className="space-y-6">
-                
-                {/* Stats Columns Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                  <div className="bg-white border border-outline-variant p-5 rounded-2xl shadow-sm flex items-center gap-4">
-                    <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <span className="material-symbols-outlined text-primary text-[24px]">vpn_key</span>
-                    </div>
-                    <div>
-                      <p className="text-[12px] text-on-surface-variant font-bold uppercase leading-none">
-                        {language === "de" ? "Buchungen" : "Active Booking"}
-                      </p>
-                      <p className="text-[18px] font-bold text-primary mt-1">
-                        {activeBooking ? (language === "de" ? "1 Aktiv" : "1 Active") : (language === "de" ? "Keine" : "None")}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="bg-white border border-outline-variant p-5 rounded-2xl shadow-sm flex items-center gap-4">
-                    <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <span className="material-symbols-outlined text-primary text-[24px]">verified</span>
-                    </div>
-                    <div>
-                      <p className="text-[12px] text-on-surface-variant font-bold uppercase leading-none">
-                        {language === "de" ? "Verifizierung" : "Documents"}
-                      </p>
-                      <p className="text-[18px] font-bold text-primary mt-1">
-                        {docs.filter(d => d.status === "approved").length} / {documentTypesList.length} Approved
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="bg-white border border-outline-variant p-5 rounded-2xl shadow-sm flex items-center gap-4">
-                    <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <span className="material-symbols-outlined text-primary text-[24px]">euro_symbol</span>
-                    </div>
-                    <div>
-                      <p className="text-[12px] text-on-surface-variant font-bold uppercase leading-none">
-                        {language === "de" ? "Monatliches Budget" : "Monthly Budget"}
-                      </p>
-                      <p className="text-[18px] font-bold text-primary mt-1">
-                        {tenantProfile?.monthly_income ? `€ ${tenantProfile.monthly_income}` : (language === "de" ? "Nicht angegeben" : "Not Provided")}
-                      </p>
-                    </div>
-                  </div>
+            {/* 1. Tab: Favourites */}
+            {activeTab === "favorites" && (
+              <div className="bg-white border border-outline-variant p-6 md:p-8 rounded-2xl shadow-sm space-y-6">
+                <div>
+                  <h2 className="text-headline-md font-bold text-primary flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[28px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span>
+                    {language === "de" ? "Favoriten" : "Favourites"}
+                  </h2>
+                  <p className="text-body-md text-on-surface-variant mt-1 leading-relaxed">
+                    {language === "de"
+                      ? "Hier finden Sie alle Ihre gemerkten Unterkünfte. Verwalten Sie Ihre Favoriten und starten Sie direkt Ihre Bewerbungen."
+                      : "Here you can find all your saved properties. Manage your favorites and apply to them directly."}
+                  </p>
                 </div>
 
-                {/* AI Analyzer Action Banner */}
-                {(!activeBooking || activeBooking.status === "pending") && (
-                  <div className="bg-gradient-to-r from-primary/10 via-secondary/5 to-primary/15 border border-primary/20 rounded-3xl p-6 md:p-8 shadow-sm flex flex-col md:flex-row justify-between items-center gap-6 relative overflow-hidden">
-                    {/* Glowing effect inside card */}
-                    <div className="absolute top-0 right-0 -mr-16 -mt-16 w-32 h-32 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
-                    <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-32 h-32 bg-secondary/15 rounded-full blur-3xl pointer-events-none" />
-                    
-                    <div className="space-y-4 max-w-xl z-10">
-                      <div className="inline-flex items-center gap-2 bg-primary-fixed/20 border border-primary/20 px-3 py-1 rounded-full text-[11px] font-bold text-primary uppercase tracking-wider">
-                        <span className="material-symbols-outlined text-[14px] animate-pulse">insights</span>
-                        AI Match Optimizer
-                      </div>
-                      <h3 className="text-headline-sm font-bold text-primary leading-tight">
-                        {activeBooking 
-                          ? (language === "de" ? "Wohnungsbewerbung optimieren & AI-Screening starten" : "Optimize Application & Start AI Screening")
-                          : (language === "de" ? "Profil optimieren & AI-Vorbewertung berechnen" : "Optimize Profile & Calculate AI Pre-Screening")}
-                      </h3>
-                      <p className="text-body-sm text-on-surface-variant leading-relaxed">
-                        {activeBooking
-                          ? (language === "de"
-                              ? "Führen Sie den AI-Profilanalysator aus, um Ihre Angaben zu prüfen und einen Trust Match Score zu erstellen. Dies signalisiert dem Vermieter sofortige Bewerbungsreife und kann die Zusagechancen verdoppeln."
-                              : "Run our AI Profile Analyzer to evaluate your credentials and calculate your landlord match score. Completing this step lets the landlord approve you instantly.")
-                          : (language === "de"
-                              ? "Führen Sie die AI-Vorbewertung aus, um Ihr Profil auf Fehler zu prüfen und Ihren Heimat Trust Match Score zu berechnen, noch bevor Sie sich für eine Wohnung bewerben."
-                              : "Run our AI pre-screening to evaluate your profile completeness and calculate your Heimat Trust Match Score before applying to any properties.")}
-                      </p>
-                      
-                      {/* Document checklist status badges */}
-                      <div className="pt-2">
-                        <p className="text-[11px] text-on-surface-variant font-bold uppercase tracking-wider mb-2">
-                          {language === "de" ? "Hochgeladene Unterlagen:" : "Uploaded Documents Status:"}
-                        </p>
-                        <div className="flex flex-wrap gap-2.5">
-                          {requiredDocs.map((docKey) => {
-                            const isOk = docs.some(d => d.doc_type === docKey);
-                            return (
-                              <div
-                                key={docKey}
-                                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border transition-all ${
-                                  isOk
-                                    ? "bg-primary-fixed/15 border-primary/25 text-primary"
-                                    : "bg-surface-container-low border-outline-variant text-on-surface-variant/70"
-                                }`}
-                              >
-                                <span className="material-symbols-outlined text-[14px]">
-                                  {isOk ? "check_circle" : "cancel"}
-                                </span>
-                                <span>{getDocDisplayName(docKey)}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex-shrink-0 z-10 w-full md:w-auto text-center">
-                      <button
-                        onClick={handleRunProfileAnalyzer}
-                        disabled={runningAnalyzer}
-                        className="w-full md:w-auto bg-gradient-to-r from-primary to-secondary text-on-primary px-8 py-4 rounded-2xl font-bold hover:opacity-95 hover:shadow-lg active:scale-95 transition-all shadow cursor-pointer flex items-center justify-center gap-3 disabled:opacity-75 disabled:pointer-events-none"
-                      >
-                        {runningAnalyzer ? (
-                          <>
-                            <span className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-                            <span>{language === "de" ? "Analysiere Profil..." : "Analyzing Profile..."}</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="material-symbols-outlined text-[20px] animate-pulse">troubleshoot</span>
-                            <span>{language === "de" ? "Profil prüfen & starten" : "Start Profile Analyzer"}</span>
-                          </>
-                        )}
-                      </button>
-                      <p className="text-[10px] text-on-surface-variant mt-2 italic">
-                        {language === "de"
-                          ? "Dauer: ca. 10 Sekunden"
-                          : "Takes about 10 seconds"}
-                      </p>
-                    </div>
+                {loadingFavorites ? (
+                  <div className="flex justify-center items-center py-16">
+                    <div className="animate-spin rounded-full h-10 w-10 border-4 border-primary border-t-transparent" />
                   </div>
-                )}
-
-                {/* Primary Booking Overview panel */}
-                {!activeBooking ? (
-                  <div className="bg-white border border-outline-variant p-8 rounded-2xl shadow-sm text-center space-y-4">
-                    <span className="material-symbols-outlined text-[56px] text-primary">apartment</span>
-                    <h3 className="text-headline-md font-bold text-primary">
-                      {language === "de" ? "Starten Sie Ihre Wohnungssuche" : "Start Your Apartment Search"}
-                    </h3>
-                    <p className="text-body-md text-on-surface-variant max-w-md mx-auto leading-relaxed">
-                      {language === "de" 
-                        ? "Vervollständigen Sie Ihr Profil im Tab 'Profil & Finanzen' und laden Sie Ihre Unterlagen hoch, um Ihre AI-Match-Chancen bei Vermietern um 80% zu erhöhen."
-                        : "Complete your profile details in the 'Profile & Finance' tab and upload your verification documents to boost your AI Match chances by 80%."}
+                ) : favoriteListings.length === 0 ? (
+                  <div className="text-center py-16 text-on-surface-variant border-2 border-dashed border-outline-variant/55 rounded-2xl bg-surface-container-low/30 space-y-4">
+                    <span className="material-symbols-outlined text-[48px] text-outline-variant">favorite_border</span>
+                    <p className="text-body-md">
+                      {language === "de" ? "Keine Favoriten gespeichert." : "No saved favorites yet."}
                     </p>
-                    <button 
+                    <button
                       onClick={() => router.push("/suche")}
-                      className="bg-primary text-on-primary px-6 py-3 rounded-xl text-label-md font-bold hover:opacity-90 active:scale-95 transition-all shadow cursor-pointer inline-flex items-center gap-2"
+                      className="bg-primary text-on-primary px-5 py-2.5 rounded-xl text-label-sm font-bold hover:opacity-90 active:scale-95 transition-all shadow cursor-pointer inline-flex items-center gap-1.5"
                     >
-                      <span className="material-symbols-outlined text-[20px]">search</span>
-                      {language === "de" ? "Jetzt Wohnungen suchen" : "Browse Properties"}
+                      <span className="material-symbols-outlined text-[18px]">search</span>
+                      {language === "de" ? "Wohnungen suchen" : "Search Properties"}
                     </button>
                   </div>
                 ) : (
-                  <div className="bg-white border border-outline-variant p-6 rounded-2xl shadow-sm space-y-6">
-                    <div className="flex justify-between items-start flex-wrap gap-4 border-b border-outline-variant/60 pb-5">
-                      <div>
-                        <span className="bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider">
-                          Active Application
-                        </span>
-                        <h3 className="text-headline-md font-bold text-primary mt-3">
-                          {property?.title || property?.street || "Unterkunft"}
-                        </h3>
-                        <p className="text-body-md text-on-surface-variant mt-1">
-                          {property?.zip} {property?.city}
-                        </p>
-                      </div>
-                      <div className="bg-surface-container-low border border-outline-variant p-4 rounded-xl text-center min-w-[150px]">
-                        <p className="text-[11px] text-on-surface-variant font-bold uppercase tracking-wider">Status</p>
-                        <p className="text-body-lg font-extrabold text-primary mt-1 capitalize">
-                          {activeBooking.status.replace("_", " ")}
-                        </p>
-                      </div>
-                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {favoriteListings.map((l) => {
+                      const primaryPhoto = l.property_photos?.find((p: any) => p.is_primary)?.cdn_url || l.property_photos?.[0]?.cdn_url || "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80";
+                      const totalRent = Math.round(parseFloat(l.rent_cold) + parseFloat(l.rent_utilities || 0) + parseFloat(l.rent_heating || 0));
 
-                    <div className="relative flex justify-between items-center w-full max-w-2xl mx-auto my-6 flex-wrap sm:flex-nowrap gap-4 sm:gap-0">
-                      {/* Track */}
-                      <div className="absolute top-1/2 left-0 w-full h-[2px] bg-outline-variant -z-10 -translate-y-1/2 hidden sm:block" />
-                      {/* Progress */}
-                      <div 
-                        className="absolute top-1/2 left-0 h-[2px] bg-primary -z-10 -translate-y-1/2 transition-all duration-500 hidden sm:block" 
-                        style={{ width: `${progressPct}%` }}
-                      />
-
-                      {pipeline.map((step, idx) => (
-                        <div key={idx} className="flex flex-col items-center gap-1.5 w-1/3 sm:w-auto">
-                          <div
-                            className={`w-7 h-7 rounded-full border-4 border-white flex items-center justify-center text-[10px] font-bold shadow transition-all ${
-                              step.active ? "bg-primary text-on-primary" : "bg-outline-variant text-on-surface-variant"
-                            }`}
-                          >
-                            {step.active ? <span className="material-symbols-outlined text-[12px]">check</span> : idx + 1}
+                      return (
+                        <div
+                          key={l.id}
+                          className="group bg-white rounded-xl border border-outline-variant overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col justify-between"
+                        >
+                          <div className="relative h-44 overflow-hidden bg-surface-dim">
+                            <img
+                              src={primaryPhoto}
+                              alt={l.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              loading="lazy"
+                            />
+                            <button
+                              onClick={() => handleRemoveFavorite(l.id)}
+                              className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm p-1.5 rounded-full hover:bg-white transition-colors cursor-pointer text-red-500 hover:text-red-700 shadow-sm"
+                              title={language === "de" ? "Entfernen" : "Remove"}
+                            >
+                              <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span>
+                            </button>
                           </div>
-                          <span className={`text-[10px] font-bold ${step.active ? "text-primary" : "text-on-surface-variant"}`}>
-                            {language === "de" ? step.labelDe : step.labelEn}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                          <div className="p-5 flex-grow flex flex-col justify-between">
+                            <div>
+                              <h3 className="text-[16px] font-bold text-primary leading-snug line-clamp-1 mb-1">{l.title}</h3>
+                              <p className="text-[12px] text-on-surface-variant line-clamp-1 mb-4">📍 {l.street}, {l.zip} {l.city}</p>
+                              
+                              <div className="grid grid-cols-3 gap-2 mb-4 border-t border-b border-outline-variant/40 py-2.5">
+                                <div className="text-center">
+                                  <span className="block text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">{language === "de" ? "Warm" : "Warm Rent"}</span>
+                                  <span className="text-[14px] font-bold text-primary">{totalRent} €</span>
+                                </div>
+                                <div className="text-center border-l border-r border-outline-variant/30">
+                                  <span className="block text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">{language === "de" ? "Fläche" : "Area"}</span>
+                                  <span className="text-[14px] font-semibold text-primary">{l.size_sqm} m²</span>
+                                </div>
+                                <div className="text-center">
+                                  <span className="block text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">{language === "de" ? "Zimmer" : "Rooms"}</span>
+                                  <span className="text-[14px] font-semibold text-primary">{l.rooms}</span>
+                                </div>
+                              </div>
+                            </div>
 
-                    <div className="pt-4 flex justify-end">
-                      <button
-                        onClick={() => setActiveTab("bookings")}
-                        className="text-primary text-label-md font-bold hover:underline inline-flex items-center gap-1"
-                      >
-                        {language === "de" ? "Vollständige Bewerbung anzeigen" : "View Application Details"}
-                        <span className="material-symbols-outlined text-[18px]">chevron_right</span>
-                      </button>
-                    </div>
+                            <div className="flex gap-2">
+                              <Link
+                                href={`/objekt/${l.id}`}
+                                className="flex-1 text-center bg-primary text-on-primary py-2 rounded-lg text-[12px] font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer shadow-sm"
+                              >
+                                {language === "de" ? "Details ansehen" : "View Details"}
+                              </Link>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -1155,261 +1152,6 @@ export default function TenantDashboard() {
                 </div>
               </div>
             )}
-
-            {/* 5. Tab: AI Profile Analyzer Dedicated Section */}
-            {activeTab === "analyzer" && (
-              <div className="space-y-6">
-                {/* Header Card */}
-                <div className="bg-white border border-outline-variant p-6 md:p-8 rounded-2xl shadow-sm space-y-4">
-                  <div className="flex justify-between items-start flex-wrap gap-6">
-                    <div>
-                      <h2 className="text-headline-md font-bold text-primary flex items-center gap-2">
-                        <span className="material-symbols-outlined text-[28px] text-primary">insights</span>
-                        {language === "de" ? "AI Eignungsanalyse & Match-Score" : "AI Suitability Screening & Match"}
-                      </h2>
-                      <p className="text-body-md text-on-surface-variant mt-1 leading-relaxed max-w-2xl">
-                        {language === "de"
-                          ? "Unser intelligenter Algorithmus analysiert Ihre Einkommensverhältnisse, Ihr Beschäftigungsverhältnis und Ihre Verifizierungsdokumente, um eine sichere Eignungsbewertung für Vermieter zu erstellen."
-                          : "Our smart algorithm analyzes your financial credentials, employment stability, and uploaded verification documents to build a secure suitability rating for landlords."}
-                      </p>
-                    </div>
-                    
-                    {/* Visual Radial/Gauge Score Circle */}
-                    <div className="bg-gradient-to-br from-primary/5 to-secondary/5 border border-outline-variant p-5 rounded-2xl flex flex-col items-center justify-center text-center min-w-[160px] self-center">
-                      <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">
-                        {language === "de" ? "Heimat Score" : "Heimat Match Score"}
-                      </p>
-                      <div className="relative w-24 h-24 flex items-center justify-center mt-3">
-                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                          <path
-                            className="text-outline-variant"
-                            strokeWidth="3"
-                            stroke="currentColor"
-                            fill="none"
-                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                          />
-                          <path
-                            className="text-primary transition-all duration-1000"
-                            strokeWidth="3.2"
-                            strokeDasharray={`${tenantProfile?.ai_score || 0}, 100`}
-                            strokeLinecap="round"
-                            stroke="currentColor"
-                            fill="none"
-                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                          />
-                        </svg>
-                        <div className="absolute flex flex-col items-center">
-                          <span className="text-[24px] font-black text-primary leading-none">
-                            {tenantProfile?.ai_score !== null && tenantProfile?.ai_score !== undefined ? `${tenantProfile.ai_score}` : "--"}
-                          </span>
-                          <span className="text-[9px] text-on-surface-variant font-bold mt-0.5 uppercase tracking-wide">
-                            {tenantProfile?.ai_score !== null && tenantProfile?.ai_score !== undefined ? "/ 100" : "Unrated"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Main Scoring Details / Reasoning Matrix */}
-                {tenantProfile?.ai_score !== null && tenantProfile?.ai_score !== undefined ? (
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Left Column: Components */}
-                    <div className="lg:col-span-2 space-y-6">
-                      <div className="bg-white border border-outline-variant p-6 rounded-2xl shadow-sm space-y-6">
-                        <h3 className="text-label-md font-bold text-primary uppercase border-b border-outline-variant pb-2 tracking-wide">
-                          {language === "de" ? "Score-Aufschlüsselung" : "Matching Suitability Metrics"}
-                        </h3>
-                        
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {[
-                            {
-                              labelDe: "Einkommen",
-                              labelEn: "Income Ratio",
-                              val: aiScore?.income_score || (tenantProfile.ai_score >= 80 ? 95 : 65),
-                              icon: "payments",
-                              descDe: "Verhältnis von Einkommen zu durchschnittlichen Mietkosten.",
-                              descEn: "Monthly net earnings relative to typical rent indices."
-                            },
-                            {
-                              labelDe: "Beschäftigung",
-                              labelEn: "Employment Status",
-                              val: aiScore?.employment_score || (tenantProfile.employment_status === "employed" ? 95 : 75),
-                              icon: "work",
-                              descDe: "Stabilität basierend auf Ihrem Arbeits- oder Studiumsvertrag.",
-                              descEn: "Income stream durability and career/academic status."
-                            },
-                            {
-                              labelDe: "Dokumente",
-                              labelEn: "Documentation Strength",
-                              val: aiScore?.doc_score || (docs.length >= 3 ? 98 : docs.length * 25),
-                              icon: "task",
-                              descDe: "Vollständigkeit und Prüfstatus der hochgeladenen Dokumente.",
-                              descEn: "Upload coverage and approval rates of your credentials."
-                            },
-                            {
-                              labelDe: "Mietdauer & Stabilität",
-                              labelEn: "Period Alignment",
-                              val: aiScore?.stay_length_score || 90,
-                              icon: "calendar_today",
-                              descDe: "Übereinstimmung Ihres gewünschten Zeitraums mit Standardlaufzeiten.",
-                              descEn: "Lease duration match with optimal landlord lease targets."
-                            }
-                          ].map((item, idx) => (
-                            <div key={idx} className="p-4 bg-surface-container-low rounded-2xl border border-outline-variant/60 space-y-2">
-                              <div className="flex justify-between items-center">
-                                <div className="flex items-center gap-2">
-                                  <span className="material-symbols-outlined text-secondary text-[20px]">{item.icon}</span>
-                                  <span className="text-label-md font-bold text-primary">
-                                    {language === "de" ? item.labelDe : item.labelEn}
-                                  </span>
-                                </div>
-                                <span className="text-body-lg font-black text-primary">{item.val}%</span>
-                              </div>
-                              <p className="text-[11px] text-on-surface-variant leading-relaxed">
-                                {language === "de" ? item.descDe : item.descEn}
-                              </p>
-                              <div className="w-full h-1.5 bg-outline-variant/50 rounded-full overflow-hidden mt-2">
-                                <div className="h-full bg-primary rounded-full" style={{ width: `${item.val}%` }} />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        
-                        {/* Reasoning Text block */}
-                        <div className="p-5 bg-primary/5 rounded-2xl border border-primary/10 space-y-2">
-                          <p className="text-label-md font-bold text-primary flex items-center gap-1.5">
-                            <span className="material-symbols-outlined text-[20px]">psychology</span>
-                            {language === "de" ? "Begründung & AI-Feedback" : "Detailed AI Match Explanation"}
-                          </p>
-                          <p className="text-body-sm text-on-surface-variant leading-relaxed">
-                            {aiScore?.reasoning || (
-                              language === "de"
-                                ? "Ihr Profil weist ein solides finanzielles Fundament auf. Einkommensnachweise decken die typischen Wohnungsbudgets hervorragend. Durch das Vervollständigen der restlichen Dokumente (Visum, Immatrikulation) können Sie Ihren Score auf über 95% maximieren."
-                                : "Your credentials indicate a strong financial match relative to average rentals. The uploaded document set provides credible verification. Completing additional visa or academic certificates can further optimize your standing to 95%+."
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Right Column: Flags, Trigger & Status */}
-                    <div className="space-y-6">
-                      {/* Active Warning Flags */}
-                      <div className="bg-white border border-outline-variant p-6 rounded-2xl shadow-sm space-y-4">
-                        <h3 className="text-label-md font-bold text-primary uppercase border-b border-outline-variant pb-2">
-                          {language === "de" ? "Sicherheits-Flags" : "Flags & Warnings"}
-                        </h3>
-                        
-                        {aiScore?.flags && aiScore.flags.length > 0 ? (
-                          <div className="space-y-2.5">
-                            <div className="flex items-center gap-2 text-amber-800 text-[12px] font-semibold bg-amber-50 border border-amber-200 p-3 rounded-xl">
-                              <span className="material-symbols-outlined text-[18px]">warning</span>
-                              <span>{language === "de" ? "Auffälligkeiten gefunden:" : "Identified issues:"}</span>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {aiScore.flags.map((flag: string, fidx: number) => (
-                                <span key={fidx} className="bg-red-50 text-red-700 px-3 py-1 rounded-xl text-[10px] font-bold uppercase tracking-wider border border-red-100">
-                                  {flag}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2.5 text-green-800 text-[12px] font-semibold bg-green-50 border border-green-200 p-4 rounded-xl">
-                            <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                            <span>{language === "de" ? "Keine Auffälligkeiten / 100% Sicher" : "No warning flags - Clean profile"}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Trigger Recalculate Card */}
-                      <div className="bg-white border border-outline-variant p-6 rounded-2xl shadow-sm space-y-4">
-                        <h4 className="text-label-md font-bold text-primary uppercase">
-                          {language === "de" ? "Analyse aktualisieren" : "Re-Calculate Score"}
-                        </h4>
-                        <p className="text-[12px] text-on-surface-variant leading-relaxed">
-                          {language === "de"
-                            ? "Haben Sie neue Dokumente hochgeladen oder Ihr Profil aktualisiert? Starten Sie die AI-Analyse neu, um Ihren Score sofort zu verbessern."
-                            : "Have you uploaded new documents or updated your income settings? Start the calculation to update your score."}
-                        </p>
-                        
-                        <button
-                          onClick={handleRunProfileAnalyzer}
-                          disabled={runningAnalyzer}
-                          className="w-full bg-primary text-on-primary py-3.5 rounded-xl font-bold hover:opacity-90 hover:shadow active:scale-98 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer text-label-md"
-                        >
-                          {runningAnalyzer ? (
-                            <>
-                              <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                              <span>{language === "de" ? "Berechne..." : "Calculating..."}</span>
-                            </>
-                          ) : (
-                            <>
-                              <span className="material-symbols-outlined text-[18px]">sync</span>
-                              <span>{language === "de" ? "Analyse jetzt starten" : "Re-Run AI Analyzer"}</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  /* Zero State - Trigger initial check */
-                  <div className="bg-white border border-outline-variant p-8 md:p-12 rounded-2xl shadow-sm text-center max-w-2xl mx-auto space-y-6">
-                    <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto text-primary">
-                      <span className="material-symbols-outlined text-[36px]" style={{ fontVariationSettings: "'FILL' 1" }}>insights</span>
-                    </div>
-                    <div className="space-y-2">
-                      <h3 className="text-headline-sm font-bold text-primary">
-                        {language === "de" ? "AI Eignungsanalyse freischalten" : "Calculate Your Trust Match Score"}
-                      </h3>
-                      <p className="text-body-md text-on-surface-variant leading-relaxed">
-                        {language === "de"
-                          ? "Lassen Sie Ihr Profil von unserer künstlichen Intelligenz bewerten. Ein berechneter Match Score zeigt Vermietern Ihre sofortige Eignung und beschleunigt Bewerbungszusagen um bis zu 85%."
-                          : "Evaluate your profile completeness with our AI matching model. Calculating this score establishes instant verification credibility for landlords, speeding up lease offers by 85%."}
-                      </p>
-                    </div>
-                    
-                    <div className="bg-surface-container-low border border-outline-variant/60 p-4 rounded-xl max-w-md mx-auto text-left space-y-2.5">
-                      <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">
-                        {language === "de" ? "Vorbereitung für die Bewertung:" : "Analysis Pre-requisites Checklist:"}
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {requiredDocs.map((docKey) => {
-                          const isOk = docs.some(d => d.doc_type === docKey);
-                          return (
-                            <div key={docKey} className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${isOk ? "bg-primary-fixed/15 border-primary/20 text-primary" : "bg-white border-outline-variant text-on-surface-variant/60"}`}>
-                              <span className="material-symbols-outlined text-[12px]">{isOk ? "check" : "close"}</span>
-                              <span>{getDocDisplayName(docKey)}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={handleRunProfileAnalyzer}
-                      disabled={runningAnalyzer}
-                      className="bg-primary text-on-primary px-8 py-3.5 rounded-xl font-bold hover:opacity-90 hover:shadow-md active:scale-95 transition-all shadow inline-flex items-center gap-2 cursor-pointer disabled:opacity-50 text-label-md"
-                    >
-                      {runningAnalyzer ? (
-                        <>
-                          <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                          <span>{language === "de" ? "Analysiere Profil..." : "Running Analysis..."}</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>insights</span>
-                          <span>{language === "de" ? "AI Eignungsanalyse jetzt starten" : "Start AI Suitability Screening"}</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
           </main>
         </div>
       </div>
