@@ -155,7 +155,7 @@ function SuchePageContent() {
     { id: "furnished", label: language === "de" ? "Möbliert" : "Furnished", icon: "weekend" },
     { id: "balcony", label: language === "de" ? "Balkon" : "Balcony", icon: "balcony" },
     { id: "kitchen", label: language === "de" ? "Einbauküche" : "Fitted Kitchen", icon: "countertops" },
-    { id: "garden", label: language === "de" ? "Garten" : "Garden", icon: "yard" },
+    { id: "laundry", label: language === "de" ? "Waschraum" : "Laundry", icon: "local_laundry_service" },
     { id: "parking", label: language === "de" ? "Parkplatz" : "Parking", icon: "local_parking" },
     { id: "pets", label: language === "de" ? "Haustiere erlaubt" : "Pets Allowed", icon: "pets" },
     { id: "wheelchair", label: language === "de" ? "Barrierefrei" : "Wheelchair Access", icon: "accessible" },
@@ -238,7 +238,7 @@ function SuchePageContent() {
           city: "Hamburg", street: "Am Sandtorkai 10", zip: "20457",
           rooms: 2, size_sqm: 65, rent_cold: 1120, rent_utilities: 110, rent_heating: 90,
           pets_allowed: true, furnished: true,
-          amenities: ["balcony", "kitchen", "garden"],
+          amenities: ["balcony", "kitchen", "laundry"],
           status: "active",
           property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80", is_primary: true }]
         },
@@ -276,7 +276,7 @@ function SuchePageContent() {
         if (activeFilters.includes("furnished")) f = f.filter(l => l.furnished === true);
         if (activeFilters.includes("balcony")) f = f.filter(l => l.amenities.includes("balcony"));
         if (activeFilters.includes("kitchen")) f = f.filter(l => l.amenities.includes("kitchen"));
-        if (activeFilters.includes("garden")) f = f.filter(l => l.amenities.includes("garden"));
+        if (activeFilters.includes("laundry")) f = f.filter(l => l.amenities.includes("laundry"));
         if (activeFilters.includes("parking")) f = f.filter(l => l.amenities.includes("parking"));
         if (activeFilters.includes("pets")) f = f.filter(l => l.pets_allowed === true);
         if (activeFilters.includes("wheelchair")) f = f.filter(l => l.amenities.includes("wheelchair"));
@@ -308,7 +308,7 @@ function SuchePageContent() {
         if (activeFilters.includes("furnished")) query = query.eq("furnished", true);
         if (activeFilters.includes("balcony")) query = query.contains("amenities", ["balcony"]);
         if (activeFilters.includes("kitchen")) query = query.contains("amenities", ["kitchen"]);
-        if (activeFilters.includes("garden")) query = query.contains("amenities", ["garden"]);
+        if (activeFilters.includes("laundry")) query = query.contains("amenities", ["laundry"]);
         if (activeFilters.includes("parking")) query = query.contains("amenities", ["parking"]);
         if (activeFilters.includes("pets")) query = query.eq("pets_allowed", true);
         if (activeFilters.includes("wheelchair")) query = query.eq("wheelchair_accessible", true);
