@@ -178,12 +178,12 @@ function SuchePageContent() {
 
   const typeOptions = [
     { value: "all", label: language === "de" ? "Alle Typen" : "All Types" },
-    { value: "1", label: "1-Zimmer" },
-    { value: "2", label: "2-Zimmer" },
-    { value: "3", label: "3-Zimmer" },
-    { value: "4", label: "4+ Zimmer" },
+    { value: "1", label: language === "de" ? "1 Zimmer" : "1 Room"},
+    { value: "2", label: language === "de" ? "2 Zimmer" : "2 Room"},
+    { value: "3", label: language === "de" ? "3 Zimmer" : "3 Room"},
+    { value: "4", label: language === "de" ? "4+ Zimmer" : "4+ Room" },
     { value: "house", label: language === "de" ? "Haus" : "House" },
-    { value: "shared", label: language === "de" ? "WG / Shared" : "Shared Room" },
+    { value: "shared", label: language === "de" ? "WG" : "Shared Apartment" },
   ];
 
   const distanceOptions = [
