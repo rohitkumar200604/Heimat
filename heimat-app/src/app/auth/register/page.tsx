@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLanguage } from "@/context/LanguageContext";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/utils/supabase/client";
@@ -13,6 +13,15 @@ export default function RegisterPage() {
   
   const [form, setForm] = useState({ name: "", email: "", tel: "", password: "" });
   
+  // Self-healing: Detect Google OAuth hash redirect landing on register page and route to Auth Callback
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hash) {
+      if (window.location.hash.includes("access_token")) {
+        router.replace(`/auth/callback${window.location.hash}`);
+      }
+    }
+  }, [router]);
+
   const [isRegistered, setIsRegistered] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");

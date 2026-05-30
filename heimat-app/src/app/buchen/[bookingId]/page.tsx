@@ -392,11 +392,11 @@ export default function BookingDetailPage({ params }: { params: Promise<{ bookin
 
               <div className="space-y-4">
                 {[
-                  { key: "passport", label: t("docPassport"), type: "passport" },
-                  { key: "visa", label: t("docVisa"), type: "visa" },
-                  { key: "enrollment", label: t("docEnrollment"), type: "enrollment" },
-                  { key: "income", label: t("docIncome"), type: "income" },
-                ].map(({ key, label, type }) => {
+                   { key: "passport", label: t("docPassport"), type: "passport", optional: false },
+                   { key: "visa", label: t("docVisa"), type: "visa", optional: true },
+                   { key: "enrollment", label: t("docEnrollment"), type: "enrollment", optional: true },
+                   { key: "income", label: t("docIncome"), type: "income", optional: true },
+                 ].map(({ key, label, type, optional }) => {
                   const hasDoc = isUploaded(type);
                   const fileName = getDocFileName(type);
                   const status = getDocStatus(type);
@@ -407,7 +407,18 @@ export default function BookingDetailPage({ params }: { params: Promise<{ bookin
                       className="p-5 bg-surface-container-low rounded-2xl border border-outline-variant/60 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all hover:bg-surface-container"
                     >
                       <div className="space-y-1">
-                        <p className="text-label-md font-bold text-primary">{label}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-label-md font-bold text-primary">{label}</p>
+                          {optional ? (
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-surface-variant text-on-surface-variant border border-outline-variant/60">
+                              {language === "de" ? "Optional" : "Optional"}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                              {language === "de" ? "Pflicht" : "Required"}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-[12px] text-on-surface-variant flex items-center gap-1.5">
                           {hasDoc ? (
                             <>
@@ -469,7 +480,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ bookin
                 <div className="pt-4 border-t border-outline-variant flex justify-end">
                   <button
                     onClick={submitForReview}
-                    disabled={documents.length < 2 || submittingReview}
+                    disabled={documents.length < 1 || submittingReview}
                     className="bg-primary text-on-primary px-6 py-3.5 rounded-2xl font-bold hover:opacity-95 active:scale-98 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow text-label-md"
                   >
                     {submittingReview ? (

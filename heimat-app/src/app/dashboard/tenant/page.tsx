@@ -40,6 +40,7 @@ export default function TenantDashboard() {
   const [successMsg, setSuccessMsg] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [runningAnalyzer, setRunningAnalyzer] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -262,14 +263,76 @@ export default function TenantDashboard() {
     }
   };
 
+  // ── Real GCS document upload handler ──
+  const handleDocUpload = async (docType: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setUploadingDoc(docType);
+    setErrorMsg("");
+    setSuccessMsg("");
+    try {
+      // 1. Request presigned GCS PUT URL from Next.js API route
+      const res = await fetch("/api/upload/doc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName: file.name, fileType: file.type, userId: user.id }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Failed to get upload URL");
+
+      const { uploadUrl, key, mock } = data;
+
+      // 2. Upload file bytes directly to GCS (skip real PUT in dev/mock mode)
+      if (!mock) {
+        const uploadRes = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": file.type },
+          body: file,
+        });
+        if (!uploadRes.ok) throw new Error("GCS upload failed");
+      } else {
+        console.log("[Mock] GCS upload simulated for key:", key);
+      }
+
+      // 3. Upsert document record in Supabase (replace existing doc of same type)
+      const existing = docs.find((d) => d.doc_type === docType);
+      if (existing) {
+        const { error } = await supabase
+          .from("verification_documents")
+          .update({ s3_key: key, file_name: file.name, status: "pending" })
+          .eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("verification_documents")
+          .insert({ user_id: user.id, doc_type: docType, s3_key: key, file_name: file.name, status: "pending" });
+        if (error) throw error;
+      }
+
+      setSuccessMsg(
+        language === "de"
+          ? `"${file.name}" wurde erfolgreich hochgeladen!`
+          : `"${file.name}" uploaded successfully!`
+      );
+      await fetchTenantData();
+    } catch (err: any) {
+      console.error("Doc upload error:", err);
+      setErrorMsg(err.message || "Upload failed");
+    } finally {
+      setUploadingDoc(null);
+      // Reset the input so the same file can be re-uploaded after an error
+      e.target.value = "";
+    }
+  };
+
   const documentTypesList = [
-    { key: "passport", labelDe: "Personalausweis / Reisepass", labelEn: "Passport / ID Card", icon: "badge" },
-    { key: "enrollment", labelDe: "Immatrikulationsbescheinigung", labelEn: "Enrollment Certificate", icon: "school" },
-    { key: "income", labelDe: "Einkommensnachweis", labelEn: "Proof of Income", icon: "receipt_long" },
-    { key: "visa", labelDe: "Visum / Aufenthaltstitel", labelEn: "Visa / Residence Permit", icon: "assignment_ind" },
+    { key: "passport", labelDe: "Personalausweis / Reisepass", labelEn: "Passport / ID Card", icon: "badge", optional: false },
+    { key: "enrollment", labelDe: "Immatrikulationsbescheinigung", labelEn: "Enrollment Certificate", icon: "school", optional: true },
+    { key: "income", labelDe: "Einkommensnachweis", labelEn: "Proof of Income", icon: "receipt_long", optional: true },
+    { key: "visa", labelDe: "Visum / Aufenthaltstitel", labelEn: "Visa / Residence Permit", icon: "assignment_ind", optional: true },
   ];
 
-  const requiredDocs = ["passport", "enrollment", "income", "visa"];
+  const requiredDocs = ["passport"];
   const getDocDisplayName = (key: string) => {
     switch (key) {
       case "passport": return language === "de" ? "Reisepass / Ausweis" : "Passport / ID";
@@ -961,6 +1024,20 @@ export default function TenantDashboard() {
                   </p>
                 </div>
 
+                {/* Success / Error feedback */}
+                {successMsg && activeTab === "documents" && (
+                  <div className="flex items-center gap-3 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-xl text-[13px] font-semibold">
+                    <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                    {successMsg}
+                  </div>
+                )}
+                {errorMsg && activeTab === "documents" && (
+                  <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl text-[13px] font-semibold">
+                    <span className="material-symbols-outlined text-[18px]">error</span>
+                    {errorMsg}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   {documentTypesList.map((docType) => {
                     const status = getDocStatus(docType.key);
@@ -979,13 +1056,33 @@ export default function TenantDashboard() {
                               {docType.icon}
                             </span>
                           </div>
-                          <div>
-                            <h4 className="text-label-md font-bold text-primary">
-                              {language === "de" ? docType.labelDe : docType.labelEn}
-                            </h4>
+                        <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="text-label-md font-bold text-primary">
+                                {language === "de" ? docType.labelDe : docType.labelEn}
+                              </h4>
+                              {docType.optional ? (
+                                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-surface-variant text-on-surface-variant border border-outline-variant/60">
+                                  {language === "de" ? "Optional" : "Optional"}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                                  {language === "de" ? "Pflicht" : "Required"}
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[11px] text-on-surface-variant uppercase mt-0.5 font-semibold tracking-wider">
                               Status: {status}
                             </p>
+                            {/* Show uploaded file name */}
+                            {status !== "missing" && (() => {
+                              const docRecord = docs.find((d) => d.doc_type === docType.key);
+                              return docRecord?.file_name ? (
+                                <p className="text-[11px] text-on-surface-variant/70 truncate max-w-[160px] mt-0.5">
+                                  📎 {docRecord.file_name}
+                                </p>
+                              ) : null;
+                            })()}
                           </div>
                         </div>
 
@@ -1014,18 +1111,43 @@ export default function TenantDashboard() {
                             </span>
                           )}
 
-                          {activeBooking ? (
-                            <button
-                              onClick={() => router.push(`/buchen/${activeBooking.id}`)}
-                              className="bg-primary text-on-primary px-4 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer shadow-sm"
+                          <div className="flex items-center gap-2">
+                            {/* Upload button with hidden file input */}
+                            <label
+                              htmlFor={`doc-upload-${docType.key}`}
+                              className={`flex items-center gap-1.5 bg-primary text-on-primary px-4 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer shadow-sm select-none ${uploadingDoc === docType.key ? "opacity-60 pointer-events-none" : ""}`}
                             >
-                              {status === "missing" ? (language === "de" ? "Hochladen" : "Upload") : (language === "de" ? "Details" : "Manage")}
-                            </button>
-                          ) : (
-                            <span className="text-[11px] text-on-surface-variant leading-none">
-                              {language === "de" ? "Buchung anlegen zum Upload" : "Start booking to upload"}
-                            </span>
-                          )}
+                              {uploadingDoc === docType.key ? (
+                                <>
+                                  <span className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent" />
+                                  <span>{language === "de" ? "Lädt hoch..." : "Uploading..."}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="material-symbols-outlined text-[14px]">upload_file</span>
+                                  <span>{status === "missing" ? (language === "de" ? "Hochladen" : "Upload") : (language === "de" ? "Ersetzen" : "Replace")}</span>
+                                </>
+                              )}
+                            </label>
+                            <input
+                              id={`doc-upload-${docType.key}`}
+                              type="file"
+                              accept=".pdf,.jpg,.jpeg,.png"
+                              className="sr-only"
+                              onChange={(e) => handleDocUpload(docType.key, e)}
+                              disabled={uploadingDoc !== null}
+                            />
+                            {/* Manage in booking page if booking exists */}
+                            {activeBooking && (
+                              <button
+                                onClick={() => router.push(`/buchen/${activeBooking.id}`)}
+                                className="px-3 py-2 rounded-lg text-[12px] font-bold border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary active:scale-95 transition-all cursor-pointer"
+                                title={language === "de" ? "Im Buchungsportal öffnen" : "Open in booking portal"}
+                              >
+                                <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );

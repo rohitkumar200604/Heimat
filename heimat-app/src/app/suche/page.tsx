@@ -245,7 +245,7 @@ function SuchePageContent() {
   };
 
   return (
-    <div className="flex flex-col w-full h-[calc(100vh-65px)] overflow-hidden">
+    <div className="flex flex-col w-full h-[calc(100vh-65px)]">
       {/* Filter Bar */}
       <section className="bg-surface-container-lowest border-b border-outline-variant px-5 md:px-[48px] py-4 z-40 sticky top-[65px]">
         <div className="max-w-[1280px] mx-auto flex flex-wrap items-center gap-3">

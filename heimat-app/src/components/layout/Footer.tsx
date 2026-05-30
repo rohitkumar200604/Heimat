@@ -109,14 +109,6 @@ export default function Footer() {
         <p className="text-on-surface-variant text-[12px] font-semibold">
           {t("rightsReserved")}
         </p>
-        <div className="flex gap-6">
-          <span className="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-colors">
-            language
-          </span>
-          <span className="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-colors">
-            share
-          </span>
-        </div>
       </div>
     </footer>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Footer from "@/components/layout/Footer";
 import Link from "next/link";
@@ -14,6 +14,15 @@ export default function HomePage() {
   const [stadt, setStadt] = useState("");
   const [zimmer, setZimmer] = useState("all");
   const [preis, setPreis] = useState("");
+
+  // Self-healing: Detect Google OAuth hash redirect landing on root domain and route to Auth Callback
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hash) {
+      if (window.location.hash.includes("access_token")) {
+        router.replace(`/auth/callback${window.location.hash}`);
+      }
+    }
+  }, [router]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

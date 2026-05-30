@@ -30,6 +30,15 @@ export default function LoginPage() {
     }
   }, [profile, router]);
 
+  // Self-healing: Detect Google OAuth hash redirect landing on login page and route to Auth Callback
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hash) {
+      if (window.location.hash.includes("access_token")) {
+        router.replace(`/auth/callback${window.location.hash}`);
+      }
+    }
+  }, [router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");

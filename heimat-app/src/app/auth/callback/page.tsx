@@ -33,20 +33,13 @@ export default function AuthCallbackPage() {
                 id: session.user.id,
                 email: session.user.email,
                 full_name: fullName,
-                role: "tenant", // Default to tenant
+                role: null, // role is null initially so they can choose it on select-role!
               })
               .select("role")
               .single();
 
             if (!insertError && newProfile) {
               profile = newProfile;
-              
-              // Also create corresponding tenant profile
-              await supabase
-                .from("tenant_profiles")
-                .insert({
-                  user_id: session.user.id
-                });
             } else {
               console.error("Failed to dynamically create profile:", insertError);
             }
