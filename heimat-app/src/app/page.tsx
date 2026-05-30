@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import Footer from "@/components/layout/Footer";
 import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
+import { useAuth } from "@/context/AuthContext";
 
 export default function HomePage() {
   const router = useRouter();
   const { t, language } = useLanguage();
+  const { user } = useAuth();
   const [stadt, setStadt] = useState("");
   const [zimmer, setZimmer] = useState("all");
   const [preis, setPreis] = useState("");
@@ -75,10 +77,13 @@ export default function HomePage() {
                   className="w-full px-4 py-3 bg-surface-container-low border border-outline-variant rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-[16px]"
                 >
                   <option value="all">{t("all")}</option>
-                  <option value="1">1+</option>
-                  <option value="2">2+</option>
-                  <option value="3">3+</option>
-                  <option value="4">4+</option>
+                  <option value="1">1 Room Apartment</option> 
+                  <option value="2">2 Room Apartment</option>
+                  <option value="3">3 Room Apartment</option>
+                  <option value="4">4 Room Apartment</option>
+                  <option value="5">5 Room Apartment</option>
+                  <option value="house">House</option>
+                  <option value="shared">Shared Accomodation</option>
                 </select>
               </div>
 
@@ -220,7 +225,7 @@ export default function HomePage() {
 
             <button
               id="btn-inserieren-hero"
-              onClick={() => router.push("/inserieren")}
+              onClick={() => router.push(user ? "/inserieren" : "/auth/login?redirect=/inserieren")}
               className="bg-primary text-on-primary px-8 py-4 rounded-lg text-label-md hover:opacity-90 transition-all shadow-lg active:scale-95 font-semibold cursor-pointer"
             >
               {t("listPropertyBtn")}

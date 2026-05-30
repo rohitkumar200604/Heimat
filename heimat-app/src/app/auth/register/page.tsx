@@ -11,9 +11,9 @@ export default function RegisterPage() {
   const router = useRouter();
   const { t, language } = useLanguage();
   
-  const [role, setRole] = useState<"tenant" | "landlord">("tenant");
   const [form, setForm] = useState({ name: "", email: "", tel: "", password: "" });
   
+  const [isRegistered, setIsRegistered] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [loadingSubmit, setLoadingSubmit] = useState(false);
@@ -25,13 +25,23 @@ export default function RegisterPage() {
     setLoadingSubmit(true);
 
     try {
-      // 1. Sign up the user via Supabase Auth
+      // 1. Sign up the user via Supabase Auth with registration metadata
       const { data, error } = await supabase.auth.signUp({
         email: form.email,
         password: form.password,
+        options: {
+          data: {
+            full_name: form.name,
+            phone: form.tel,
+            role: null, // role is null initially so they can choose it on select-role!
+          },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        }
       });
 
       if (error) throw error;
+      
+      // If user enumeration protection is enabled or user is missing, fail safely
       if (!data.user) {
         throw new Error(
           language === "de"
@@ -40,59 +50,82 @@ export default function RegisterPage() {
         );
       }
 
-      const userId = data.user.id;
-
-      // 2. Insert into profiles
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .insert({
-          id: userId,
-          email: form.email,
-          full_name: form.name,
-          phone: form.tel,
-          role: role,
-        });
-
-      if (profileError) throw profileError;
-
-      // 3. Insert into role-specific profiles
-      if (role === "landlord") {
-        const { error: lpError } = await supabase
-          .from("landlord_profiles")
-          .insert({
-            user_id: userId,
-          });
-        if (lpError) throw lpError;
-      } else {
-        const { error: tpError } = await supabase
-          .from("tenant_profiles")
-          .insert({
-            user_id: userId,
-          });
-        if (tpError) throw tpError;
-      }
-
       setSuccessMsg(
         language === "de"
-          ? "Konto erfolgreich erstellt! Sie werden weitergeleitet..."
-          : "Account successfully created! Redirecting..."
+          ? "Registrierung erfolgreich abgeschlossen!"
+          : "Registration successfully completed!"
       );
-
-      // Redirect role specifically after a short pause
-      setTimeout(() => {
-        if (role === "tenant") {
-          router.push("/auth/verify");
-        } else {
-          router.push("/dashboard/landlord");
-        }
-      }, 1500);
+      
+      setIsRegistered(true);
 
     } catch (err: any) {
-      setErrorMsg(err.message || "An error occurred");
+      const errMsg = err.message || "";
+      if (errMsg.toLowerCase().includes("rate limit") || errMsg.toLowerCase().includes("once every 60 seconds")) {
+        setErrorMsg(
+          language === "de"
+            ? "E-Mail-Limit überschritten. Da der kostenlose Standard-E-Mail-Server verwendet wird, wurde das Limit für diese Stunde erreicht. Bitte versuchen Sie es in einer Stunde erneut oder melden Sie sich bequem über Google an!"
+            : "Email rate limit exceeded. Because the default free email provider is being used, the hourly limit has been reached. Please try again in an hour, or sign in instantly with Google!"
+        );
+      } else {
+        setErrorMsg(err.message || "An error occurred");
+      }
     } finally {
       setLoadingSubmit(false);
     }
   };
+
+  if (isRegistered) {
+    return (
+      <>
+        <div className="flex-grow flex items-center justify-center py-16 px-5 bg-gradient-to-br from-surface-container-low via-background to-surface-container">
+          <div className="w-full max-w-lg bg-white/90 backdrop-blur-md border border-outline-variant p-10 rounded-2xl shadow-xl text-center">
+            <div className="w-20 h-20 bg-primary/10 border border-primary/20 rounded-full flex items-center justify-center mx-auto mb-8 animate-pulse">
+              <span className="material-symbols-outlined text-[48px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>
+                mail
+              </span>
+            </div>
+            
+            <h1 className="text-headline-lg text-primary font-bold mb-4">
+              {language === "de" ? "E-Mail bestätigen" : "Verify your Email"}
+            </h1>
+            
+            <p className="text-on-surface text-body-lg mb-6 leading-relaxed">
+              {language === "de" 
+                ? "Wir haben eine Bestätigungs-E-Mail an "
+                : "We have sent a verification email to "}
+              <strong className="text-primary">{form.email}</strong>
+              {language === "de"
+                ? " gesendet. Bitte klicken Sie auf den Link in der E-Mail, um Ihre Registrierung zu bestätigen."
+                : " as confirmation. Please click the link inside the email to verify your registration."}
+            </p>
+            
+            <div className="p-5 mb-8 text-[14px] text-on-surface-variant bg-surface-container-low border border-outline-variant rounded-xl flex items-start gap-3 text-left">
+              <span className="material-symbols-outlined text-primary text-[20px] mt-0.5">info</span>
+              <div>
+                <p className="font-semibold text-primary mb-1">
+                  {language === "de" ? "Was passiert als Nächstes?" : "What happens next?"}
+                </p>
+                <p className="leading-relaxed text-[13px]">
+                  {language === "de"
+                    ? "Sobald Sie Ihre E-Mail verifiziert haben, können Sie sich direkt in Ihr Dashboard einloggen und Ihr Profil vervollständigen!"
+                    : "Once you have verified your email, you will be able to log in directly to your dashboard and complete your profile!"}
+                </p>
+              </div>
+            </div>
+            
+            <Link
+              href="/auth/login"
+              className="inline-flex items-center justify-center w-full h-12 bg-primary text-on-primary rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all shadow-md gap-2"
+            >
+              <span>{language === "de" ? "Zur Anmeldung" : "Go to Login"}</span>
+              <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
+            </Link>
+          </div>
+        </div>
+        <Footer />
+      </>
+    );
+  }
 
   return (
     <>
@@ -122,37 +155,6 @@ export default function RegisterPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Role Picker pills */}
-            <div className="space-y-2">
-              <label className="block text-label-md text-on-surface font-semibold">
-                {t("roleLabel")}
-              </label>
-              <div className="grid grid-cols-2 gap-2 bg-surface-container-low p-1 rounded-xl border border-outline-variant">
-                <button
-                  type="button"
-                  onClick={() => setRole("tenant")}
-                  className={`py-3 text-label-md rounded-lg font-bold transition-all cursor-pointer ${
-                    role === "tenant"
-                      ? "bg-primary text-on-primary shadow-sm"
-                      : "text-on-surface-variant hover:text-primary"
-                  }`}
-                >
-                  {language === "de" ? "Mieter" : "Tenant"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole("landlord")}
-                  className={`py-3 text-label-md rounded-lg font-bold transition-all cursor-pointer ${
-                    role === "landlord"
-                      ? "bg-primary text-on-primary shadow-sm"
-                      : "text-on-surface-variant hover:text-primary"
-                  }`}
-                >
-                  {language === "de" ? "Vermieter" : "Landlord"}
-                </button>
-              </div>
-            </div>
-
             {/* Inputs */}
             <div className="space-y-4">
               <div className="space-y-1">

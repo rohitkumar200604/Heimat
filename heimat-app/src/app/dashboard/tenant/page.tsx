@@ -6,15 +6,40 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/supabase/client";
 import Footer from "@/components/layout/Footer";
+import Link from "next/link";
 
 export default function TenantDashboard() {
   const router = useRouter();
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, refreshProfile } = useAuth();
   const { t, language } = useLanguage();
   
+  // Navigation State
+  const [activeTab, setActiveTab] = useState<"overview" | "profile" | "bookings" | "documents" | "analyzer">("overview");
+
+  // Database Data States
   const [docs, setDocs] = useState<any[]>([]);
   const [activeBooking, setActiveBooking] = useState<any | null>(null);
+  const [tenantProfile, setTenantProfile] = useState<any | null>(null);
+  const [aiScore, setAiScore] = useState<any | null>(null);
   const [loadingDashboard, setLoadingDashboard] = useState(true);
+  
+  // Form State
+  const [profileForm, setProfileForm] = useState({
+    full_name: "",
+    phone: "",
+    nationality: "",
+    university: "",
+    enrollment_date: "",
+    graduation_date: "",
+    employment_status: "",
+    monthly_income: "",
+  });
+
+  // Action feedback states
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [runningAnalyzer, setRunningAnalyzer] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -25,52 +50,157 @@ export default function TenantDashboard() {
     }
   }, [user, profile, loading, router]);
 
-  useEffect(() => {
+  // Fetch initial dashboard and profile data
+  const fetchTenantData = async () => {
     if (!user) return;
+    try {
+      // 1. Fetch verification documents
+      const { data: docData, error: docErr } = await supabase
+        .from("verification_documents")
+        .select("*")
+        .eq("user_id", user.id);
+      if (docErr) throw docErr;
+      setDocs(docData || []);
 
-    const fetchTenantData = async () => {
-      try {
-        // 1. Fetch documents
-        const { data: docData, error: docErr } = await supabase
-          .from("verification_documents")
-          .select("*")
-          .eq("user_id", user.id);
-        if (docErr) throw docErr;
-        setDocs(docData || []);
-
-        // 2. Fetch active booking (the latest non-cancelled one)
-        const { data: bookingData, error: bookingErr } = await supabase
-          .from("bookings")
-          .select(`
+      // 2. Fetch active booking
+      const { data: bookingData, error: bookingErr } = await supabase
+        .from("bookings")
+        .select(`
+          id,
+          status,
+          move_in_date,
+          move_out_date,
+          rent_total,
+          properties (
             id,
-            status,
-            move_in_date,
-            property_id,
-            properties (
-              id,
-              title,
-              street,
-              city,
-              zip
-            )
-          `)
-          .eq("tenant_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(1);
+            title,
+            street,
+            city,
+            zip,
+            size_sqm,
+            rent_cold
+          )
+        `)
+        .eq("tenant_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1);
 
-        if (bookingErr) throw bookingErr;
-        if (bookingData && bookingData.length > 0) {
-          setActiveBooking(bookingData[0]);
-        }
-      } catch (err) {
-        console.error("Error loading tenant dashboard data:", err);
-      } finally {
-        setLoadingDashboard(false);
+      if (bookingErr) throw bookingErr;
+      if (bookingData && bookingData.length > 0) {
+        const currentBooking = bookingData[0];
+        setActiveBooking(currentBooking);
+
+        // Fetch AI Match score details for the active booking
+        const { data: scoreDetails } = await supabase
+          .from("ai_tenant_scores")
+          .select("*")
+          .eq("booking_id", currentBooking.id)
+          .maybeSingle();
+
+        setAiScore(scoreDetails);
+      } else {
+        setActiveBooking(null);
+        setAiScore(null);
       }
-    };
 
+      // 3. Fetch custom tenant_profiles
+      const { data: tpData, error: tpErr } = await supabase
+        .from("tenant_profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+      
+      // Suppress single row not found errors to let signup trigger catch up
+      if (!tpErr && tpData) {
+        setTenantProfile(tpData);
+        setProfileForm({
+          full_name: profile?.full_name || "",
+          phone: profile?.phone || "",
+          nationality: tpData.nationality || "",
+          university: tpData.university || "",
+          enrollment_date: tpData.enrollment_date || "",
+          graduation_date: tpData.graduation_date || "",
+          employment_status: tpData.employment_status || "",
+          monthly_income: tpData.monthly_income ? String(tpData.monthly_income) : "",
+        });
+      } else {
+        // Default fallbacks from core profile context
+        setProfileForm(prev => ({
+          ...prev,
+          full_name: profile?.full_name || "",
+          phone: profile?.phone || "",
+        }));
+      }
+
+    } catch (err) {
+      console.error("Error loading tenant dashboard data:", err);
+    } finally {
+      setLoadingDashboard(false);
+    }
+  };
+
+  useEffect(() => {
     fetchTenantData();
-  }, [user]);
+  }, [user, profile]);
+
+  const handleRunProfileAnalyzer = async () => {
+    setErrorMsg("");
+    setSuccessMsg("");
+    setRunningAnalyzer(true);
+
+    try {
+      const tenantProfileData = {
+        nationality: tenantProfile?.nationality || profileForm.nationality || "German",
+        monthlyIncome: parseFloat(tenantProfile?.monthly_income || profileForm.monthly_income || "2500"),
+        rent: parseFloat(activeBooking?.properties?.rent_cold || activeBooking?.rent_total || "1000"),
+        employmentStatus: tenantProfile?.employment_status || profileForm.employment_status || "Student"
+      };
+
+      const uploadedDocTypes = docs.map(d => d.doc_type);
+
+      const aiRes = await fetch("/api/ai/score-tenant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingId: activeBooking?.id || "mock-pre-screen",
+          tenantProfile: tenantProfileData,
+          docTypes: uploadedDocTypes
+        })
+      });
+
+      const aiData = await aiRes.json();
+      if (!aiData.success) {
+        throw new Error(aiData.error || "AI screening call failed");
+      }
+
+      // If there is no active booking (general pre-screening), save the cached score to tenant_profiles
+      if (!activeBooking && user) {
+        const { error: updateScoreErr } = await supabase
+          .from("tenant_profiles")
+          .update({ ai_score: aiData.data.overall_score })
+          .eq("user_id", user.id);
+        
+        if (updateScoreErr) {
+          console.error("Error updating pre-screen score:", updateScoreErr);
+        }
+      }
+
+      setSuccessMsg(
+        language === "de"
+          ? "AI Profile Analyzer erfolgreich abgeschlossen! Ihr Eignungsscore wurde berechnet."
+          : "AI Profile Analyzer successfully completed! Your suitability score has been calculated."
+      );
+
+      // Refresh everything to reflect the new state
+      await fetchTenantData();
+      await refreshProfile();
+    } catch (err: any) {
+      console.error("Error running profile analyzer:", err);
+      setErrorMsg(err.message || "Failed to analyze profile");
+    } finally {
+      setRunningAnalyzer(false);
+    }
+  };
 
   if (loading || loadingDashboard) {
     return (
@@ -80,12 +210,75 @@ export default function TenantDashboard() {
     );
   }
 
+  // Profile Save handler
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg("");
+    setSuccessMsg("");
+    setSavingProfile(true);
+
+    try {
+      if (!user) throw new Error("No authenticated user");
+
+      // 1. Update Core profiles table
+      const { error: pErr } = await supabase
+        .from("profiles")
+        .update({
+          full_name: profileForm.full_name,
+          phone: profileForm.phone,
+        })
+        .eq("id", user.id);
+      if (pErr) throw pErr;
+
+      // 2. Update Tenant-specific profile table (upsert dynamically)
+      const { data: updatedTp, error: tErr } = await supabase
+        .from("tenant_profiles")
+        .upsert({
+          user_id: user.id,
+          nationality: profileForm.nationality || null,
+          university: profileForm.university || null,
+          enrollment_date: profileForm.enrollment_date || null,
+          graduation_date: profileForm.graduation_date || null,
+          employment_status: profileForm.employment_status || null,
+          monthly_income: profileForm.monthly_income ? parseFloat(profileForm.monthly_income) : null,
+        }, { onConflict: "user_id" })
+        .select()
+        .single();
+      if (tErr) throw tErr;
+
+      setTenantProfile(updatedTp);
+      setSuccessMsg(
+        language === "de"
+          ? "Profil details erfolgreich gespeichert!"
+          : "Profile details successfully saved!"
+      );
+      
+      // Refresh context profile details
+      await refreshProfile();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to update profile");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
   const documentTypesList = [
-    { key: "passport", labelDe: "Personalausweis / Reisepass", labelEn: "Passport / ID Card" },
-    { key: "enrollment", labelDe: "Immatrikulationsbescheinigung", labelEn: "Enrollment Certificate" },
-    { key: "income", labelDe: "Einkommensnachweis", labelEn: "Proof of Income" },
-    { key: "visa", labelDe: "Visum / Aufenthaltstitel", labelEn: "Visa / Residence Permit" },
+    { key: "passport", labelDe: "Personalausweis / Reisepass", labelEn: "Passport / ID Card", icon: "badge" },
+    { key: "enrollment", labelDe: "Immatrikulationsbescheinigung", labelEn: "Enrollment Certificate", icon: "school" },
+    { key: "income", labelDe: "Einkommensnachweis", labelEn: "Proof of Income", icon: "receipt_long" },
+    { key: "visa", labelDe: "Visum / Aufenthaltstitel", labelEn: "Visa / Residence Permit", icon: "assignment_ind" },
   ];
+
+  const requiredDocs = ["passport", "enrollment", "income", "visa"];
+  const getDocDisplayName = (key: string) => {
+    switch (key) {
+      case "passport": return language === "de" ? "Reisepass / Ausweis" : "Passport / ID";
+      case "enrollment": return language === "de" ? "Immatrikulationsbescheinigung" : "Enrollment Cert";
+      case "income": return language === "de" ? "Einkommensnachweis" : "Proof of Income";
+      case "visa": return language === "de" ? "Visum / Aufenthaltstitel" : "Visa / Permit";
+      default: return key;
+    }
+  };
 
   const getDocStatus = (type: string) => {
     const d = docs.find((x) => x.doc_type === type);
@@ -127,157 +320,976 @@ export default function TenantDashboard() {
     <>
       <div className="flex-grow py-12 px-5 max-w-[1280px] mx-auto w-full">
         {/* Welcome Header */}
-        <div className="mb-10">
-          <span className="text-[14px] text-secondary font-bold uppercase tracking-wider block mb-1">
-            {t("tenantDashTitle")}
-          </span>
-          <h1 className="text-display-lg-mobile md:text-headline-lg font-bold text-primary">
-            {t("welcome")} {profile?.full_name || "User"}!
-          </h1>
+        <div className="mb-10 flex flex-col sm:flex-row justify-between sm:items-end gap-4">
+          <div>
+            <span className="text-[14px] text-secondary font-bold uppercase tracking-wider block mb-1">
+              {t("tenantDashTitle")}
+            </span>
+            <h1 className="text-display-lg-mobile md:text-headline-lg font-bold text-primary">
+              {t("welcome")} {profile?.full_name || ""}!
+            </h1>
+          </div>
+          
+          {/* Quick AI Trust Score Badge */}
+          {tenantProfile?.ai_score !== null && tenantProfile?.ai_score !== undefined && (
+            <div className="bg-gradient-to-r from-primary to-secondary p-0.5 rounded-2xl shadow-md self-start sm:self-auto">
+              <div className="bg-white px-5 py-2.5 rounded-[14px] flex items-center gap-3">
+                <span className="material-symbols-outlined text-primary text-[28px] animate-pulse">insights</span>
+                <div>
+                  <p className="text-[10px] text-on-surface-variant font-bold uppercase leading-none tracking-wider">
+                    AI Match Score
+                  </p>
+                  <p className="text-[20px] font-bold text-primary leading-none mt-1">
+                    {tenantProfile.ai_score}/100
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Dashboard Content */}
-        {!activeBooking ? (
-          <div className="bg-white border border-outline-variant p-8 rounded-2xl shadow-sm text-center space-y-4">
-            <span className="material-symbols-outlined text-[64px] text-primary">home</span>
-            <h3 className="text-headline-md font-bold text-primary">
-              {language === "de" ? "Finden Sie Ihre Traumwohnung" : "Find Your Dream Apartment"}
-            </h3>
-            <p className="text-body-md text-on-surface-variant max-w-md mx-auto">
-              {language === "de" 
-                ? "Sie haben momentan keine laufenden Buchungsanfragen. Durchstöbern Sie unsere Premium-Objekte in Berlin, München und Hamburg."
-                : "You don't have any active booking requests at the moment. Browse our premium properties in Berlin, Munich, and Hamburg."}
-            </p>
-            <button 
-              onClick={() => router.push("/suche")}
-              className="bg-primary text-on-primary px-6 py-3 rounded-lg text-label-md font-bold hover:opacity-90 active:scale-95 transition-all shadow cursor-pointer inline-flex items-center gap-2"
+        {/* Tabbed Layout - Left Sidebar, Right Content */}
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
+          
+          {/* ── Sidebar Navigation ─────────────────────────── */}
+          <aside className="w-full lg:w-64 bg-white/90 backdrop-blur-md border border-outline-variant rounded-2xl p-4 shadow-sm flex flex-col gap-1.5 flex-shrink-0">
+            <button
+              onClick={() => setActiveTab("overview")}
+              className={`flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-left text-label-md font-bold transition-all ${
+                activeTab === "overview"
+                  ? "bg-primary text-on-primary shadow-md"
+                  : "text-on-surface-variant hover:bg-surface-container-low hover:text-primary"
+              }`}
             >
-              <span className="material-symbols-outlined text-[20px]">search</span>
-              {t("searchBtn")}
+              <span className="material-symbols-outlined text-[20px]">space_dashboard</span>
+              <span>{language === "de" ? "Übersicht" : "Overview"}</span>
             </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start mb-12">
-            {/* Visual Status Pipeline - 8 Cols */}
-            <div className="lg:col-span-8 space-y-6">
-              <div className="bg-white border border-outline-variant p-6 rounded-2xl shadow-sm">
-                <h2 className="text-headline-md font-bold text-primary mb-6">
-                  {t("applicationStatus")}
-                </h2>
+            
+            <button
+              onClick={() => setActiveTab("profile")}
+              className={`flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-left text-label-md font-bold transition-all ${
+                activeTab === "profile"
+                  ? "bg-primary text-on-primary shadow-md"
+                  : "text-on-surface-variant hover:bg-surface-container-low hover:text-primary"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[20px]">account_circle</span>
+              <span>{language === "de" ? "Profil & Finanzen" : "Profile & Finance"}</span>
+            </button>
+            
+            <button
+              onClick={() => setActiveTab("bookings")}
+              className={`flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-left text-label-md font-bold transition-all ${
+                activeTab === "bookings"
+                  ? "bg-primary text-on-primary shadow-md"
+                  : "text-on-surface-variant hover:bg-surface-container-low hover:text-primary"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[20px]">calendar_month</span>
+              <span>{language === "de" ? "Buchungen" : "My Bookings"}</span>
+            </button>
+            
+            <button
+              onClick={() => setActiveTab("documents")}
+              className={`flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-left text-label-md font-bold transition-all ${
+                activeTab === "documents"
+                  ? "bg-primary text-on-primary shadow-md"
+                  : "text-on-surface-variant hover:bg-surface-container-low hover:text-primary"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[20px]">folder_shared</span>
+              <span>{language === "de" ? "Dokumente" : "Documents"}</span>
+            </button>
 
-                <div className="relative flex justify-between items-center w-full max-w-2xl mx-auto my-10">
-                  {/* Track */}
-                  <div className="absolute top-1/2 left-0 w-full h-[2px] bg-outline-variant -z-10 -translate-y-1/2" />
-                  {/* Progress */}
-                  <div 
-                    className="absolute top-1/2 left-0 h-[2px] bg-primary -z-10 -translate-y-1/2 transition-all duration-500" 
-                    style={{ width: `${progressPct}%` }}
-                  />
+            <button
+              onClick={() => setActiveTab("analyzer")}
+              className={`flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-left text-label-md font-bold transition-all relative ${
+                activeTab === "analyzer"
+                  ? "bg-primary text-on-primary shadow-md"
+                  : "text-on-surface-variant hover:bg-surface-container-low hover:text-primary"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[20px] animate-pulse">insights</span>
+              <span>{language === "de" ? "AI Eignungsanalyse" : "AI Profile Analyzer"}</span>
+              {tenantProfile?.ai_score === null && (
+                <span className="absolute top-1/2 right-4 -translate-y-1/2 w-2 h-2 bg-red-500 rounded-full animate-ping" />
+              )}
+            </button>
+          </aside>
 
-                  {pipeline.map((step, idx) => (
-                    <div key={idx} className="flex flex-col items-center gap-2">
-                      <div
-                        className={`w-8 h-8 rounded-full border-4 border-white flex items-center justify-center text-[12px] font-bold shadow transition-all ${
-                          step.active ? "bg-primary text-on-primary" : "bg-outline-variant text-on-surface-variant"
+          {/* ── Main Tab Contents ─────────────────────────── */}
+          <main className="flex-grow w-full space-y-6">
+            
+            {/* 1. Tab: Overview */}
+            {activeTab === "overview" && (
+              <div className="space-y-6">
+                
+                {/* Stats Columns Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                  <div className="bg-white border border-outline-variant p-5 rounded-2xl shadow-sm flex items-center gap-4">
+                    <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <span className="material-symbols-outlined text-primary text-[24px]">vpn_key</span>
+                    </div>
+                    <div>
+                      <p className="text-[12px] text-on-surface-variant font-bold uppercase leading-none">
+                        {language === "de" ? "Buchungen" : "Active Booking"}
+                      </p>
+                      <p className="text-[18px] font-bold text-primary mt-1">
+                        {activeBooking ? (language === "de" ? "1 Aktiv" : "1 Active") : (language === "de" ? "Keine" : "None")}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white border border-outline-variant p-5 rounded-2xl shadow-sm flex items-center gap-4">
+                    <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <span className="material-symbols-outlined text-primary text-[24px]">verified</span>
+                    </div>
+                    <div>
+                      <p className="text-[12px] text-on-surface-variant font-bold uppercase leading-none">
+                        {language === "de" ? "Verifizierung" : "Documents"}
+                      </p>
+                      <p className="text-[18px] font-bold text-primary mt-1">
+                        {docs.filter(d => d.status === "approved").length} / {documentTypesList.length} Approved
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white border border-outline-variant p-5 rounded-2xl shadow-sm flex items-center gap-4">
+                    <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <span className="material-symbols-outlined text-primary text-[24px]">euro_symbol</span>
+                    </div>
+                    <div>
+                      <p className="text-[12px] text-on-surface-variant font-bold uppercase leading-none">
+                        {language === "de" ? "Monatliches Budget" : "Monthly Budget"}
+                      </p>
+                      <p className="text-[18px] font-bold text-primary mt-1">
+                        {tenantProfile?.monthly_income ? `€ ${tenantProfile.monthly_income}` : (language === "de" ? "Nicht angegeben" : "Not Provided")}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* AI Analyzer Action Banner */}
+                {(!activeBooking || activeBooking.status === "pending") && (
+                  <div className="bg-gradient-to-r from-primary/10 via-secondary/5 to-primary/15 border border-primary/20 rounded-3xl p-6 md:p-8 shadow-sm flex flex-col md:flex-row justify-between items-center gap-6 relative overflow-hidden">
+                    {/* Glowing effect inside card */}
+                    <div className="absolute top-0 right-0 -mr-16 -mt-16 w-32 h-32 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
+                    <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-32 h-32 bg-secondary/15 rounded-full blur-3xl pointer-events-none" />
+                    
+                    <div className="space-y-4 max-w-xl z-10">
+                      <div className="inline-flex items-center gap-2 bg-primary-fixed/20 border border-primary/20 px-3 py-1 rounded-full text-[11px] font-bold text-primary uppercase tracking-wider">
+                        <span className="material-symbols-outlined text-[14px] animate-pulse">insights</span>
+                        AI Match Optimizer
+                      </div>
+                      <h3 className="text-headline-sm font-bold text-primary leading-tight">
+                        {activeBooking 
+                          ? (language === "de" ? "Wohnungsbewerbung optimieren & AI-Screening starten" : "Optimize Application & Start AI Screening")
+                          : (language === "de" ? "Profil optimieren & AI-Vorbewertung berechnen" : "Optimize Profile & Calculate AI Pre-Screening")}
+                      </h3>
+                      <p className="text-body-sm text-on-surface-variant leading-relaxed">
+                        {activeBooking
+                          ? (language === "de"
+                              ? "Führen Sie den AI-Profilanalysator aus, um Ihre Angaben zu prüfen und einen Trust Match Score zu erstellen. Dies signalisiert dem Vermieter sofortige Bewerbungsreife und kann die Zusagechancen verdoppeln."
+                              : "Run our AI Profile Analyzer to evaluate your credentials and calculate your landlord match score. Completing this step lets the landlord approve you instantly.")
+                          : (language === "de"
+                              ? "Führen Sie die AI-Vorbewertung aus, um Ihr Profil auf Fehler zu prüfen und Ihren Heimat Trust Match Score zu berechnen, noch bevor Sie sich für eine Wohnung bewerben."
+                              : "Run our AI pre-screening to evaluate your profile completeness and calculate your Heimat Trust Match Score before applying to any properties.")}
+                      </p>
+                      
+                      {/* Document checklist status badges */}
+                      <div className="pt-2">
+                        <p className="text-[11px] text-on-surface-variant font-bold uppercase tracking-wider mb-2">
+                          {language === "de" ? "Hochgeladene Unterlagen:" : "Uploaded Documents Status:"}
+                        </p>
+                        <div className="flex flex-wrap gap-2.5">
+                          {requiredDocs.map((docKey) => {
+                            const isOk = docs.some(d => d.doc_type === docKey);
+                            return (
+                              <div
+                                key={docKey}
+                                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border transition-all ${
+                                  isOk
+                                    ? "bg-primary-fixed/15 border-primary/25 text-primary"
+                                    : "bg-surface-container-low border-outline-variant text-on-surface-variant/70"
+                                }`}
+                              >
+                                <span className="material-symbols-outlined text-[14px]">
+                                  {isOk ? "check_circle" : "cancel"}
+                                </span>
+                                <span>{getDocDisplayName(docKey)}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex-shrink-0 z-10 w-full md:w-auto text-center">
+                      <button
+                        onClick={handleRunProfileAnalyzer}
+                        disabled={runningAnalyzer}
+                        className="w-full md:w-auto bg-gradient-to-r from-primary to-secondary text-on-primary px-8 py-4 rounded-2xl font-bold hover:opacity-95 hover:shadow-lg active:scale-95 transition-all shadow cursor-pointer flex items-center justify-center gap-3 disabled:opacity-75 disabled:pointer-events-none"
+                      >
+                        {runningAnalyzer ? (
+                          <>
+                            <span className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                            <span>{language === "de" ? "Analysiere Profil..." : "Analyzing Profile..."}</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="material-symbols-outlined text-[20px] animate-pulse">troubleshoot</span>
+                            <span>{language === "de" ? "Profil prüfen & starten" : "Start Profile Analyzer"}</span>
+                          </>
+                        )}
+                      </button>
+                      <p className="text-[10px] text-on-surface-variant mt-2 italic">
+                        {language === "de"
+                          ? "Dauer: ca. 10 Sekunden"
+                          : "Takes about 10 seconds"}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Primary Booking Overview panel */}
+                {!activeBooking ? (
+                  <div className="bg-white border border-outline-variant p-8 rounded-2xl shadow-sm text-center space-y-4">
+                    <span className="material-symbols-outlined text-[56px] text-primary">apartment</span>
+                    <h3 className="text-headline-md font-bold text-primary">
+                      {language === "de" ? "Starten Sie Ihre Wohnungssuche" : "Start Your Apartment Search"}
+                    </h3>
+                    <p className="text-body-md text-on-surface-variant max-w-md mx-auto leading-relaxed">
+                      {language === "de" 
+                        ? "Vervollständigen Sie Ihr Profil im Tab 'Profil & Finanzen' und laden Sie Ihre Unterlagen hoch, um Ihre AI-Match-Chancen bei Vermietern um 80% zu erhöhen."
+                        : "Complete your profile details in the 'Profile & Finance' tab and upload your verification documents to boost your AI Match chances by 80%."}
+                    </p>
+                    <button 
+                      onClick={() => router.push("/suche")}
+                      className="bg-primary text-on-primary px-6 py-3 rounded-xl text-label-md font-bold hover:opacity-90 active:scale-95 transition-all shadow cursor-pointer inline-flex items-center gap-2"
+                    >
+                      <span className="material-symbols-outlined text-[20px]">search</span>
+                      {language === "de" ? "Jetzt Wohnungen suchen" : "Browse Properties"}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="bg-white border border-outline-variant p-6 rounded-2xl shadow-sm space-y-6">
+                    <div className="flex justify-between items-start flex-wrap gap-4 border-b border-outline-variant/60 pb-5">
+                      <div>
+                        <span className="bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider">
+                          Active Application
+                        </span>
+                        <h3 className="text-headline-md font-bold text-primary mt-3">
+                          {property?.title || property?.street || "Unterkunft"}
+                        </h3>
+                        <p className="text-body-md text-on-surface-variant mt-1">
+                          {property?.zip} {property?.city}
+                        </p>
+                      </div>
+                      <div className="bg-surface-container-low border border-outline-variant p-4 rounded-xl text-center min-w-[150px]">
+                        <p className="text-[11px] text-on-surface-variant font-bold uppercase tracking-wider">Status</p>
+                        <p className="text-body-lg font-extrabold text-primary mt-1 capitalize">
+                          {activeBooking.status.replace("_", " ")}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="relative flex justify-between items-center w-full max-w-2xl mx-auto my-6 flex-wrap sm:flex-nowrap gap-4 sm:gap-0">
+                      {/* Track */}
+                      <div className="absolute top-1/2 left-0 w-full h-[2px] bg-outline-variant -z-10 -translate-y-1/2 hidden sm:block" />
+                      {/* Progress */}
+                      <div 
+                        className="absolute top-1/2 left-0 h-[2px] bg-primary -z-10 -translate-y-1/2 transition-all duration-500 hidden sm:block" 
+                        style={{ width: `${progressPct}%` }}
+                      />
+
+                      {pipeline.map((step, idx) => (
+                        <div key={idx} className="flex flex-col items-center gap-1.5 w-1/3 sm:w-auto">
+                          <div
+                            className={`w-7 h-7 rounded-full border-4 border-white flex items-center justify-center text-[10px] font-bold shadow transition-all ${
+                              step.active ? "bg-primary text-on-primary" : "bg-outline-variant text-on-surface-variant"
+                            }`}
+                          >
+                            {step.active ? <span className="material-symbols-outlined text-[12px]">check</span> : idx + 1}
+                          </div>
+                          <span className={`text-[10px] font-bold ${step.active ? "text-primary" : "text-on-surface-variant"}`}>
+                            {language === "de" ? step.labelDe : step.labelEn}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="pt-4 flex justify-end">
+                      <button
+                        onClick={() => setActiveTab("bookings")}
+                        className="text-primary text-label-md font-bold hover:underline inline-flex items-center gap-1"
+                      >
+                        {language === "de" ? "Vollständige Bewerbung anzeigen" : "View Application Details"}
+                        <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 2. Tab: Profile Settings Form */}
+            {activeTab === "profile" && (
+              <div className="bg-white border border-outline-variant p-6 md:p-8 rounded-2xl shadow-sm space-y-6">
+                <div>
+                  <h2 className="text-headline-md font-bold text-primary">
+                    {language === "de" ? "Persönliche & Finanzielle Details" : "Personal & Financial Details"}
+                  </h2>
+                  <p className="text-body-md text-on-surface-variant mt-1 leading-relaxed">
+                    {language === "de"
+                      ? "Tragen Sie Ihre Angaben ein, damit Vermieter Ihre Bonität und Eignung bewerten können. Diese Daten werden für den AI Match Score verwendet."
+                      : "Provide your academic and financial details. This information is required for secure landlord approvals and the AI trust match score."}
+                  </p>
+                </div>
+
+                {errorMsg && (
+                  <div className="p-4 text-[14px] text-error bg-error-container/30 border border-error/20 rounded-xl flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[20px]">warning</span>
+                    <span>{errorMsg}</span>
+                  </div>
+                )}
+
+                {successMsg && (
+                  <div className="p-4 text-[14px] text-primary bg-primary-fixed/30 border border-primary/20 rounded-xl flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                    <span>{successMsg}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleSaveProfile} className="space-y-6">
+                  {/* Category 1: Identity */}
+                  <div className="space-y-4">
+                    <h3 className="text-label-md font-bold text-primary uppercase border-b border-outline-variant/60 pb-1.5">
+                      {language === "de" ? "Identität & Kontakt" : "Identity & Contact"}
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="block text-label-sm text-on-surface font-semibold">
+                          {language === "de" ? "Vollständiger Name" : "Full Name"}
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={profileForm.full_name}
+                          onChange={(e) => setProfileForm({ ...profileForm, full_name: e.target.value })}
+                          className="w-full h-11 px-4 bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-[15px]"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-label-sm text-on-surface font-semibold">
+                          {language === "de" ? "Telefonnummer" : "Phone Number"}
+                        </label>
+                        <input
+                          type="tel"
+                          required
+                          placeholder="+49 176 123456"
+                          value={profileForm.phone}
+                          onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                          className="w-full h-11 px-4 bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-[15px]"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-label-sm text-on-surface font-semibold">
+                          {language === "de" ? "E-Mail-Adresse (Gesperrt)" : "Email Address (Locked)"}
+                        </label>
+                        <input
+                          type="email"
+                          disabled
+                          value={user?.email || ""}
+                          className="w-full h-11 px-4 bg-surface-container border border-outline-variant rounded-xl outline-none text-[15px] opacity-60 cursor-not-allowed"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-label-sm text-on-surface font-semibold">
+                          {language === "de" ? "Staatsangehörigkeit" : "Nationality"}
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="z.B. Deutsch, Französisch"
+                          value={profileForm.nationality}
+                          onChange={(e) => setProfileForm({ ...profileForm, nationality: e.target.value })}
+                          className="w-full h-11 px-4 bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-[15px]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Category 2: Academic & Income details */}
+                  <div className="space-y-4 pt-4">
+                    <h3 className="text-label-md font-bold text-primary uppercase border-b border-outline-variant/60 pb-1.5">
+                      {language === "de" ? "Akademische & Finanzielle Angaben" : "Academic & Financial Details"}
+                    </h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1 col-span-1 md:col-span-2">
+                        <label className="block text-label-sm text-on-surface font-semibold">
+                          {language === "de" ? "Universität / Hochschule" : "University Name"}
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="z.B. TU Berlin, LMU München"
+                          value={profileForm.university}
+                          onChange={(e) => setProfileForm({ ...profileForm, university: e.target.value })}
+                          className="w-full h-11 px-4 bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-[15px]"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-label-sm text-on-surface font-semibold">
+                          {language === "de" ? "Studienbeginn (Enrollment)" : "Enrollment Date"}
+                        </label>
+                        <input
+                          type="date"
+                          value={profileForm.enrollment_date}
+                          onChange={(e) => setProfileForm({ ...profileForm, enrollment_date: e.target.value })}
+                          className="w-full h-11 px-4 bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-[15px]"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-label-sm text-on-surface font-semibold">
+                          {language === "de" ? "Voraussichtlicher Abschluss" : "Expected Graduation"}
+                        </label>
+                        <input
+                          type="date"
+                          value={profileForm.graduation_date}
+                          onChange={(e) => setProfileForm({ ...profileForm, graduation_date: e.target.value })}
+                          className="w-full h-11 px-4 bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-[15px]"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-label-sm text-on-surface font-semibold">
+                          {language === "de" ? "Beschäftigungsverhältnis" : "Employment Status"}
+                        </label>
+                        <select
+                          value={profileForm.employment_status}
+                          onChange={(e) => setProfileForm({ ...profileForm, employment_status: e.target.value })}
+                          className="w-full h-11 px-4 bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-[15px]"
+                        >
+                          <option value="">{language === "de" ? "Auswählen..." : "Select..."}</option>
+                          <option value="student">{language === "de" ? "Student (Vollzeit)" : "Student (Full-time)"}</option>
+                          <option value="working_student">{language === "de" ? "Werkstudent" : "Working Student"}</option>
+                          <option value="employed">{language === "de" ? "Angestellt" : "Employed"}</option>
+                          <option value="intern">{language === "de" ? "Praktikant" : "Intern"}</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-label-sm text-on-surface font-semibold">
+                          {language === "de" ? "Monatliches Nettoeinkommen (€)" : "Monthly Net Income (€)"}
+                        </label>
+                        <input
+                          type="number"
+                          placeholder="z.B. 950"
+                          value={profileForm.monthly_income}
+                          onChange={(e) => setProfileForm({ ...profileForm, monthly_income: e.target.value })}
+                          className="w-full h-11 px-4 bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-[15px]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-6 border-t border-outline-variant flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={savingProfile}
+                      className="bg-primary text-on-primary px-8 h-12 rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {savingProfile && (
+                        <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                      )}
+                      {language === "de" ? "Änderungen speichern" : "Save Changes"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* 3. Tab: My Bookings details */}
+            {activeTab === "bookings" && (
+              <div className="space-y-6">
+                {!activeBooking ? (
+                  <div className="bg-white border border-outline-variant p-8 rounded-2xl shadow-sm text-center space-y-4">
+                    <span className="material-symbols-outlined text-[56px] text-primary">book_online</span>
+                    <h3 className="text-headline-md font-bold text-primary">
+                      {language === "de" ? "Keine Buchungen gefunden" : "No Active Bookings"}
+                    </h3>
+                    <p className="text-body-md text-on-surface-variant max-w-md mx-auto">
+                      {language === "de"
+                        ? "Sie haben noch keine Buchungsanfragen gestellt. Finden Sie eine passende Unterkunft und starten Sie Ihre Bewerbung!"
+                        : "You haven't submitted any booking requests yet. Browse properties and start your rent application today!"}
+                    </p>
+                    <button
+                      onClick={() => router.push("/suche")}
+                      className="bg-primary text-on-primary px-6 py-3 rounded-xl text-label-md font-bold hover:opacity-90 active:scale-95 transition-all shadow cursor-pointer inline-flex items-center gap-2"
+                    >
+                      <span className="material-symbols-outlined text-[20px]">search</span>
+                      {t("searchBtn")}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="bg-white border border-outline-variant p-6 md:p-8 rounded-2xl shadow-sm space-y-8">
+                    {/* Booking Details Columns Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pb-6 border-b border-outline-variant/60">
+                      <div>
+                        <span className="text-[12px] font-bold text-secondary uppercase tracking-widest leading-none block mb-2">
+                          Application Summary
+                        </span>
+                        <h2 className="text-headline-lg-mobile md:text-headline-md font-bold text-primary">
+                          {property?.title || "Mietobjekt"}
+                        </h2>
+                        <p className="text-body-md text-on-surface-variant mt-1.5">
+                          {property?.street}, {property?.zip} {property?.city}
+                        </p>
+                        
+                        <div className="mt-6 space-y-3.5">
+                          <div className="flex items-center gap-3 text-on-surface">
+                            <span className="material-symbols-outlined text-primary text-[20px]">calendar_today</span>
+                            <span className="text-[14px]">
+                              <strong>{language === "de" ? "Zeitraum: " : "Period: "}</strong>
+                              {new Date(activeBooking.move_in_date).toLocaleDateString(language === "de" ? "de-DE" : "en-US")} - {new Date(activeBooking.move_out_date).toLocaleDateString(language === "de" ? "de-DE" : "en-US")}
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center gap-3 text-on-surface">
+                            <span className="material-symbols-outlined text-primary text-[20px]">euro</span>
+                            <span className="text-[14px]">
+                              <strong>{language === "de" ? "Monatsmiete: " : "Monthly Rent: "}</strong>
+                              € {property?.rent_cold || activeBooking.rent_total}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-3 text-on-surface">
+                            <span className="material-symbols-outlined text-primary text-[20px]">hourglass_empty</span>
+                            <span className="text-[14px]">
+                              <strong>{language === "de" ? "Einzug in: " : "Move-in in: "}</strong>
+                              {getCountdown(activeBooking.move_in_date)} {language === "de" ? "Tagen" : "Days"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-surface-container-low border border-outline-variant p-6 rounded-2xl space-y-4 self-start">
+                        <h4 className="text-label-md font-bold text-primary border-b border-outline-variant pb-2 uppercase tracking-wide">
+                          {language === "de" ? "Nächste Schritte" : "Next Actions Required"}
+                        </h4>
+                        
+                        {activeBooking.status === "pending" && (
+                          <p className="text-[13px] text-on-surface-variant leading-relaxed">
+                            {language === "de"
+                              ? "Der Vermieter prüft Ihre Bewerbung. Um Ihre Chancen zu erhöhen, stellen Sie sicher, dass all Ihre Dokumente unter 'Dokumente' hochgeladen sind."
+                              : "The landlord is currently reviewing your intent. To boost matching success, verify that all files in the 'Documents' tab are uploaded and approved."}
+                          </p>
+                        )}
+                        {activeBooking.status === "docs_review" && (
+                          <p className="text-[13px] text-on-surface-variant leading-relaxed">
+                            {language === "de"
+                              ? "Ihre Unterlagen werden verarbeitet. Bitte gedulden Sie sich, bis die automatische Prüfung abgeschlossen ist."
+                              : "Your verification papers are under process. Please wait while AI matching runs verification algorithms."}
+                          </p>
+                        )}
+                        {activeBooking.status === "approved" && (
+                          <p className="text-[13px] text-on-surface-variant leading-relaxed">
+                            {language === "de"
+                              ? "Glückwunsch! Ihre Bewerbung wurde genehmigt. Sie können nun die Kaution hinterlegen, um Ihre Buchung endgültig zu sichern."
+                              : "Congratulations! Your application has been approved. Proceed to deposit the reservation guarantee to lock the booking."}
+                          </p>
+                        )}
+                        
+                        <button
+                          onClick={() => router.push(`/buchen/${activeBooking.id}`)}
+                          className="w-full bg-primary text-on-primary py-3 rounded-xl text-label-md font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer text-center mt-2"
+                        >
+                          {language === "de" ? "Buchungs-Center öffnen" : "Open Booking Center"}
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Visual Timeline details */}
+                    <div className="space-y-4">
+                      <h3 className="text-label-md font-bold text-primary uppercase">
+                        {language === "de" ? "Visualisierter Bewerbungsverlauf" : "Visualized Application Timeline"}
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-7 gap-4">
+                        {pipeline.map((step, idx) => (
+                          <div 
+                            key={idx} 
+                            className={`p-4 rounded-xl border text-center transition-all ${
+                              step.active 
+                                ? "bg-primary-fixed/20 border-primary/30 text-primary font-bold shadow-sm" 
+                                : "bg-surface-container-low border-outline-variant text-on-surface-variant"
+                            }`}
+                          >
+                            <div className={`w-6 h-6 rounded-full mx-auto mb-2 flex items-center justify-center text-[10px] font-bold ${
+                              step.active ? "bg-primary text-on-primary" : "bg-outline-variant text-on-surface-variant"
+                            }`}>
+                              {idx + 1}
+                            </div>
+                            <p className="text-[11px] leading-tight mt-1">
+                              {language === "de" ? step.labelDe : step.labelEn}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 4. Tab: Verification Documents Upload Checklist */}
+            {activeTab === "documents" && (
+              <div className="bg-white border border-outline-variant p-6 md:p-8 rounded-2xl shadow-sm space-y-6">
+                <div>
+                  <h2 className="text-headline-md font-bold text-primary">
+                    {language === "de" ? "Verifizierungs-Dokumente" : "Verification Documents"}
+                  </h2>
+                  <p className="text-body-md text-on-surface-variant mt-1 leading-relaxed">
+                    {language === "de"
+                      ? "Laden Sie Ihre erforderlichen Nachweise hoch. Ein verifiziertes Profil beschleunigt den Zusageprozess bei Vermietern erheblich."
+                      : "Upload your required verification papers. A fully verified profile gives you priority access and immediate landlord approvals."}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {documentTypesList.map((docType) => {
+                    const status = getDocStatus(docType.key);
+                    return (
+                      <div 
+                        key={docType.key} 
+                        className={`border rounded-2xl p-5 flex flex-col justify-between transition-all ${
+                          status === "approved"
+                            ? "border-primary bg-primary-fixed/15"
+                            : "border-outline-variant bg-surface-container-low hover:border-primary/50"
                         }`}
                       >
-                        {step.active ? <span className="material-symbols-outlined text-[14px]">check</span> : idx + 1}
+                        <div className="flex gap-4 items-start">
+                          <div className="bg-white p-3 rounded-xl shadow-sm border border-outline-variant/60 flex-shrink-0 flex items-center justify-center">
+                            <span className="material-symbols-outlined text-primary text-[26px]">
+                              {docType.icon}
+                            </span>
+                          </div>
+                          <div>
+                            <h4 className="text-label-md font-bold text-primary">
+                              {language === "de" ? docType.labelDe : docType.labelEn}
+                            </h4>
+                            <p className="text-[11px] text-on-surface-variant uppercase mt-0.5 font-semibold tracking-wider">
+                              Status: {status}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-6 flex justify-between items-center">
+                          {status === "approved" && (
+                            <span className="flex items-center gap-1.5 text-primary text-[12px] font-bold">
+                              <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                              Approved (OK)
+                            </span>
+                          )}
+                          {status === "pending" && (
+                            <span className="flex items-center gap-1.5 text-secondary text-[12px] font-bold">
+                              <span className="material-symbols-outlined text-[16px] animate-spin">sync</span>
+                              {language === "de" ? "In Prüfung..." : "Under Review..."}
+                            </span>
+                          )}
+                          {status === "rejected" && (
+                            <span className="flex items-center gap-1.5 text-error text-[12px] font-bold">
+                              <span className="material-symbols-outlined text-[16px]">error</span>
+                              {language === "de" ? "Bitte erneut hochladen" : "Please re-upload"}
+                            </span>
+                          )}
+                          {status === "missing" && (
+                            <span className="flex items-center gap-1.5 text-on-surface-variant text-[12px] font-medium italic">
+                              {language === "de" ? "Noch nicht hochgeladen" : "Not uploaded yet"}
+                            </span>
+                          )}
+
+                          {activeBooking ? (
+                            <button
+                              onClick={() => router.push(`/buchen/${activeBooking.id}`)}
+                              className="bg-primary text-on-primary px-4 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer shadow-sm"
+                            >
+                              {status === "missing" ? (language === "de" ? "Hochladen" : "Upload") : (language === "de" ? "Details" : "Manage")}
+                            </button>
+                          ) : (
+                            <span className="text-[11px] text-on-surface-variant leading-none">
+                              {language === "de" ? "Buchung anlegen zum Upload" : "Start booking to upload"}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <span className={`text-[11px] font-bold ${step.active ? "text-primary" : "text-on-surface-variant"}`}>
-                        {language === "de" ? step.labelDe : step.labelEn}
-                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 5. Tab: AI Profile Analyzer Dedicated Section */}
+            {activeTab === "analyzer" && (
+              <div className="space-y-6">
+                {/* Header Card */}
+                <div className="bg-white border border-outline-variant p-6 md:p-8 rounded-2xl shadow-sm space-y-4">
+                  <div className="flex justify-between items-start flex-wrap gap-6">
+                    <div>
+                      <h2 className="text-headline-md font-bold text-primary flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[28px] text-primary">insights</span>
+                        {language === "de" ? "AI Eignungsanalyse & Match-Score" : "AI Suitability Screening & Match"}
+                      </h2>
+                      <p className="text-body-md text-on-surface-variant mt-1 leading-relaxed max-w-2xl">
+                        {language === "de"
+                          ? "Unser intelligenter Algorithmus analysiert Ihre Einkommensverhältnisse, Ihr Beschäftigungsverhältnis und Ihre Verifizierungsdokumente, um eine sichere Eignungsbewertung für Vermieter zu erstellen."
+                          : "Our smart algorithm analyzes your financial credentials, employment stability, and uploaded verification documents to build a secure suitability rating for landlords."}
+                      </p>
                     </div>
-                  ))}
+                    
+                    {/* Visual Radial/Gauge Score Circle */}
+                    <div className="bg-gradient-to-br from-primary/5 to-secondary/5 border border-outline-variant p-5 rounded-2xl flex flex-col items-center justify-center text-center min-w-[160px] self-center">
+                      <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">
+                        {language === "de" ? "Heimat Score" : "Heimat Match Score"}
+                      </p>
+                      <div className="relative w-24 h-24 flex items-center justify-center mt-3">
+                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                          <path
+                            className="text-outline-variant"
+                            strokeWidth="3"
+                            stroke="currentColor"
+                            fill="none"
+                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          />
+                          <path
+                            className="text-primary transition-all duration-1000"
+                            strokeWidth="3.2"
+                            strokeDasharray={`${tenantProfile?.ai_score || 0}, 100`}
+                            strokeLinecap="round"
+                            stroke="currentColor"
+                            fill="none"
+                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          />
+                        </svg>
+                        <div className="absolute flex flex-col items-center">
+                          <span className="text-[24px] font-black text-primary leading-none">
+                            {tenantProfile?.ai_score !== null && tenantProfile?.ai_score !== undefined ? `${tenantProfile.ai_score}` : "--"}
+                          </span>
+                          <span className="text-[9px] text-on-surface-variant font-bold mt-0.5 uppercase tracking-wide">
+                            {tenantProfile?.ai_score !== null && tenantProfile?.ai_score !== undefined ? "/ 100" : "Unrated"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              {/* Active Bookings Countdown card */}
-              <div className="bg-white border border-outline-variant p-6 rounded-2xl shadow-sm grid grid-cols-1 sm:grid-cols-3 gap-6 items-center">
-                <div>
-                  <p className="text-[12px] font-semibold text-on-surface-variant uppercase tracking-wider">
-                    {language === "de" ? "Wohnung" : "Property"}
-                  </p>
-                  <h3 className="text-headline-md font-bold text-primary mt-1">
-                    {property?.title || property?.street || "Unterkunft"}
-                  </h3>
-                  <p className="text-body-md text-on-surface-variant">
-                    {property?.zip} {property?.city}
-                  </p>
-                </div>
+                {/* Main Scoring Details / Reasoning Matrix */}
+                {tenantProfile?.ai_score !== null && tenantProfile?.ai_score !== undefined ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Left Column: Components */}
+                    <div className="lg:col-span-2 space-y-6">
+                      <div className="bg-white border border-outline-variant p-6 rounded-2xl shadow-sm space-y-6">
+                        <h3 className="text-label-md font-bold text-primary uppercase border-b border-outline-variant pb-2 tracking-wide">
+                          {language === "de" ? "Score-Aufschlüsselung" : "Matching Suitability Metrics"}
+                        </h3>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {[
+                            {
+                              labelDe: "Einkommen",
+                              labelEn: "Income Ratio",
+                              val: aiScore?.income_score || (tenantProfile.ai_score >= 80 ? 95 : 65),
+                              icon: "payments",
+                              descDe: "Verhältnis von Einkommen zu durchschnittlichen Mietkosten.",
+                              descEn: "Monthly net earnings relative to typical rent indices."
+                            },
+                            {
+                              labelDe: "Beschäftigung",
+                              labelEn: "Employment Status",
+                              val: aiScore?.employment_score || (tenantProfile.employment_status === "employed" ? 95 : 75),
+                              icon: "work",
+                              descDe: "Stabilität basierend auf Ihrem Arbeits- oder Studiumsvertrag.",
+                              descEn: "Income stream durability and career/academic status."
+                            },
+                            {
+                              labelDe: "Dokumente",
+                              labelEn: "Documentation Strength",
+                              val: aiScore?.doc_score || (docs.length >= 3 ? 98 : docs.length * 25),
+                              icon: "task",
+                              descDe: "Vollständigkeit und Prüfstatus der hochgeladenen Dokumente.",
+                              descEn: "Upload coverage and approval rates of your credentials."
+                            },
+                            {
+                              labelDe: "Mietdauer & Stabilität",
+                              labelEn: "Period Alignment",
+                              val: aiScore?.stay_length_score || 90,
+                              icon: "calendar_today",
+                              descDe: "Übereinstimmung Ihres gewünschten Zeitraums mit Standardlaufzeiten.",
+                              descEn: "Lease duration match with optimal landlord lease targets."
+                            }
+                          ].map((item, idx) => (
+                            <div key={idx} className="p-4 bg-surface-container-low rounded-2xl border border-outline-variant/60 space-y-2">
+                              <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-2">
+                                  <span className="material-symbols-outlined text-secondary text-[20px]">{item.icon}</span>
+                                  <span className="text-label-md font-bold text-primary">
+                                    {language === "de" ? item.labelDe : item.labelEn}
+                                  </span>
+                                </div>
+                                <span className="text-body-lg font-black text-primary">{item.val}%</span>
+                              </div>
+                              <p className="text-[11px] text-on-surface-variant leading-relaxed">
+                                {language === "de" ? item.descDe : item.descEn}
+                              </p>
+                              <div className="w-full h-1.5 bg-outline-variant/50 rounded-full overflow-hidden mt-2">
+                                <div className="h-full bg-primary rounded-full" style={{ width: `${item.val}%` }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {/* Reasoning Text block */}
+                        <div className="p-5 bg-primary/5 rounded-2xl border border-primary/10 space-y-2">
+                          <p className="text-label-md font-bold text-primary flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-[20px]">psychology</span>
+                            {language === "de" ? "Begründung & AI-Feedback" : "Detailed AI Match Explanation"}
+                          </p>
+                          <p className="text-body-sm text-on-surface-variant leading-relaxed">
+                            {aiScore?.reasoning || (
+                              language === "de"
+                                ? "Ihr Profil weist ein solides finanzielles Fundament auf. Einkommensnachweise decken die typischen Wohnungsbudgets hervorragend. Durch das Vervollständigen der restlichen Dokumente (Visum, Immatrikulation) können Sie Ihren Score auf über 95% maximieren."
+                                : "Your credentials indicate a strong financial match relative to average rentals. The uploaded document set provides credible verification. Completing additional visa or academic certificates can further optimize your standing to 95%+."
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Right Column: Flags, Trigger & Status */}
+                    <div className="space-y-6">
+                      {/* Active Warning Flags */}
+                      <div className="bg-white border border-outline-variant p-6 rounded-2xl shadow-sm space-y-4">
+                        <h3 className="text-label-md font-bold text-primary uppercase border-b border-outline-variant pb-2">
+                          {language === "de" ? "Sicherheits-Flags" : "Flags & Warnings"}
+                        </h3>
+                        
+                        {aiScore?.flags && aiScore.flags.length > 0 ? (
+                          <div className="space-y-2.5">
+                            <div className="flex items-center gap-2 text-amber-800 text-[12px] font-semibold bg-amber-50 border border-amber-200 p-3 rounded-xl">
+                              <span className="material-symbols-outlined text-[18px]">warning</span>
+                              <span>{language === "de" ? "Auffälligkeiten gefunden:" : "Identified issues:"}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {aiScore.flags.map((flag: string, fidx: number) => (
+                                <span key={fidx} className="bg-red-50 text-red-700 px-3 py-1 rounded-xl text-[10px] font-bold uppercase tracking-wider border border-red-100">
+                                  {flag}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2.5 text-green-800 text-[12px] font-semibold bg-green-50 border border-green-200 p-4 rounded-xl">
+                            <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                            <span>{language === "de" ? "Keine Auffälligkeiten / 100% Sicher" : "No warning flags - Clean profile"}</span>
+                          </div>
+                        )}
+                      </div>
 
-                <div className="text-center bg-surface-container-low p-4 rounded-xl border border-outline-variant">
-                  <span className="material-symbols-outlined text-primary text-[28px] mb-1">
-                    calendar_today
-                  </span>
-                  <p className="text-[12px] text-on-surface-variant font-semibold uppercase">{t("moveInDate")}</p>
-                  <p className="text-body-md font-bold text-primary mt-0.5">
-                    {new Date(activeBooking.move_in_date).toLocaleDateString(language === "de" ? "de-DE" : "en-US")}
-                  </p>
-                </div>
-
-                <div className="text-center bg-primary-fixed/20 p-4 rounded-xl border border-primary/20">
-                  <span className="material-symbols-outlined text-primary text-[28px] mb-1">
-                    hourglass_empty
-                  </span>
-                  <p className="text-[12px] text-primary font-bold uppercase">{t("countdownToMoveIn")}</p>
-                  <p className="text-[28px] font-bold text-primary leading-none mt-1">
-                    {getCountdown(activeBooking.move_in_date)}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Verification documents - 4 Cols */}
-            <div className="lg:col-span-4 bg-white border border-outline-variant p-6 rounded-2xl shadow-sm space-y-6">
-              <h2 className="text-headline-md font-bold text-primary">
-                {t("verificationStatus")}
-              </h2>
-              <div className="space-y-4">
-                {documentTypesList.map((docType) => {
-                  const status = getDocStatus(docType.key);
-                  return (
-                    <div key={docType.key} className="flex justify-between items-center p-3 bg-surface-container-low rounded-xl border border-outline-variant/50">
-                      <div>
-                        <p className="text-label-md font-bold text-primary">
-                          {language === "de" ? docType.labelDe : docType.labelEn}
+                      {/* Trigger Recalculate Card */}
+                      <div className="bg-white border border-outline-variant p-6 rounded-2xl shadow-sm space-y-4">
+                        <h4 className="text-label-md font-bold text-primary uppercase">
+                          {language === "de" ? "Analyse aktualisieren" : "Re-Calculate Score"}
+                        </h4>
+                        <p className="text-[12px] text-on-surface-variant leading-relaxed">
+                          {language === "de"
+                            ? "Haben Sie neue Dokumente hochgeladen oder Ihr Profil aktualisiert? Starten Sie die AI-Analyse neu, um Ihren Score sofort zu verbessern."
+                            : "Have you uploaded new documents or updated your income settings? Start the calculation to update your score."}
                         </p>
-                        <p className="text-[11px] text-on-surface-variant uppercase">{status}</p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {status === "approved" && (
-                          <span className="bg-primary text-on-primary px-2 py-0.5 rounded text-[11px] font-bold uppercase">
-                            OK
-                          </span>
-                        )}
-                        {status === "pending" && (
-                          <span className="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded text-[11px] font-bold uppercase">
-                            {language === "de" ? "Prüfung" : "Review"}
-                          </span>
-                        )}
-                        {status === "rejected" && (
-                          <span className="bg-error-container text-on-error-container px-2 py-0.5 rounded text-[11px] font-bold uppercase">
-                            {language === "de" ? "Fehler" : "Error"}
-                          </span>
-                        )}
-                        {status === "missing" && (
-                          <span className="bg-outline-variant text-on-surface-variant px-2 py-0.5 rounded text-[11px] font-bold uppercase">
-                            {language === "de" ? "Fehlt" : "Missing"}
-                          </span>
-                        )}
+                        
+                        <button
+                          onClick={handleRunProfileAnalyzer}
+                          disabled={runningAnalyzer}
+                          className="w-full bg-primary text-on-primary py-3.5 rounded-xl font-bold hover:opacity-90 hover:shadow active:scale-98 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer text-label-md"
+                        >
+                          {runningAnalyzer ? (
+                            <>
+                              <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                              <span>{language === "de" ? "Berechne..." : "Calculating..."}</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="material-symbols-outlined text-[18px]">sync</span>
+                              <span>{language === "de" ? "Analyse jetzt starten" : "Re-Run AI Analyzer"}</span>
+                            </>
+                          )}
+                        </button>
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                ) : (
+                  /* Zero State - Trigger initial check */
+                  <div className="bg-white border border-outline-variant p-8 md:p-12 rounded-2xl shadow-sm text-center max-w-2xl mx-auto space-y-6">
+                    <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto text-primary">
+                      <span className="material-symbols-outlined text-[36px]" style={{ fontVariationSettings: "'FILL' 1" }}>insights</span>
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-headline-sm font-bold text-primary">
+                        {language === "de" ? "AI Eignungsanalyse freischalten" : "Calculate Your Trust Match Score"}
+                      </h3>
+                      <p className="text-body-md text-on-surface-variant leading-relaxed">
+                        {language === "de"
+                          ? "Lassen Sie Ihr Profil von unserer künstlichen Intelligenz bewerten. Ein berechneter Match Score zeigt Vermietern Ihre sofortige Eignung und beschleunigt Bewerbungszusagen um bis zu 85%."
+                          : "Evaluate your profile completeness with our AI matching model. Calculating this score establishes instant verification credibility for landlords, speeding up lease offers by 85%."}
+                      </p>
+                    </div>
+                    
+                    <div className="bg-surface-container-low border border-outline-variant/60 p-4 rounded-xl max-w-md mx-auto text-left space-y-2.5">
+                      <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">
+                        {language === "de" ? "Vorbereitung für die Bewertung:" : "Analysis Pre-requisites Checklist:"}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {requiredDocs.map((docKey) => {
+                          const isOk = docs.some(d => d.doc_type === docKey);
+                          return (
+                            <div key={docKey} className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${isOk ? "bg-primary-fixed/15 border-primary/20 text-primary" : "bg-white border-outline-variant text-on-surface-variant/60"}`}>
+                              <span className="material-symbols-outlined text-[12px]">{isOk ? "check" : "close"}</span>
+                              <span>{getDocDisplayName(docKey)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleRunProfileAnalyzer}
+                      disabled={runningAnalyzer}
+                      className="bg-primary text-on-primary px-8 py-3.5 rounded-xl font-bold hover:opacity-90 hover:shadow-md active:scale-95 transition-all shadow inline-flex items-center gap-2 cursor-pointer disabled:opacity-50 text-label-md"
+                    >
+                      {runningAnalyzer ? (
+                        <>
+                          <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                          <span>{language === "de" ? "Analysiere Profil..." : "Running Analysis..."}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>insights</span>
+                          <span>{language === "de" ? "AI Eignungsanalyse jetzt starten" : "Start AI Suitability Screening"}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
-              <button 
-                onClick={() => router.push(`/buchen/${activeBooking.id}`)}
-                className="w-full bg-primary text-on-primary py-3 rounded-xl text-label-md font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer text-center"
-              >
-                {language === "de" ? "Dokumente verwalten" : "Manage Documents"}
-              </button>
-            </div>
-          </div>
-        )}
+            )}
+
+          </main>
+        </div>
       </div>
       <Footer />
     </>

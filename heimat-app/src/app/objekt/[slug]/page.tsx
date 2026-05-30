@@ -478,52 +478,83 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
               {/* Contact form */}
               <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 shadow-lg shadow-primary/5">
                 <h3 className="text-headline-md text-on-surface mb-6">{t("contactSidebarTitle")}</h3>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  {[
-                    { id: "name", label: t("formName"), type: "text", placeholder: "Erika Mustermann", key: "name" },
-                    { id: "email", label: t("formEmail"), type: "email", placeholder: "beispiel@heimat.de", key: "email" },
-                    { id: "tel", label: t("formPhone"), type: "tel", placeholder: "+49 123 456789", key: "tel" },
-                  ].map(({ id, label, type, placeholder, key }) => (
-                    <div key={id}>
-                      <label className="block text-label-md text-on-surface-variant mb-1">{label}</label>
-                      <input
-                        id={id}
-                        type={type}
-                        placeholder={placeholder}
-                        value={form[key as keyof typeof form]}
-                        onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                        className="w-full bg-surface-container-low border border-outline-variant rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-[16px]"
-                        required={type !== "tel"}
+                {!user ? (
+                  <div className="text-center py-6 px-2 space-y-5">
+                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-primary">
+                      <span className="material-symbols-outlined text-[32px]">lock</span>
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="text-[18px] font-bold text-primary">
+                        {language === "de" ? "Anmelden erforderlich" : "Login Required"}
+                      </h4>
+                      <p className="text-[13px] text-on-surface-variant leading-relaxed">
+                        {language === "de"
+                          ? "Um dieses Haus zu buchen oder den Vermieter zu kontaktieren, müssen Sie eingeloggt sein."
+                          : "To request a booking or message the provider, you must be logged in."}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/auth/login?redirect=/objekt/${slug}`)}
+                      className="w-full bg-primary text-on-primary py-3.5 rounded-xl font-bold hover:opacity-90 active:scale-98 transition-all shadow cursor-pointer text-label-md text-center"
+                    >
+                      {language === "de" ? "Jetzt anmelden" : "Log In Now"}
+                    </button>
+                    <p className="text-[12px] text-on-surface-variant">
+                      {language === "de" ? "Noch kein Konto? " : "New to Heimat? "}
+                      <Link href="/auth/register" className="text-primary font-bold hover:underline">
+                        {language === "de" ? "Hier registrieren" : "Register here"}
+                      </Link>
+                    </p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    {[
+                      { id: "name", label: t("formName"), type: "text", placeholder: "Erika Mustermann", key: "name" },
+                      { id: "email", label: t("formEmail"), type: "email", placeholder: "beispiel@heimat.de", key: "email" },
+                      { id: "tel", label: t("formPhone"), type: "tel", placeholder: "+49 123 456789", key: "tel" },
+                    ].map(({ id, label, type, placeholder, key }) => (
+                      <div key={id}>
+                        <label className="block text-label-md text-on-surface-variant mb-1">{label}</label>
+                        <input
+                          id={id}
+                          type={type}
+                          placeholder={placeholder}
+                          value={form[key as keyof typeof form]}
+                          onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                          className="w-full bg-surface-container-low border border-outline-variant rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-[16px]"
+                          required={type !== "tel"}
+                        />
+                      </div>
+                    ))}
+                    <div>
+                      <label className="block text-label-md text-on-surface-variant mb-1">{t("formMessage")}</label>
+                      <textarea
+                        id="form-message"
+                        rows={4}
+                        placeholder={t("formMessagePlaceholder")}
+                        value={form.message}
+                        onChange={(e) => setForm({ ...form, message: e.target.value })}
+                        className="w-full bg-surface-container-low border border-outline-variant rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all resize-none text-[16px]"
+                        required
                       />
                     </div>
-                  ))}
-                  <div>
-                    <label className="block text-label-md text-on-surface-variant mb-1">{t("formMessage")}</label>
-                    <textarea
-                      id="form-message"
-                      rows={4}
-                      placeholder={t("formMessagePlaceholder")}
-                      value={form.message}
-                      onChange={(e) => setForm({ ...form, message: e.target.value })}
-                      className="w-full bg-surface-container-low border border-outline-variant rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all resize-none text-[16px]"
-                      required
-                    />
-                  </div>
-                  <button
-                    id="btn-besichtigung"
-                    type="submit"
-                    disabled={submittingBooking}
-                    className="w-full bg-primary text-on-primary py-4 rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all shadow-md cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {submittingBooking && (
-                      <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                    )}
-                    {t("submitRequestBtn")}
-                  </button>
-                  <p className="text-center text-[12px] text-on-surface-variant">
-                    {t("formDisclaimer")}
-                  </p>
-                </form>
+                    <button
+                      id="btn-besichtigung"
+                      type="submit"
+                      disabled={submittingBooking}
+                      className="w-full bg-primary text-on-primary py-4 rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all shadow-md cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {submittingBooking && (
+                        <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                      )}
+                      {t("submitRequestBtn")}
+                    </button>
+                    <p className="text-center text-[12px] text-on-surface-variant">
+                      {t("formDisclaimer")}
+                    </p>
+                  </form>
+                )}
               </div>
 
               {/* Landlord card */}

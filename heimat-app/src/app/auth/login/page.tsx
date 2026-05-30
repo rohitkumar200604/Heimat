@@ -15,15 +15,18 @@ export default function LoginPage() {
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [magicLink, setMagicLink] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [loadingSubmit, setLoadingSubmit] = useState(false);
 
   useEffect(() => {
     if (profile) {
-      const url = profile.role === "landlord" ? "/dashboard/landlord" : "/dashboard/tenant";
-      router.push(url);
+      if (!profile.role) {
+        router.push("/auth/select-role");
+      } else {
+        const url = profile.role === "landlord" ? "/dashboard/landlord" : "/dashboard/tenant";
+        router.push(url);
+      }
     }
   }, [profile, router]);
 
@@ -34,30 +37,26 @@ export default function LoginPage() {
     setLoadingSubmit(true);
 
     try {
-      if (magicLink) {
-        const { error } = await supabase.auth.signInWithOtp({
-          email,
-          options: {
-            emailRedirectTo: `${window.location.origin}/auth/login`,
-          },
-        });
-        if (error) throw error;
-        setSuccessMsg(
-          language === "de"
-            ? "Magic Link wurde an Ihre E-Mail gesendet!"
-            : "Magic Link sent to your email!"
-        );
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        setSuccessMsg(
-          language === "de"
-            ? "Erfolgreich angemeldet!"
-            : "Successfully logged in!"
-        );
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
+
+      // Instantly fetch the user profile and redirect to the dashboard
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", data.user?.id)
+        .single();
+
+      if (profileData) {
+        if (!profileData.role) {
+          router.push("/auth/select-role");
+        } else {
+          const url = profileData.role === "landlord" ? "/dashboard/landlord" : "/dashboard/tenant";
+          router.push(url);
+        }
       }
     } catch (err: any) {
       setErrorMsg(err.message || "An error occurred");
@@ -73,7 +72,7 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/login`,
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
       if (error) throw error;
@@ -125,30 +124,28 @@ export default function LoginPage() {
               />
             </div>
 
-            {!magicLink && (
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="block text-label-md text-on-surface font-semibold">
-                    {t("passwordLabel")}
-                  </label>
-                  <Link
-                    href="#"
-                    className="text-[12px] text-primary hover:underline font-semibold"
-                  >
-                    {language === "de" ? "Passwort vergessen?" : "Forgot password?"}
-                  </Link>
-                </div>
-                <input
-                  id="login-password"
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full h-12 px-4 bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-[16px]"
-                />
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <label className="block text-label-md text-on-surface font-semibold">
+                  {t("passwordLabel")}
+                </label>
+                <Link
+                  href="#"
+                  className="text-[12px] text-primary hover:underline font-semibold"
+                >
+                  {language === "de" ? "Passwort vergessen?" : "Forgot password?"}
+                </Link>
               </div>
-            )}
+              <input
+                id="login-password"
+                type="password"
+                required
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full h-12 px-4 bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-[16px]"
+              />
+            </div>
 
             <button
               id="btn-login-submit"
@@ -159,22 +156,8 @@ export default function LoginPage() {
               {loadingSubmit && (
                 <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
               )}
-              {magicLink
-                ? language === "de" ? "Magic Link senden" : "Send Magic Link"
-                : t("login")}
+              {t("login")}
             </button>
-
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => setMagicLink(!magicLink)}
-                className="text-[14px] text-primary font-semibold hover:underline cursor-pointer"
-              >
-                {magicLink
-                  ? language === "de" ? "Mit Passwort anmelden" : "Sign in with password"
-                  : language === "de" ? "Magic Link per E-Mail senden" : "Send Magic Link via Email"}
-              </button>
-            </div>
           </form>
 
           {/* Social Logins */}
@@ -205,7 +188,7 @@ export default function LoginPage() {
                   d="M12 23c3.24 0 5.97-1.07 7.96-2.9l-3.73-2.9a7.12 7.12 0 0 1-10.9-4.42l-3.87 3A11.96 11.96 0 0 0 12 23z"
                 />
               </svg>
-              <span>Google</span>
+              <span>Continue with Google</span>
             </button>
           </div>
 

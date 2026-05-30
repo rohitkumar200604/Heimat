@@ -1,0 +1,207 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useLanguage } from "@/context/LanguageContext";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/utils/supabase/client";
+import Footer from "@/components/layout/Footer";
+
+export default function SelectRolePage() {
+  const router = useRouter();
+  const { user, profile, loading, refreshProfile } = useAuth();
+  const { language } = useLanguage();
+
+  const [selectedRole, setSelectedRole] = useState<"tenant" | "landlord" | null>(null);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+  const [loadingSubmit, setLoadingSubmit] = useState(false);
+
+  // If user is already loaded and has a role, redirect them to their dashboard immediately
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        router.push("/auth/login");
+      } else if (profile && profile.role) {
+        const url = profile.role === "landlord" ? "/dashboard/landlord" : "/dashboard/tenant";
+        router.push(url);
+      }
+    }
+  }, [user, profile, loading, router]);
+
+  const handleRoleSelectionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRole) {
+      setErrorMsg(
+        language === "de"
+          ? "Bitte wählen Sie eine Rolle aus, um fortzufahren."
+          : "Please select a role to continue."
+      );
+      return;
+    }
+
+    setErrorMsg("");
+    setSuccessMsg("");
+    setLoadingSubmit(true);
+
+    try {
+      if (!user) throw new Error("No authenticated session found");
+
+      // 1. Update Core Profile role
+      const { error: profileErr } = await supabase
+        .from("profiles")
+        .update({ role: selectedRole })
+        .eq("id", user.id);
+      
+      if (profileErr) throw profileErr;
+
+      // 2. Initialize role-specific profile in the database
+      if (selectedRole === "landlord") {
+        const { error: lpErr } = await supabase
+          .from("landlord_profiles")
+          .upsert({ user_id: user.id }, { onConflict: "user_id" });
+        if (lpErr) throw lpErr;
+      } else {
+        const { error: tpErr } = await supabase
+          .from("tenant_profiles")
+          .upsert({ user_id: user.id }, { onConflict: "user_id" });
+        if (tpErr) throw tpErr;
+      }
+
+      setSuccessMsg(
+        language === "de"
+          ? "Einrichtung abgeschlossen! Sie werden weitergeleitet..."
+          : "Setup completed! Redirecting..."
+      );
+
+      // Refresh authentication profile state in context
+      await refreshProfile();
+
+      // Redirect role specifically after a short pause
+      setTimeout(() => {
+        const url = selectedRole === "landlord" ? "/dashboard/landlord" : "/dashboard/tenant";
+        router.push(url);
+      }, 1500);
+
+    } catch (err: any) {
+      setErrorMsg(err.message || "An error occurred during onboarding");
+    } finally {
+      setLoadingSubmit(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex-grow flex items-center justify-center min-h-[600px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex-grow flex items-center justify-center py-16 px-5 bg-gradient-to-br from-surface-container-low via-background to-surface-container">
+        <div className="w-full max-w-2xl bg-white/90 backdrop-blur-md border border-outline-variant p-8 md:p-12 rounded-3xl shadow-xl text-center">
+          <div className="mb-10">
+            <span className="bg-primary/10 text-primary border border-primary/20 px-4 py-1.5 rounded-full text-[12px] font-bold uppercase tracking-wider">
+              Onboarding
+            </span>
+            <h1 className="text-display-lg-mobile md:text-headline-lg font-bold text-primary mt-4">
+              {language === "de" ? "Wählen Sie Ihre Rolle" : "Select Your Role"}
+            </h1>
+            <p className="text-on-surface-variant text-body-md mt-2 max-w-md mx-auto">
+              {language === "de"
+                ? "Um Ihre Einrichtung abzuschließen, teilen Sie uns bitte mit, wie Sie Heimat nutzen möchten."
+                : "To finalize your registration, please let us know how you plan to use Heimat."}
+            </p>
+          </div>
+
+          {errorMsg && (
+            <div className="p-4 mb-6 text-[14px] text-error bg-error-container/30 border border-error/20 rounded-xl flex items-center gap-2 text-left">
+              <span className="material-symbols-outlined text-[20px]">warning</span>
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="p-4 mb-6 text-[14px] text-primary bg-primary-fixed/30 border border-primary/20 rounded-xl flex items-center gap-2 text-left">
+              <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+              <span>{successMsg}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleRoleSelectionSubmit} className="space-y-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {/* Tenant selection card */}
+              <button
+                type="button"
+                onClick={() => setSelectedRole("tenant")}
+                className={`border-2 rounded-2xl p-6 flex flex-col items-center gap-4 text-center cursor-pointer transition-all ${
+                  selectedRole === "tenant"
+                    ? "border-primary bg-primary-fixed/15 shadow-md scale-[1.02]"
+                    : "border-outline-variant hover:border-primary/50 bg-surface-container-low hover:shadow"
+                }`}
+              >
+                <div className={`w-14 h-14 rounded-xl flex items-center justify-center border shadow-sm ${
+                  selectedRole === "tenant" ? "bg-primary text-on-primary border-primary" : "bg-white text-primary border-outline-variant"
+                }`}>
+                  <span className="material-symbols-outlined text-[32px]">directions_walk</span>
+                </div>
+                <div>
+                  <h3 className="text-headline-md font-bold text-primary">
+                    {language === "de" ? "Ich bin Mieter" : "I am a Tenant"}
+                  </h3>
+                  <p className="text-[12px] text-on-surface-variant leading-relaxed mt-2">
+                    {language === "de"
+                      ? "Ich suche nach einer Premium-Wohnung in Berlin, München oder Hamburg."
+                      : "I am searching for a premium flat to rent in Berlin, Munich, or Hamburg."}
+                  </p>
+                </div>
+              </button>
+
+              {/* Landlord selection card */}
+              <button
+                type="button"
+                onClick={() => setSelectedRole("landlord")}
+                className={`border-2 rounded-2xl p-6 flex flex-col items-center gap-4 text-center cursor-pointer transition-all ${
+                  selectedRole === "landlord"
+                    ? "border-primary bg-primary-fixed/15 shadow-md scale-[1.02]"
+                    : "border-outline-variant hover:border-primary/50 bg-surface-container-low hover:shadow"
+                }`}
+              >
+                <div className={`w-14 h-14 rounded-xl flex items-center justify-center border shadow-sm ${
+                  selectedRole === "landlord" ? "bg-primary text-on-primary border-primary" : "bg-white text-primary border-outline-variant"
+                }`}>
+                  <span className="material-symbols-outlined text-[32px]">real_estate_agent</span>
+                </div>
+                <div>
+                  <h3 className="text-headline-md font-bold text-primary">
+                    {language === "de" ? "Ich bin Vermieter" : "I am a Landlord"}
+                  </h3>
+                  <p className="text-[12px] text-on-surface-variant leading-relaxed mt-2">
+                    {language === "de"
+                      ? "Ich möchte meine Immobilien inserieren und vertrauenswürdige Mieter finden."
+                      : "I want to list my real estate properties and discover trusted students."}
+                  </p>
+                </div>
+              </button>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loadingSubmit || !selectedRole}
+              className="w-full h-12 bg-primary text-on-primary rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all shadow-md mt-6 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {loadingSubmit && (
+                <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+              )}
+              <span>{language === "de" ? "Registrierung abschließen" : "Complete Registration"}</span>
+              <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
+            </button>
+          </form>
+        </div>
+      </div>
+      <Footer />
+    </>
+  );
+}

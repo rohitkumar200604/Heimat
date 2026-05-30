@@ -33,7 +33,7 @@ function SuchePageContent() {
     const fetchListings = async () => {
       setLoading(true);
 
-      const mockListings = [
+      const mockListings: any[] = [
         {
           id: "berlin-studio",
           title: language === "de" ? "Helles Studio-Apartment nahe Alexanderplatz" : "Bright Studio Apartment near Alexanderplatz",
@@ -106,7 +106,13 @@ function SuchePageContent() {
           filtered = filtered.filter(l => l.city.toLowerCase().includes(stadtParam.toLowerCase()));
         }
         if (zimmerParam !== "all") {
-          filtered = filtered.filter(l => l.rooms >= parseFloat(zimmerParam));
+          if (zimmerParam === "house") {
+            filtered = filtered.filter(l => l.property_type === "house" || l.id.toLowerCase().includes("house") || l.id.toLowerCase().includes("haus"));
+          } else if (zimmerParam === "shared") {
+            filtered = filtered.filter(l => l.property_type === "sharedRoom" || l.id.toLowerCase().includes("wg") || l.id.toLowerCase().includes("shared"));
+          } else {
+            filtered = filtered.filter(l => l.rooms >= parseFloat(zimmerParam));
+          }
         }
         if (preisParam) {
           filtered = filtered.filter(l => l.rent_cold <= parseFloat(preisParam));
@@ -158,7 +164,13 @@ function SuchePageContent() {
           query = query.ilike("city", `%${stadtParam}%`);
         }
         if (zimmerParam !== "all") {
-          query = query.gte("rooms", parseFloat(zimmerParam));
+          if (zimmerParam === "house") {
+            query = query.eq("property_type", "house");
+          } else if (zimmerParam === "shared") {
+            query = query.eq("property_type", "sharedRoom");
+          } else {
+            query = query.gte("rooms", parseFloat(zimmerParam));
+          }
         }
         if (preisParam) {
           query = query.lte("rent_cold", parseFloat(preisParam));
@@ -189,7 +201,12 @@ function SuchePageContent() {
 
         const { data, error } = await query;
         if (error) throw error;
-        setListings(data || []);
+        if (data && data.length > 0) {
+          setListings(data);
+        } else {
+          console.log("No active properties in database, falling back to mock listings.");
+          applyInMemoryFilters();
+        }
       } catch (err) {
         console.warn("Supabase fetch failed, falling back to mock data:", err);
         applyInMemoryFilters();
@@ -228,7 +245,7 @@ function SuchePageContent() {
   };
 
   return (
-    <div className="flex flex-col flex-grow overflow-hidden">
+    <div className="flex flex-col w-full h-[calc(100vh-65px)] overflow-hidden">
       {/* Filter Bar */}
       <section className="bg-surface-container-lowest border-b border-outline-variant px-5 md:px-[48px] py-4 z-40 sticky top-[65px]">
         <div className="max-w-[1280px] mx-auto flex flex-wrap items-center gap-3">
@@ -290,36 +307,20 @@ function SuchePageContent() {
       {/* Split View */}
       <div className="flex flex-grow overflow-hidden">
         {/* Map */}
-        <aside className={`${showMap ? "block" : "hidden"} md:block w-full md:w-[40%] relative bg-surface-dim flex-shrink-0`}>
-          <div className="absolute inset-0">
-            <img
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuDEGihrfnuh0wAl41zlcHK1DL64GjtI_wCLHzt5iT6DJD8wsztj61L9rHxm-KTet0jEPiKD4WIf8vx8gXdO6SglirGXWjAYzZ2kUMnMZ2oF-uY3WU-bW5vplxWxgbytgOq3kKlnEs6eNG7WQJvYxNAz96UOSpkCNhRw9ReLFBrqu__lLCYITVatAPdj1FkquBMpdD_VI_mubTHY5_x0QPvLurCybVn3aKNgZG7JdZLxLSDFz8AEcrIECgJJVjxcgzelzBCIkGQsWNVh"
-              alt="Stadtplan Berlin"
-              className="w-full h-full object-cover grayscale opacity-80"
+        <aside className={`${showMap ? "block" : "hidden"} md:block w-full md:w-[40%] relative bg-surface-dim flex-shrink-0 border-r border-outline-variant`}>
+          <div className="absolute inset-0 w-full h-full">
+            <iframe
+              title="Google Maps"
+              width="100%"
+              height="100%"
+              style={{ border: 0 }}
+              loading="lazy"
+              allowFullScreen
+              src={`https://maps.google.com/maps?q=${encodeURIComponent(
+                stadtParam ? `${stadtParam}, Germany` : "Germany"
+              )}&t=&z=${stadtParam ? 12 : 9}&ie=UTF8&iwloc=&output=embed`}
+              className="w-full h-full grayscale-[15%] contrast-[105%] opacity-90 transition-opacity duration-300"
             />
-            {/* Price markers */}
-            {listings.map((l) => {
-              const pos = getMapPosition(l.id);
-              return (
-                <Link key={l.id} href={`/objekt/${l.id}`} className="absolute group cursor-pointer" style={{ top: pos.top, left: pos.left }}>
-                  <div className="bg-primary text-white font-bold px-3 py-1 rounded-full shadow-lg group-hover:scale-110 transition-transform text-[14px]">
-                    {l.rent_cold}€
-                  </div>
-                  <div className="w-3 h-3 bg-primary rounded-full mx-auto mt-[-4px] border-2 border-white shadow-sm" />
-                </Link>
-              );
-            })}
-          </div>
-          {/* Map Controls */}
-          <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
-            {["add", "remove"].map((icon) => (
-              <button key={icon} className="bg-white p-2 rounded-lg shadow-md hover:bg-surface-container transition-colors cursor-pointer">
-                <span className="material-symbols-outlined text-on-surface text-[20px]">{icon}</span>
-              </button>
-            ))}
-            <button className="bg-white p-2 rounded-lg shadow-md hover:bg-surface-container transition-colors mt-2 cursor-pointer">
-              <span className="material-symbols-outlined text-on-surface text-[20px]">my_location</span>
-            </button>
           </div>
         </aside>
 
