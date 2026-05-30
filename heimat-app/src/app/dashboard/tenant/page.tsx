@@ -398,28 +398,19 @@ export default function TenantDashboard() {
     setErrorMsg("");
     setSuccessMsg("");
     try {
-      // 1. Request presigned GCS PUT URL from Next.js API route
+      // 1. Upload file directly via server-side endpoint (bypasses direct browser-to-GCS CORS issues)
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("userId", user.id);
+
       const res = await fetch("/api/upload/doc", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileName: file.name, fileType: file.type, userId: user.id }),
+        body: formData,
       });
       const data = await res.json();
-      if (!data.success) throw new Error(data.error || "Failed to get upload URL");
+      if (!data.success) throw new Error(data.error || "Upload failed");
 
-      const { uploadUrl, key, mock } = data;
-
-      // 2. Upload file bytes directly to GCS (skip real PUT in dev/mock mode)
-      if (!mock) {
-        const uploadRes = await fetch(uploadUrl, {
-          method: "PUT",
-          headers: { "Content-Type": file.type },
-          body: file,
-        });
-        if (!uploadRes.ok) throw new Error("GCS upload failed");
-      } else {
-        console.log("[Mock] GCS upload simulated for key:", key);
-      }
+      const { key } = data;
 
       // 3. Upsert document record in Supabase (replace existing doc of same type)
       const existing = docs.find((d) => d.doc_type === docType);

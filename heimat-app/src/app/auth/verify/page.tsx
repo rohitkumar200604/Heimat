@@ -22,30 +22,21 @@ export default function VerifyPage() {
     setErrorMsg("");
     setSuccessMsg("");
     try {
-      // 1. Get presigned GCS URL
+      // 1. Upload file directly via server-side endpoint (bypasses direct browser-to-GCS CORS issues)
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("userId", user?.id ?? "anon");
+
       const res = await fetch("/api/upload/doc", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileName: file.name, fileType: file.type, userId: user?.id ?? "anon" }),
+        body: formData,
       });
       const data = await res.json();
-      if (!data.success) throw new Error(data.error || "Failed to get upload URL");
+      if (!data.success) throw new Error(data.error || "Upload failed");
 
-      const { uploadUrl, key, mock } = data;
+      const { key } = data;
 
-      // 2. Upload file bytes to GCS (skip in dev/mock)
-      if (!mock) {
-        const uploadRes = await fetch(uploadUrl, {
-          method: "PUT",
-          headers: { "Content-Type": file.type },
-          body: file,
-        });
-        if (!uploadRes.ok) throw new Error("GCS upload failed");
-      } else {
-        console.log("[Mock] GCS upload simulated for key:", key);
-      }
-
-      // 3. Save document to Supabase if user is logged in
+      // 2. Save document to Supabase if user is logged in
       if (user) {
         const { error } = await supabase
           .from("verification_documents")

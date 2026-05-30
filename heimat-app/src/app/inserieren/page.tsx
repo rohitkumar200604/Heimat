@@ -91,36 +91,19 @@ export default function InserierenPage() {
     setUploading(true);
     try {
       for (const file of files) {
-        // 1. Get S3 presigned URL
+        // 1. Upload file directly via server-side endpoint (bypasses direct browser-to-GCS CORS issues)
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("landlordId", landlordId);
+
         const res = await fetch("/api/upload/photo", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fileName: file.name,
-            fileType: file.type,
-            landlordId: landlordId,
-          }),
+          body: formData,
         });
         const data = await res.json();
-        if (!data.success) throw new Error(data.error || "Failed to generate upload URL");
+        if (!data.success) throw new Error(data.error || "Failed to upload photo");
 
-        const { uploadUrl, key } = data;
-        let cdnUrl = uploadUrl.split("?")[0];
-
-        // 2. Upload file directly to S3 (or simulate if mock returned)
-        if (data.mock) {
-          console.log("Mock S3 Upload: Simulated file storage for key:", key);
-        } else {
-          const uploadRes = await fetch(uploadUrl, {
-            method: "PUT",
-            headers: { "Content-Type": file.type },
-            body: file,
-          });
-          if (!uploadRes.ok) throw new Error("S3 Upload Failed");
-          
-          // Rebuild standard S3 URL (use bucket name from supabase URL config context if needed)
-          cdnUrl = uploadUrl.split("?")[0];
-        }
+        const { key, cdnUrl } = data;
 
         // Add uploaded photo state
         setUploadedPhotos((prev) => [

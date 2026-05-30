@@ -2,12 +2,32 @@ import { NextResponse } from "next/server";
 
 /**
  * Document upload presigned URL using GCS Interop (S3-compatible) API.
- * No AWS SDK dependency — uses only native fetch + Web Crypto (SigV4).
- * In dev mode (missing env vars) returns a mock URL immediately.
+ * Supports legacy JSON metadata request (returns presigned PUT URL)
+ * as well as direct FormData multipart upload (uploads to GCS server-side).
  */
 export async function POST(req: Request) {
   try {
-    const { fileName, fileType, userId } = await req.json();
+    const contentType = req.headers.get("content-type") || "";
+    let fileName: string;
+    let fileType: string;
+    let userId: string;
+    let file: File | null = null;
+    let isDirectUpload = false;
+
+    if (contentType.includes("multipart/form-data")) {
+      isDirectUpload = true;
+      const formData = await req.formData();
+      file = formData.get("file") as File;
+      userId = formData.get("userId") as string || "anon";
+      if (!file) throw new Error("No file uploaded in form data");
+      fileName = file.name;
+      fileType = file.type;
+    } else {
+      const body = await req.json();
+      fileName = body.fileName;
+      fileType = body.fileType;
+      userId = body.userId;
+    }
 
     const bucket = process.env.GCS_BUCKET_NAME;
     const accessKeyId = process.env.GCS_ACCESS_KEY_ID;
@@ -86,6 +106,26 @@ export async function POST(req: Request) {
 
     const uploadUrl = `https://${host}/${bucket}/${key}?${queryParams}&X-Amz-Signature=${signature}`;
     const cdnUrl = `https://${host}/${bucket}/${key}`;
+
+    if (isDirectUpload && file) {
+      // Direct server-side PUT to GCS
+      const arrayBuffer = await file.arrayBuffer();
+      const uploadRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": fileType,
+        },
+        body: arrayBuffer,
+      });
+
+      if (!uploadRes.ok) {
+        const errText = await uploadRes.text();
+        console.error("GCS direct document upload failed:", errText);
+        throw new Error(`GCS upload failed: ${uploadRes.statusText}`);
+      }
+
+      return NextResponse.json({ success: true, key, cdnUrl });
+    }
 
     return NextResponse.json({ success: true, uploadUrl, cdnUrl, key });
   } catch (error: any) {

@@ -134,32 +134,19 @@ export default function BookingDetailPage({ params }: { params: Promise<{ bookin
     if (!file || !user) return;
     setUploadingDoc(docType);
     try {
-      // 1. Get S3 presigned URL
+      // 1. Upload file directly via server-side endpoint (bypasses direct browser-to-GCS CORS issues)
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("userId", user.id);
+
       const res = await fetch("/api/upload/doc", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fileName: file.name,
-          fileType: file.type,
-          userId: user.id,
-        }),
+        body: formData,
       });
       const data = await res.json();
-      if (!data.success) throw new Error(data.error || "Failed to generate upload URL");
+      if (!data.success) throw new Error(data.error || "Upload failed");
 
-      const { uploadUrl, key, mock } = data;
-
-      // 2. Upload file directly to S3 (or simulate if mock returned)
-      if (!mock) {
-        const uploadRes = await fetch(uploadUrl, {
-          method: "PUT",
-          headers: { "Content-Type": file.type },
-          body: file,
-        });
-        if (!uploadRes.ok) throw new Error("S3 Document Upload Failed");
-      } else {
-        console.log("Mock S3 Upload: Simulated file storage for key:", key);
-      }
+      const { key } = data;
 
       // 3. Write document reference to Supabase
       const { error } = await supabase
