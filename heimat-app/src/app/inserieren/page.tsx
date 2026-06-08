@@ -372,10 +372,16 @@ export default function InserierenPage() {
                       <label className="text-label-md text-on-surface font-medium">{label}</label>
                       <input
                         id={`step2-${id}`}
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         placeholder={placeholder}
                         value={step2[key as keyof typeof step2]}
-                        onChange={(e) => setStep2({ ...step2, [key]: e.target.value })}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
+                            setStep2({ ...step2, [key]: val });
+                          }
+                        }}
                         className="w-full h-14 bg-surface border border-outline-variant rounded-lg px-4 focus:ring-2 focus:ring-primary focus:border-primary outline-none text-[16px]"
                       />
                     </div>

@@ -889,10 +889,17 @@ export default function TenantDashboard() {
                           {language === "de" ? "Monatliches Nettoeinkommen (€)" : "Monthly Net Income (€)"}
                         </label>
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           placeholder="z.B. 950"
                           value={profileForm.monthly_income}
-                          onChange={(e) => setProfileForm({ ...profileForm, monthly_income: e.target.value })}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === "" || /^[0-9]*$/.test(val)) {
+                              setProfileForm({ ...profileForm, monthly_income: val });
+                            }
+                          }}
                           className="w-full h-11 px-4 bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-[15px]"
                         />
                       </div>

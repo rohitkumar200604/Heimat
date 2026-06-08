@@ -130,8 +130,10 @@ export default function HomePage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!stadt.trim()) return;
+    localStorage.setItem("heimat_has_searched", "true");
     const q = new URLSearchParams();
-    if (stadt) q.set("stadt", stadt);
+    q.set("stadt", stadt.trim());
     if (zimmer !== "all") q.set("zimmer", zimmer);
     if (preis) q.set("preis", preis);
     router.push(`/suche?${q.toString()}`);
@@ -206,18 +208,30 @@ export default function HomePage() {
                 </label>
                 <input
                   value={preis}
-                  onChange={(e) => setPreis(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "" || /^[0-9]*$/.test(val)) {
+                      setPreis(val);
+                    }
+                  }}
                   id="search-price"
                   className="w-full px-4 py-3 bg-surface-container-low border border-outline-variant rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-[16px]"
                   placeholder="€ max"
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                 />
               </div>
 
               <button
                 type="submit"
                 id="btn-search"
-                className="h-[50px] bg-primary text-white rounded-lg text-label-md flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-95 shadow-lg w-full font-semibold cursor-pointer"
+                disabled={stadt.trim() === ""}
+                className={`h-[50px] rounded-lg text-label-md flex items-center justify-center gap-2 transition-all shadow-lg w-full font-semibold ${
+                  stadt.trim() === ""
+                    ? "bg-outline-variant text-on-surface-variant cursor-not-allowed opacity-50"
+                    : "bg-primary text-white hover:opacity-90 active:scale-95 cursor-pointer"
+                }`}
               >
                 <span className="material-symbols-outlined text-xl">search</span>
                 {t("searchBtn")}
@@ -259,7 +273,10 @@ export default function HomePage() {
                 >
                   <button
                     id={`city-${item.nameDe.toLowerCase()}-${idx}`}
-                    onClick={() => router.push(`/suche?stadt=${item.nameDe}`)}
+                    onClick={() => {
+                      localStorage.setItem("heimat_has_searched", "true");
+                      router.push(`/suche?stadt=${item.nameDe}`);
+                    }}
                     className="group relative aspect-[4/5] w-full rounded-xl overflow-hidden cursor-pointer shadow-lg hover:shadow-2xl transition-all text-left block"
                   >
                     <img
