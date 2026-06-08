@@ -96,6 +96,31 @@ function FilterCheck({
   );
 }
 
+const cityMappings: Record<string, string[]> = {
+  "munich": ["münchen", "munich"],
+  "münchen": ["münchen", "munich"],
+  "cologne": ["köln", "cologne"],
+  "köln": ["köln", "cologne"],
+  "nuremberg": ["nürnberg", "nuremberg"],
+  "nürnberg": ["nürnberg", "nuremberg"],
+  "hanover": ["hannover", "hanover"],
+  "hannover": ["hannover", "hanover"],
+  "dusseldorf": ["düsseldorf", "dusseldorf"],
+  "düsseldorf": ["düsseldorf", "dusseldorf"],
+  "brunswick": ["braunschweig", "brunswick"],
+  "braunschweig": ["braunschweig", "brunswick"],
+  "constance": ["konstanz", "constance"],
+  "konstanz": ["konstanz", "constance"]
+};
+
+const getSearchCities = (query: string): string[] => {
+  const normalized = query.trim().toLowerCase();
+  if (cityMappings[normalized]) {
+    return cityMappings[normalized];
+  }
+  return [query.trim()];
+};
+
 function SuchePageContent() {
   const { t, language } = useLanguage();
   const searchParams = useSearchParams();
@@ -266,7 +291,10 @@ function SuchePageContent() {
 
       const applyInMemoryFilters = () => {
         let f = [...mockListings];
-        if (stadtParam) f = f.filter(l => l.city.toLowerCase().includes(stadtParam.toLowerCase()));
+        if (stadtParam) {
+          const targetCities = getSearchCities(stadtParam);
+          f = f.filter(l => targetCities.some(tc => l.city.toLowerCase().includes(tc.toLowerCase())));
+        }
         if (propertyType !== "all") {
           if (propertyType === "house") f = f.filter(l => l.id.includes("house") || l.id.includes("haus"));
           else if (propertyType === "shared") f = f.filter(l => l.id.includes("wg") || l.id.includes("shared"));
@@ -298,7 +326,15 @@ function SuchePageContent() {
         if (!isConfigured) { applyInMemoryFilters(); return; }
 
         let query = supabase.from("properties").select(`*, property_photos(cdn_url,is_primary)`).eq("status", "active");
-        if (stadtParam) query = query.ilike("city", `%${stadtParam}%`);
+        if (stadtParam) {
+          const targetCities = getSearchCities(stadtParam);
+          if (targetCities.length > 1) {
+            const orQuery = targetCities.map(tc => `city.ilike.%${tc}%`).join(",");
+            query = query.or(orQuery);
+          } else {
+            query = query.ilike("city", `%${stadtParam}%`);
+          }
+        }
         if (propertyType !== "all") {
           if (propertyType === "house") query = query.eq("property_type", "house");
           else if (propertyType === "shared") query = query.eq("property_type", "sharedRoom");

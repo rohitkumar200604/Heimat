@@ -57,7 +57,7 @@ export async function POST(req: Request) {
     // Return TwiML response (plain XML — no SDK needed)
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Message>Vielen Dank für Ihre Nachricht an Heimat! Wir leiten diese umgehend weiter. / Thank you! We will forward your message immediately.</Message>
+  <Message>Vielen Dank für Ihre Nachricht an Heimstadt! Wir leiten diese umgehend weiter. / Thank you! We will forward your message immediately.</Message>
 </Response>`;
 
     return new Response(twiml, {

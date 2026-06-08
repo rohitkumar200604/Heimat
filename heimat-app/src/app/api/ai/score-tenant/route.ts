@@ -95,8 +95,8 @@ export async function POST(req: Request) {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
-          "HTTP-Referer": "https://heimat-app.vercel.app",
-          "X-Title": "Heimat App",
+          "HTTP-Referer": "https://heimstadt-app.vercel.app",
+          "X-Title": "Heimstadt App",
         },
         body: JSON.stringify(body),
       });

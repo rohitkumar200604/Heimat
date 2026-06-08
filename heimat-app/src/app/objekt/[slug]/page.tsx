@@ -501,7 +501,7 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
                       {language === "de" ? "Jetzt anmelden" : "Log In Now"}
                     </button>
                     <p className="text-[12px] text-on-surface-variant">
-                      {language === "de" ? "Noch kein Konto? " : "New to Heimat? "}
+                      {language === "de" ? "Noch kein Konto? " : "New to Heimstadt? "}
                       <Link href="/auth/register" className="text-primary font-bold hover:underline">
                         {language === "de" ? "Hier registrieren" : "Register here"}
                       </Link>

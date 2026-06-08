@@ -633,8 +633,8 @@ export default function LandlordDashboard() {
                     </h2>
                     <p className="text-body-md text-on-surface-variant mt-1 leading-relaxed">
                       {language === "de"
-                        ? "Hier finden Sie alle Objekte, die Sie auf Heimat inseriert haben."
-                        : "Browse and manage the properties you have currently listed on the Heimat marketplace."}
+                        ? "Hier finden Sie alle Objekte, die Sie auf Heimstadt inseriert haben."
+                        : "Browse and manage the properties you have currently listed on the Heimstadt marketplace."}
                     </p>
                   </div>
                   <Link

@@ -20,8 +20,8 @@ export default function AGBPage() {
             </h2>
             <p>
               {language === "de"
-                ? "Heimat betreibt einen Online-Marktplatz, auf dem Vermieter Wohnräume anbieten und Mieter diese vor der Ankunft buchen können. Die Buchungen unterliegen einer Bonitäts- und Identitätsprüfung (Mietrecht BGB §551)."
-                : "Heimat operates an online marketplace where landlords can offer housing and tenants can book them before arrival. Bookings are subject to credit and identity verification processes."}
+                ? "Heimstadt betreibt einen Online-Marktplatz, auf dem Vermieter Wohnräume anbieten und Mieter diese vor der Ankunft buchen können. Die Buchungen unterliegen einer Bonitäts- und Identitätsprüfung (Mietrecht BGB §551)."
+                : "Heimstadt operates an online marketplace where landlords can offer housing and tenants can book them before arrival. Bookings are subject to credit and identity verification processes."}
             </p>
           </section>
 
@@ -42,8 +42,8 @@ export default function AGBPage() {
             </h2>
             <p>
               {language === "de"
-                ? "Heimat erhebt eine Vermittlungsgebühr von 8% des gesamten Buchungswerts. Diese Gebühr wird direkt während des Zahlungsvorgangs per Stripe Connect einbehalten."
-                : "Heimat collects a service fee of 8% of the total booking value. This fee is automatically deducted during checkout via Stripe Connect."}
+                ? "Heimstadt erhebt eine Vermittlungsgebühr von 8% des gesamten Buchungswerts. Diese Gebühr wird direkt während des Zahlungsvorgangs per Stripe Connect einbehalten."
+                : "Heimstadt collects a service fee of 8% of the total booking value. This fee is automatically deducted during checkout via Stripe Connect."}
             </p>
           </section>
         </div>

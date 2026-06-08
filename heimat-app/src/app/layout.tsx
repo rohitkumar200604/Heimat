@@ -5,7 +5,7 @@ import { LanguageProvider } from "@/context/LanguageContext";
 import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata: Metadata = {
-  title: "Heimat | Exklusive Immobilien in Deutschland",
+  title: "Heimstadt | Exklusive Immobilien in Deutschland",
   description: "Hochwertige Mietwohnungen für internationale Studierende und Expats in Berlin, München und Hamburg. Buchen Sie vor Ihrer Ankunft.",
 };
 

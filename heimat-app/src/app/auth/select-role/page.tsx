@@ -111,8 +111,8 @@ export default function SelectRolePage() {
             </h1>
             <p className="text-on-surface-variant text-body-md mt-2 max-w-md mx-auto">
               {language === "de"
-                ? "Um Ihre Einrichtung abzuschließen, teilen Sie uns bitte mit, wie Sie Heimat nutzen möchten."
-                : "To finalize your registration, please let us know how you plan to use Heimat."}
+                ? "Um Ihre Einrichtung abzuschließen, teilen Sie uns bitte mit, wie Sie Heimstadt nutzen möchten."
+                : "To finalize your registration, please let us know how you plan to use Heimstadt."}
             </p>
           </div>
 

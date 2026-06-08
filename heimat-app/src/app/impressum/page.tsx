@@ -18,7 +18,7 @@ export default function ImpressumPage() {
             <h2 className="text-headline-md font-bold text-primary">
               {language === "de" ? "Angaben gemäß § 5 TMG" : "Specifications according to § 5 TMG"}
             </h2>
-            <p className="font-semibold text-primary">Heimat Immobilien GmbH</p>
+            <p className="font-semibold text-primary">Heimstadt Immobilien GmbH</p>
             <p>Torstraße 142</p>
             <p>10119 Berlin</p>
           </section>

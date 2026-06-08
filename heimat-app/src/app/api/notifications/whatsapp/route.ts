@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     const body = new URLSearchParams({
       From: from,
       To: `whatsapp:${to}`,
-      Body: `Heimat Update: ${templateName}. ${JSON.stringify(variables)}`,
+      Body: `Heimstadt Update: ${templateName}. ${JSON.stringify(variables)}`,
     });
 
     const res = await fetch(

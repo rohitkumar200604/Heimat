@@ -1,7 +1,7 @@
 export const translations = {
   de: {
     // Navbar & Footer
-    logo: "Heimat",
+    logo: "Heimstadt",
     search: "Suchen",
     rent: "Vermieten",
     login: "Anmelden",
@@ -16,7 +16,7 @@ export const translations = {
     imprint: "Impressum",
     privacy: "Datenschutz",
     terms: "AGB",
-    rightsReserved: "© 2024 Heimat Immobilien GmbH. Alle Rechte vorbehalten.",
+    rightsReserved: "© 2024 Heimstadt Immobilien GmbH. Alle Rechte vorbehalten.",
 
     // Homepage
     heroTitle: "Willkommen in deinem neuen Zuhause.",
@@ -61,7 +61,7 @@ export const translations = {
     page: "Seite",
 
     // Property Details
-    breadcrumbHome: "Heimat",
+    breadcrumbHome: "Heimstadt",
     breadcrumbSearch: "Suchen",
     premiumListing: "Premium Listing",
     commissionFree: "Provisionsfrei",
@@ -186,7 +186,7 @@ export const translations = {
   },
   en: {
     // Navbar & Footer
-    logo: "Heimat",
+    logo: "Heimstadt",
     search: "Search",
     rent: "List Property",
     login: "Log In",
@@ -201,7 +201,7 @@ export const translations = {
     imprint: "Imprint",
     privacy: "Privacy Policy",
     terms: "Terms of Service",
-    rightsReserved: "© 2024 Heimat Immobilien GmbH. All rights reserved.",
+    rightsReserved: "© 2024 Heimstadt Immobilien GmbH. All rights reserved.",
 
     // Homepage
     heroTitle: "Welcome to your new home.",
@@ -246,7 +246,7 @@ export const translations = {
     page: "Page",
 
     // Property Details
-    breadcrumbHome: "Heimat",
+    breadcrumbHome: "Heimstadt",
     breadcrumbSearch: "Search",
     premiumListing: "Premium Listing",
     commissionFree: "Commission Free",
