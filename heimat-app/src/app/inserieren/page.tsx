@@ -345,7 +345,7 @@ export default function InserierenPage() {
                 {/* Map preview */}
                 <div className="mt-8 rounded-xl overflow-hidden h-64 relative bg-surface-container">
                   <img
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuD94nyJ1YRRt89xS3wi1OzlMWVTkpAwVuGUUQkDsnBuoc7dFQoDXrr6psrlKaT9upkVFPozd2j_Tgs5vVEaIRCMjShiPimpsXJVun_NL2iHaznZWol5qSQ0wxqwnBzlBbGF69gZEB4pRGslCUrEhK5F46sbP9Tc8O-ELFwIw32cGCVCCeelmQH3h0yJMlV_pB5SIyQHTHx4oBn-cmvsxx0xG_FU95DPByq3vtFHezsh2FSiaMA3o5k_Szc2Jzo3Ekbb_LKMg3lAFX-f"
+                    src="https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=1200&q=80"
                     alt="Kartenvorschau"
                     className="w-full h-full object-cover grayscale opacity-80"
                   />

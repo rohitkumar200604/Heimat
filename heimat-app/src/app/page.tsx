@@ -1,11 +1,113 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Footer from "@/components/layout/Footer";
 import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
+
+const CITIES = [
+  {
+    nameDe: "Berlin",
+    nameEn: "Berlin",
+    count: "2.450",
+    img: "https://images.unsplash.com/photo-1599946347371-68eb71b16afc?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    nameDe: "München",
+    nameEn: "Munich",
+    count: "1.820",
+    img: "https://images.unsplash.com/photo-1595853035070-59a39fe84de3?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    nameDe: "Hamburg",
+    nameEn: "Hamburg",
+    count: "1.560",
+    img: "https://images.unsplash.com/photo-1473862170180-84427c485ade?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    nameDe: "Frankfurt",
+    nameEn: "Frankfurt",
+    count: "1.240",
+    img: "https://images.unsplash.com/photo-1541746972996-4e0b0f43e01a?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    nameDe: "Köln",
+    nameEn: "Cologne",
+    count: "1.100",
+    img: "https://images.unsplash.com/photo-1549877452-9c387954fbc2?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    nameDe: "Düsseldorf",
+    nameEn: "Düsseldorf",
+    count: "950",
+    img: "https://images.unsplash.com/photo-1507608869274-d3177c8bb4c7?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    nameDe: "Stuttgart",
+    nameEn: "Stuttgart",
+    count: "880",
+    img: "https://images.unsplash.com/photo-1569154941061-e231b4725ef1?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    nameDe: "Leipzig",
+    nameEn: "Leipzig",
+    count: "720",
+    img: "https://images.unsplash.com/photo-1571266028243-e4733b0f0bb1?auto=format&fit=crop&w=600&q=80",
+  },
+];
+
+const getTestimonials = (language: string, t: any) => [
+  {
+    quote: language === "de"
+      ? "Der Suchprozess war unglaublich einfach. Innerhalb einer Woche hatte ich meine Traumwohnung in Berlin gefunden."
+      : "The search process was incredibly easy. Within a week, I found my dream apartment in Berlin.",
+    name: "Maximilian K.",
+    role: `${t("testimonialRoleTenant")} Berlin`,
+    initials: "MK",
+  },
+  {
+    quote: language === "de"
+      ? "Als Vermieter schätze ich besonders die Vorauswahl der Interessenten. Das spart mir extrem viel Zeit und Nerven."
+      : "As a landlord, I particularly appreciate the pre-selection of applicants. This saves me a lot of time and hassle.",
+    name: "Sabine H.",
+    role: `${t("testimonialRoleLandlord")} München`,
+    initials: "SH",
+  },
+  {
+    quote: language === "de"
+      ? "Kompetent, zuverlässig und sehr modern. Die Besichtigung per 3D-Rundgang war für mich als Pendler ideal."
+      : "Competent, reliable, and very modern. The 3D virtual tour viewing was ideal for me as a commuter.",
+    name: "Thomas L.",
+    role: `${t("testimonialRoleTenant")} Hamburg`,
+    initials: "TL",
+  },
+  {
+    quote: language === "de"
+      ? "Die Plattform hat uns geholfen, eine tolle Wohnung in der Nähe des Bankenviertels zu mieten. Der Prozess war transparent und schnell."
+      : "The platform helped us rent a great apartment near the banking district. The process was transparent and fast.",
+    name: "Laura M.",
+    role: `${t("testimonialRoleTenant")} Frankfurt`,
+    initials: "LM",
+  },
+  {
+    quote: language === "de"
+      ? "Sehr benutzerfreundlich! Als Student war es schwer, Wohnungen zu finden, aber hier hatte ich nach drei Bewerbungen Erfolg."
+      : "Very user-friendly! As a student, it was hard to find apartments, but here I succeeded after three applications.",
+    name: "Andreas B.",
+    role: `${t("testimonialRoleTenant")} Köln`,
+    initials: "AB",
+  },
+  {
+    quote: language === "de"
+      ? "Die Qualität der Inserate ist hervorragend. Keine Betrugsversuche, alles echt und verifiziert. Absolut empfehlenswert."
+      : "The quality of the listings is outstanding. No scams, everything real and verified. Highly recommended.",
+    name: "Elena R.",
+    role: `${t("testimonialRoleLandlord")} Stuttgart`,
+    initials: "ER",
+  },
+];
 
 export default function HomePage() {
   const router = useRouter();
@@ -14,6 +116,8 @@ export default function HomePage() {
   const [stadt, setStadt] = useState("");
   const [zimmer, setZimmer] = useState("all");
   const [preis, setPreis] = useState("");
+
+
 
   // Self-healing: Detect Google OAuth hash redirect landing on root domain and route to Auth Callback
   useEffect(() => {
@@ -40,7 +144,7 @@ export default function HomePage() {
       {/* ── Hero ─────────────────────────────────────────── */}
       <section className="relative h-[870px] min-h-[600px] flex items-center justify-center overflow-hidden">
         <img
-          src="https://lh3.googleusercontent.com/aida-public/AB6AXuABTolN5_IeVJ1WaiQvEhznNlcs_9oBV7Rsq4O0Jxuuysb_uISU75iXIVooBMD4mTzXXlj8BJwKC-gHk09iBf3X2fewWD0-faquG-NpTswnTEWH4p5fwHnxyJPOa4ktx4ZknI6atPYvgiXr6YRq8QMdVic-kChr617Dcc5gI4CBKACWL4fB_x_v9AouGx3fKkHp2jqyRtyMzC55Lb_xOiePtmZWvjpkaybc1kanVI9qA9ixolosFhxKGmXLkf5MKuQi8pgdAucwPLCF"
+          src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1920&q=80"
           alt="Moderne Architektur in Deutschland"
           className="absolute inset-0 w-full h-full object-cover"
         />
@@ -142,42 +246,38 @@ export default function HomePage() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-[24px]">
-          {[
-            {
-              city: "Berlin",
-              count: "2.450",
-              img: "https://lh3.googleusercontent.com/aida-public/AB6AXuB0xOO1BWx-JREJERdBI9VwxHm8XPtsZ5k9-1nSaoMx3hn7YXkbAlyh66ay75MKHprJfukBSJrEIy259MQ50aohcMB0NhJNowBoSg_1C4fm_1Z1iswQ0S7W0zDIASbT2KNi9z3to7BGjTApKGQn56PZybUYS6ugG8Jy59nBwoJsSSASYJ-Vx94NotwaAAH7PaqvBl3524uMSUzgTkA3KN_HANqpd1opMGI1iDEvHImFBJVFBggj-7W1jcG7bzbuV0hj-bjvEUYF1VP0",
-            },
-            {
-              city: "München",
-              count: "1.820",
-              img: "https://lh3.googleusercontent.com/aida-public/AB6AXuCrXUvAxyb5tWS2xwNgtZEfEQEOpbbTA7TZnIgL2u61lgzyoOIKTAJN-VR_ClYROSuGNMFkNYxcbtMv8QV-jVMqavpwkpJrK3eTHn1jSOTsqWhYeIjZljdUIooLtLRz6APHf7KYRjjqwSTvF_QRDqXZvf4AVXUFKx3R5dDdvZoi3mJYw_bhfcVQHdT838AJVqQRy0P-VaTEj22XSOaztVljp3tZUqboOnMOrtnjXlC7FnyethuAkyAtyMyLfQpuQxzr_j-RGyeDcklk",
-            },
-            {
-              city: "Hamburg",
-              count: "1.560",
-              img: "https://lh3.googleusercontent.com/aida-public/AB6AXuAgsoMb4eOMOR0YOqg-v4JXcOvu3VGP78Tvsu-yF-TjkCRoBKx0z1HMOo8qUQrtI142HxOKLztAVc1DitBxlJTsQl0vQwp0Kc7rKphG3krnjnIIQPA52HjuSsRDANemiW2Z4LACcfM6AYyLuSuoKfMsipS7C0aLYaRUrhRz3hHsid99cnVWVpuWPKKzeu1GvfPcuRYm0DsQdWPvImkSoRAvgOf350T1XPfXXnJzBLyUgt_UOPAXs7DflXDFFVwx9DukvIJN9czlwOit",
-            },
-          ].map(({ city, count, img }) => (
-            <button
-              key={city}
-              id={`city-${city.toLowerCase()}`}
-              onClick={() => router.push(`/suche?stadt=${city}`)}
-              className="group relative aspect-[4/5] rounded-xl overflow-hidden cursor-pointer shadow-lg hover:shadow-2xl transition-all text-left"
-            >
-              <img
-                src={img}
-                alt={`${city} Stadtbild`}
-                className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-transparent" />
-              <div className="absolute bottom-6 left-6 text-white">
-                <h3 className="text-headline-md">{city}</h3>
-                <p className="text-label-md opacity-90">{count} {t("objectsAvailable")}</p>
-              </div>
-            </button>
-          ))}
+        {/* Carousel Viewport Container */}
+        <div className="relative w-full overflow-hidden">
+          {/* Track */}
+          <div className="flex w-max animate-marquee-cities pause-on-hover py-4">
+            {[...CITIES, ...CITIES].map((item, idx) => {
+              const cityName = language === "de" ? item.nameDe : item.nameEn;
+              return (
+                <div
+                  key={`${item.nameDe}-${idx}`}
+                  className="w-[280px] md:w-[320px] flex-shrink-0 px-3"
+                >
+                  <button
+                    id={`city-${item.nameDe.toLowerCase()}-${idx}`}
+                    onClick={() => router.push(`/suche?stadt=${item.nameDe}`)}
+                    className="group relative aspect-[4/5] w-full rounded-xl overflow-hidden cursor-pointer shadow-lg hover:shadow-2xl transition-all text-left block"
+                  >
+                    <img
+                      src={item.img}
+                      alt={`${cityName} Stadtbild`}
+                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-transparent" />
+                    <div className="absolute bottom-6 left-6 text-white">
+                      <h3 className="text-headline-md">{cityName}</h3>
+                      <p className="text-label-md opacity-90">{item.count} {t("objectsAvailable")}</p>
+                    </div>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
 
@@ -188,7 +288,7 @@ export default function HomePage() {
           <div className="relative">
             <div className="absolute -top-4 -left-4 w-24 h-24 bg-secondary-container rounded-full mix-blend-multiply filter blur-2xl opacity-30" />
             <img
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuDsW-EjV3OdMvuKKApSV3Qth5BegXRwnsJ42LJCAlJkw25dj5OBvJXUfCfg7fltArp9nj4gpVHMaWmhsERp0urrs_LTa9KB8DGxhVR7w57xQkF3K70bMKMRCBpxfMLsjt9QGhkxkMtBZ3fciiYDb4r57W7Pe4ukUc4yO4M3OeXAVj4g1aMLmL1Zvh54V9eGamqvC-h__WJrdA_pEfnSZ_Lr59YZ9wOzslE3P9zCOf0_WL7sd_qDAP1bAbbDnLD4H2PBbcLVmu3HRkbG"
+              src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1200&q=80"
               alt="Immobilienmakler übergibt Schlüssel"
               className="rounded-xl shadow-2xl relative z-10 w-full"
             />
@@ -248,62 +348,48 @@ export default function HomePage() {
         <h2 className="text-headline-lg-mobile md:text-headline-lg text-primary text-center mb-16">
           {t("testimonialsTitle")}
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {[
-            {
-              quote: language === "de"
-                ? "Der Suchprozess war unglaublich einfach. Innerhalb einer Woche hatte ich meine Traumwohnung in Berlin gefunden."
-                : "The search process was incredibly easy. Within a week, I found my dream apartment in Berlin.",
-              name: "Maximilian K.",
-              role: `${t("testimonialRoleTenant")} Berlin`,
-              initials: "MK",
-            },
-            {
-              quote: language === "de"
-                ? "Als Vermieter schätze ich besonders die Vorauswahl der Interessenten. Das spart mir extrem viel Zeit und Nerven."
-                : "As a landlord, I particularly appreciate the pre-selection of applicants. This saves me a lot of time and hassle.",
-              name: "Sabine H.",
-              role: `${t("testimonialRoleLandlord")} München`,
-              initials: "SH",
-            },
-            {
-              quote: language === "de"
-                ? "Kompetent, zuverlässig und sehr modern. Die Besichtigung per 3D-Rundgang war für mich als Pendler ideal."
-                : "Competent, reliable, and very modern. The 3D virtual tour viewing was ideal for me as a commuter.",
-              name: "Thomas L.",
-              role: `${t("testimonialRoleTenant")} Hamburg`,
-              initials: "TL",
-            },
-          ].map(({ quote, name, role, initials }) => (
-            <div
-              key={name}
-              className="bg-white p-8 rounded-xl shadow-md border border-outline-variant hover:shadow-xl transition-all duration-300"
-            >
-              <div className="flex gap-0.5 mb-4">
-                {stars.map((_, i) => (
-                  <span
-                    key={i}
-                    className="material-symbols-outlined text-secondary-fixed-dim text-[22px]"
-                    style={{ fontVariationSettings: "'FILL' 1" }}
-                  >
-                    star
-                  </span>
-                ))}
-              </div>
-              <p className="text-body-md text-on-surface italic mb-8">
-                &ldquo;{quote}&rdquo;
-              </p>
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center font-bold text-primary text-[14px] flex-shrink-0">
-                  {initials}
-                </div>
-                <div>
-                  <p className="text-label-md text-primary font-bold">{name}</p>
-                  <p className="text-on-surface-variant text-[12px]">{role}</p>
+
+        {/* Carousel Viewport Container */}
+        <div className="relative w-full overflow-hidden">
+          {/* Track */}
+          <div className="flex w-max animate-marquee-reviews pause-on-hover py-4">
+            {[...getTestimonials(language, t), ...getTestimonials(language, t)].map(({ quote, name, role, initials }, idx) => (
+              <div
+                key={`${name}-${idx}`}
+                className="w-[320px] md:w-[400px] flex-shrink-0 px-3 flex"
+              >
+                <div
+                  className="bg-white p-8 rounded-xl shadow-md border border-outline-variant hover:shadow-xl transition-all duration-300 w-full flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex gap-0.5 mb-4">
+                      {stars.map((_, i) => (
+                        <span
+                          key={i}
+                          className="material-symbols-outlined text-secondary-fixed-dim text-[22px]"
+                          style={{ fontVariationSettings: "'FILL' 1" }}
+                        >
+                          star
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-body-md text-on-surface italic mb-8">
+                      &ldquo;{quote}&rdquo;
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center font-bold text-primary text-[14px] flex-shrink-0">
+                      {initials}
+                    </div>
+                    <div>
+                      <p className="text-label-md text-primary font-bold">{name}</p>
+                      <p className="text-on-surface-variant text-[12px]">{role}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 

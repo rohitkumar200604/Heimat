@@ -10,19 +10,19 @@ import Footer from "@/components/layout/Footer";
 
 const GALLERY_FALLBACK = [
   {
-    src: "https://lh3.googleusercontent.com/aida-public/AB6AXuATFFvL_hJbCGEpFlTZR-5caCD-b_223YbwlvFv4xUX9XbGiuRuKS16mGDYxFnAEqtVUuf5Y5vLs3OoUfZvhXniyUVt53Qy-ZLrDG0mQs_vy6yLshgBp6NE0btvoPuouRR7gERsfZdZkIf-xFiXo1ecRikNqtDrssRAT6KSof_Ir8gkfRbWe9OSH8WczOFlCcT2rfhVfhssqtWq8P-yWlYF7zO9YxoiBi08AoLO0IPgfBTlHq6YOYSym2-jJhNANExmlV7flkObwj_h",
+    src: "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?auto=format&fit=crop&w=800&q=80",
     alt: "Wohnzimmer",
   },
   {
-    src: "https://lh3.googleusercontent.com/aida-public/AB6AXuCNi9bh1w5ssoEw-vPaMA0CeWenIbVWGiMkFRVVsjLTfT7SYHe7gPPzfb4aNgVpgmiSrHtUXEz6mjc-Kudf5-ZAjWnZNRt8PBG-deWIs-_fRiVBlCr8Gu0zyJ05oM-2ENXRUZityWdWEILCWrfM0txQQS9dR7IYxbjvM7ssaCD0zw8_lofS4hgAeuPNsDEXMpZFWvFASDNNuthk4AeqdqEl3sv_H4xOVwUU4VMdXQQ1uRdIAzC9xmEEr_qxCXgO206nd0uEbibzWkC_",
+    src: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80",
     alt: "Küche",
   },
   {
-    src: "https://lh3.googleusercontent.com/aida-public/AB6AXuDERcVTSRD56ZjV-h8CzxjxY_F8mz5UtpqhjkiBZwbZm2BfBA5SGR2kKbuh5kF6hS7wwYfYTbM_ns_NpImfq-VqaeqvxYxc64XhAYf7wV_TME25qYwFBcD5wXT_X3Vn70YZMGJH4m_KTQ43Y3k_yUiBE9jmqft5pEJUpA0EoCxKmGyivAr7SO5E_CVt3XNoSbQSJLamkBHqjgjtWdxGmsFDacPScEbWDigSniL1vmAQ3BZLoyCtL2x60fpmCsu0dBf03zp7pQrWKtUp",
+    src: "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=800&q=80",
     alt: "Schlafzimmer",
   },
   {
-    src: "https://lh3.googleusercontent.com/aida-public/AB6AXuBQe2cvLDAXFCCXQ6Axju7NabxzbzSui6H6mlZoY_nyTfOvn1iSV4MfXoFy9lLHizhXmgW2Jv76P5rY3aCr1RwPylnqeHjmNaZlDNCWoXW-_uJOZUFgTh2gp5U9l2aET273XoJ3WAywaf5mNRoFf122nThM5F-TtZJ3WrKA5WT6EK18DLXg9yJlPA-UbJo-V-sxREf0dkS6N0HUobySGeUzL45h7HWIDl4O5rmYWEu2BtNfe_OTs7xgvhs8rPtE6aECQYI7XgaDTEks",
+    src: "https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?auto=format&fit=crop&w=800&q=80",
     alt: "Badezimmer",
   },
 ];
@@ -215,7 +215,7 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
               user_id: "mock-landlord-id",
               profiles: {
                 full_name: "Markus Weber",
-                avatar_url: "https://lh3.googleusercontent.com/aida-public/AB6AXuDseZjk82kjQbnLSXbDkHWEWulM4KfFgYBDXycQaSmuqqisRGTl07u31j4oOwXkm3q5WoqT6IO6LZofXIgPbzAayc83Lr7T8iXBp2tOVoBLgekS6R8V2qGgbvQlLprRbdTGED2d7rGiUUVJ2RrQFkFDPJGemX3lLUHYRhfJRoF7vsrrg61HdCLCj5FB3L9IX4kXwG7s-zgEBuZIBROZWg2f81RudBpvhoqL9Yq43cRjmRiaY5FjnWsDwmUR5U4LUqQ2n3lh8S4UeiyL"
+                avatar_url: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80"
               }
             }
           };
@@ -560,7 +560,7 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
               {/* Landlord card */}
               <div className="bg-surface-container-low border border-outline-variant rounded-2xl p-6 flex items-center gap-4">
                 <img
-                  src={property.landlord_profiles?.profiles?.avatar_url || "https://lh3.googleusercontent.com/aida-public/AB6AXuDseZjk82kjQbnLSXbDkHWEWulM4KfFgYBDXycQaSmuqqisRGTl07u31j4oOwXkm3q5WoqT6IO6LZofXIgPbzAayc83Lr7T8iXBp2tOVoBLgekS6R8V2qGgbvQlLprRbdTGED2d7rGiUUVJ2RrQFkFDPJGemX3lLUHYRhfJRoF7vsrrg61HdCLCj5FB3L9IX4kXwG7s-zgEBuZIBROZWg2f81RudBpvhoqL9Yq43cRjmRiaY5FjnWsDwmUR5U4LUqQ2n3lh8S4UeiyL"}
+                  src={property.landlord_profiles?.profiles?.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80"}
                   alt="Avatar"
                   className="w-16 h-16 rounded-full object-cover border-2 border-surface flex-shrink-0 bg-surface-variant"
                 />

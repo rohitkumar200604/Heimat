@@ -72,11 +72,17 @@ export async function POST(req: Request) {
     // ── Dev mock fallback ──────────────────────────────────────────────────────
     if (!bucket || !accessKeyId || !secretAccessKey) {
       const key = `${landlordId}/properties/${Date.now()}-${fileName}`;
+      let cdnUrl = `https://storage.googleapis.com/mock-bucket/${key}`;
+      if (file) {
+        const arrayBuffer = await file.arrayBuffer();
+        const base64 = Buffer.from(arrayBuffer).toString("base64");
+        cdnUrl = `data:${fileType};base64,${base64}`;
+      }
       return NextResponse.json({
         success: true,
         mock: true,
         uploadUrl: `https://storage.googleapis.com/mock-bucket/${key}?mock=true`,
-        cdnUrl: `https://storage.googleapis.com/mock-bucket/${key}`,
+        cdnUrl,
         key,
       });
     }
