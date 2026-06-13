@@ -174,8 +174,6 @@ export default function BookingDetailPage({ params }: { params: Promise<{ bookin
           return [...filtered, { doc_type: docType, file_name: file.name, status: "approved" }];
         });
       }
-
-      alert(language === "de" ? "Dokument erfolgreich hochgeladen!" : "Document uploaded successfully!");
     } catch (err: any) {
       console.error("Error uploading document:", err);
       alert(language === "de" ? `Upload-Fehler: ${err.message}` : `Upload error: ${err.message}`);
@@ -206,8 +204,6 @@ export default function BookingDetailPage({ params }: { params: Promise<{ bookin
         // Mock mode local state update
         setDocuments((prev) => prev.filter((d) => d.doc_type !== docType));
       }
-
-      alert(language === "de" ? "Dokument erfolgreich gelöscht!" : "Document successfully removed!");
     } catch (err: any) {
       console.error("Error removing document:", err);
       alert(language === "de" ? `Lösch-Fehler: ${err.message}` : `Remove error: ${err.message}`);
