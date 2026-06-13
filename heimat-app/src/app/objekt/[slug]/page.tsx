@@ -174,6 +174,97 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
   const [newReviewAuthor, setNewReviewAuthor] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
 
+  // Chatbot states
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+
+  // Initialize and update welcome message when language changes
+  useEffect(() => {
+    if (chatMessages.length === 0) {
+      setChatMessages([
+        {
+          sender: "bot",
+          text: language === "de"
+            ? "Hallo! Ich bin dein Heimstadt-Assistent. Hast du Fragen zu dieser Wohnung oder zum Ablauf der Buchung? Ich helfe dir gerne!"
+            : "Hi! I'm your Heimstadt assistant. Do you have any questions about this property or the booking process? I'm happy to help!",
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+    }
+  }, [language, chatMessages.length]);
+
+  const handleSendChatMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim() || chatLoading) return;
+
+    const userMsg = chatInput.trim();
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    setChatMessages((prev) => [
+      ...prev,
+      { sender: "user", text: userMsg, timestamp: time }
+    ]);
+    setChatInput("");
+    setChatLoading(true);
+
+    try {
+      // Exclude welcome message from history to prevent context pollution
+      const history = chatMessages.slice(1).map((m) => ({
+        sender: m.sender,
+        text: m.text
+      }));
+
+      const res = await fetch("/api/ai/support-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userMessage: userMsg,
+          history,
+          property: {
+            title: property.title,
+            city: property.city,
+            street: property.street,
+            size_sqm: property.size_sqm,
+            rooms: property.rooms,
+            rent_cold: property.rent_cold,
+            rent_utilities: property.rent_utilities,
+            rent_heating: property.rent_heating,
+            deposit_months: property.deposit_months,
+            available_from: property.available_from,
+            amenities: property.amenities
+          }
+        })
+      });
+
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Failed to fetch support chat response");
+
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          sender: "bot",
+          text: data.text,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+    } catch (err) {
+      console.error("Support chat error:", err);
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          sender: "bot",
+          text: language === "de"
+            ? "Entschuldigung, ich habe Verbindungsprobleme. Bitte versuchen Sie es gleich noch einmal."
+            : "Sorry, I am having trouble connecting. Please try again in a moment.",
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const searched = localStorage.getItem("heimat_has_searched") === "true";
@@ -729,6 +820,88 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Customer Support Chatbot */}
+            <div className="mb-12 border border-outline-variant/40 rounded-2xl overflow-hidden bg-surface-container-lowest shadow-sm flex flex-col h-[480px]">
+              {/* Chat Header */}
+              <div className="bg-primary px-6 py-4 flex items-center justify-between border-b border-outline-variant/20">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-on-primary/10 rounded-full flex items-center justify-center text-on-primary relative">
+                    <span className="material-symbols-outlined text-[24px]">support_agent</span>
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#34a853] rounded-full border border-primary ring-2 ring-primary-container" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-on-primary text-[15px] leading-tight">
+                      Heimstadt Support Team
+                    </h3>
+                    <p className="text-[11px] text-on-primary/75 font-semibold flex items-center gap-1 mt-0.5">
+                      {language === "de" ? "Fragen Sie uns etwas" : "Ask us anything"}
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-on-primary/10 text-on-primary px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                  Online
+                </div>
+              </div>
+
+              {/* Chat History Messages */}
+              <div className="flex-grow p-6 overflow-y-auto space-y-4 bg-surface-container-lowest max-h-[340px] flex flex-col justify-start custom-scrollbar">
+                {chatMessages.map((m, idx) => {
+                  const isBot = m.sender === "bot";
+                  return (
+                    <div
+                      key={idx}
+                      className={`flex flex-col max-w-[80%] ${isBot ? "self-start items-start" : "self-end items-end"}`}
+                    >
+                      <div
+                        className={`p-4 rounded-2xl text-[14px] leading-relaxed ${
+                          isBot
+                            ? "bg-surface-container-high text-on-surface rounded-tl-sm"
+                            : "bg-primary text-on-primary rounded-tr-sm"
+                        }`}
+                      >
+                        {m.text}
+                      </div>
+                      <span className="text-[10px] text-on-surface-variant/60 font-semibold mt-1 px-1">
+                        {m.timestamp}
+                      </span>
+                    </div>
+                  );
+                })}
+
+                {chatLoading && (
+                  <div className="self-start flex flex-col items-start max-w-[80%]">
+                    <div className="bg-surface-container-high p-4 rounded-2xl rounded-tl-sm flex items-center gap-1.5 h-[44px]">
+                      <span className="w-2.5 h-2.5 bg-on-surface-variant/40 rounded-full animate-bounce delay-75" />
+                      <span className="w-2.5 h-2.5 bg-on-surface-variant/40 rounded-full animate-bounce delay-150" />
+                      <span className="w-2.5 h-2.5 bg-on-surface-variant/40 rounded-full animate-bounce delay-300" />
+                    </div>
+                    <span className="text-[10px] text-on-surface-variant/60 font-semibold mt-1 px-1">
+                      {language === "de" ? "Schreibt..." : "Typing..."}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Chat Input Area */}
+              <form onSubmit={handleSendChatMessage} className="p-4 border-t border-outline-variant bg-surface-container-lowest flex gap-3">
+                <input
+                  type="text"
+                  placeholder={language === "de" ? "Frage eingeben..." : "Type your question here..."}
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  disabled={chatLoading}
+                  className="flex-grow bg-surface-container-low border border-outline-variant rounded-xl px-4 py-3 text-[15px] outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                />
+                <button
+                  type="submit"
+                  disabled={!chatInput.trim() || chatLoading}
+                  className="bg-primary text-on-primary w-11 h-11 rounded-xl flex items-center justify-center hover:opacity-90 active:scale-95 transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[20px] transform rotate-[-30deg]">send</span>
+                </button>
+              </form>
             </div>
 
             {/* Book Before Arrival Section */}
