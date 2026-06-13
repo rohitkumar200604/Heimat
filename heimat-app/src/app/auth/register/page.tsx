@@ -62,8 +62,8 @@ function RegisterPageContent() {
       }
 
       const successAlertMsg = language === "de"
-        ? "Registrierung erfolgreich abgeschlossen! Bitte überprüfen Sie Ihre E-Mails."
-        : "Registration successfully completed! Please check your email.";
+        ? "Registrierung erfolgreich abgeschlossen! Bitte prüfen Sie Ihre E-Mails und klicken Sie auf den Bestätigungslink."
+        : "Registration successfully completed! Please check your email and click on the confirmation link.";
 
       alert(successAlertMsg);
       setSuccessMsg(successAlertMsg);
@@ -71,6 +71,23 @@ function RegisterPageContent() {
 
     } catch (err: any) {
       const errMsg = err.message || "";
+      const isAlreadyRegistered = 
+        errMsg.toLowerCase().includes("already registered") || 
+        errMsg.toLowerCase().includes("already exists") ||
+        errMsg.toLowerCase().includes("email_taken") ||
+        errMsg.toLowerCase().includes("email taken");
+
+      if (isAlreadyRegistered) {
+        const successAlertMsg = language === "de"
+          ? "Registrierung erfolgreich abgeschlossen! Bitte prüfen Sie Ihre E-Mails und klicken Sie auf den Bestätigungslink."
+          : "Registration successfully completed! Please check your email and click on the confirmation link.";
+
+        alert(successAlertMsg);
+        setSuccessMsg(successAlertMsg);
+        setIsRegistered(true);
+        return;
+      }
+
       if (errMsg.toLowerCase().includes("rate limit") || errMsg.toLowerCase().includes("once every 60 seconds")) {
         setErrorMsg(
           language === "de"
