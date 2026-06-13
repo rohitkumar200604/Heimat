@@ -1,121 +1,284 @@
 "use client";
 
+import { useState, useEffect, Suspense } from "react";
 import { useLanguage } from "@/context/LanguageContext";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import Footer from "@/components/layout/Footer";
 
-export default function PreisePage() {
+function PreisePageContent() {
   const { t, language } = useLanguage();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const { user, profile, upgradeUser } = useAuth();
+  const [selectedDuration, setSelectedDuration] = useState<"1month" | "3months" | "12months">("3months");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const planParam = searchParams.get("plan");
+    if (planParam === "1month" || planParam === "3months" || planParam === "12months") {
+      setSelectedDuration(planParam);
+    }
+  }, [searchParams]);
+
+  const selectPlan = (plan: "1month" | "3months" | "12months") => {
+    setSelectedDuration(plan);
+    const params = new URLSearchParams(window.location.search);
+    params.set("plan", plan);
+    router.replace(`/preise?${params.toString()}`, { scroll: false });
+  };
+
+  const handlePayment = async () => {
+    if (!user) {
+      (alert as any)(
+        language === "de"
+          ? "Bitte logge dich zuerst ein, um ein Premium-Abonnement abzuschließen."
+          : "Please log in first to purchase a Premium membership.",
+        () => {
+          router.push(`/auth/login?redirect=/preise?plan=${selectedDuration}`);
+        }
+      );
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await upgradeUser(selectedDuration);
+      setTimeout(() => {
+        setIsSubmitting(false);
+        alert(
+          language === "de"
+            ? `Zahlung erfolgreich! Du bist jetzt Premium-Mitglied (${
+                selectedDuration === "1month" ? "1 Monat" : selectedDuration === "3months" ? "3 Monate" : "12 Monate"
+              }).`
+            : `Payment successful! You are now a Premium member (${
+                selectedDuration === "1month" ? "1 month" : selectedDuration === "3months" ? "3 months" : "12 months"
+              }).`
+        );
+        if (profile?.role === "landlord") {
+          router.push("/dashboard/landlord");
+        } else {
+          router.push("/dashboard/tenant");
+        }
+      }, 1500);
+    } catch (err) {
+      setIsSubmitting(false);
+      alert(language === "de" ? "Fehler beim Upgrade des Abonnements" : "Error upgrading subscription");
+    }
+  };
 
   return (
     <>
-      <main className="flex-grow py-16 px-5 max-w-[1200px] mx-auto w-full space-y-12">
-        <div className="text-center max-w-2xl mx-auto space-y-4">
+      <main className="flex-grow py-12 px-4 max-w-[1200px] mx-auto w-full space-y-10">
+        {/* Title */}
+        <div className="text-center max-w-2xl mx-auto space-y-3">
           <h1 className="text-headline-lg font-bold text-primary">
-            {t("pricingTitle")}
+            {language === "de" ? "Wähle deine Mitgliedschaft" : "Choose Your Membership"}
           </h1>
           <p className="text-on-surface-variant text-body-md">
-            {t("pricingSubtitle")}
+            {language === "de" 
+              ? "Nutze Heimstadt kostenlos oder sichere dir exklusive Premium-Vorteile für eine schnellere Wohnungssuche."
+              : "Use Heimstadt for free or unlock exclusive premium features to accelerate your housing search."}
           </p>
         </div>
 
-        {/* Pricing Cards Bento */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
-          {/* Tenant early access */}
-          <div className="bg-white border border-outline-variant rounded-2xl p-8 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow">
+        {/* Plan container */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+          {/* ── Column 1: Free Tier (5 cols) ────────────────────── */}
+          <div className="lg:col-span-5 bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 md:p-8 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow">
             <div className="space-y-6">
-              <span className="text-[12px] text-secondary font-bold uppercase tracking-wider bg-secondary-container/50 px-3 py-1 rounded-full">
-                {t("earlyAccess")}
-              </span>
-              <div className="flex items-baseline gap-1 mt-2">
-                <span className="text-[40px] font-bold text-primary">9 €</span>
-                <span className="text-on-surface-variant text-[14px]">/ {language === "de" ? "Einmalig" : "One-time"}</span>
+              <div>
+                <span className="text-[12px] text-on-surface-variant font-bold uppercase tracking-wider bg-surface-container-high px-3 py-1 rounded-full">
+                  {t("freeTier")}
+                </span>
+                <div className="flex items-baseline gap-1 mt-4">
+                  <span className="text-[36px] font-bold text-primary">0 €</span>
+                  <span className="text-on-surface-variant text-[14px]">/ {language === "de" ? "Monat" : "Month"}</span>
+                </div>
               </div>
-              <ul className="space-y-3 text-body-md text-on-surface-variant">
-                <li className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary text-[20px]">check</span>
-                  {language === "de" ? "Bevorzugte Bewerbungen" : "Priority applications"}
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary text-[20px]">check</span>
-                  {language === "de" ? "WhatsApp Status-Updates" : "WhatsApp status updates"}
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary text-[20px]">check</span>
-                  {language === "de" ? "Escrow Buchungsverfahren" : "Escrow booking process"}
-                </li>
-              </ul>
-            </div>
-            <button className="w-full bg-primary text-on-primary py-3 rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all mt-8 cursor-pointer">
-              {language === "de" ? "Early Access sichern" : "Secure Early Access"}
-            </button>
-          </div>
 
-          {/* Free Landlord */}
-          <div className="bg-white border border-outline-variant rounded-2xl p-8 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow">
-            <div className="space-y-6">
-              <span className="text-[12px] text-on-surface-variant font-bold uppercase tracking-wider bg-surface-container-high px-3 py-1 rounded-full">
-                {language === "de" ? "Vermieter Kostenlos" : "Landlord Free"}
-              </span>
-              <div className="flex items-baseline gap-1 mt-2">
-                <span className="text-[40px] font-bold text-primary">0 €</span>
-                <span className="text-on-surface-variant text-[14px]">/ {language === "de" ? "Monat" : "Month"}</span>
+              <div className="space-y-2">
+                <h3 className="font-bold text-[16px] text-on-surface">
+                  {language === "de" ? "Standard-Suche & Basisdaten" : "Standard Search & Basic Info"}
+                </h3>
+                <p className="text-[14px] text-on-surface-variant">
+                  {language === "de" 
+                    ? "Ideal, wenn du Zeit hast und den Marktplatz unverbindlich kennenlernen möchtest."
+                    : "Ideal if you have time and want to explore the marketplace without commitment."}
+                </p>
               </div>
-              <ul className="space-y-3 text-body-md text-on-surface-variant">
-                <li className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary text-[20px]">check</span>
-                  {language === "de" ? "1 aktives Inserat" : "1 active listing"}
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary text-[20px]">check</span>
-                  {language === "de" ? "Standard Bewerber-Liste" : "Standard applicant list"}
-                </li>
-                <li className="flex items-center gap-2 text-outline-variant">
-                  <span className="material-symbols-outlined text-[20px]">close</span>
-                  {language === "de" ? "Keine AI Eignungs-Filter" : "No AI matching filters"}
-                </li>
+
+              <ul className="space-y-4 text-[14px] text-on-surface-variant border-t border-outline-variant/50 pt-6">
+                {[
+                  { label: language === "de" ? "Unbegrenzt Immobilien durchsuchen" : "Browse unlimited properties", check: true },
+                  { label: language === "de" ? "Standard-Bewerberliste für Vermieter" : "Standard applicant list for landlords", check: true },
+                  { label: language === "de" ? "Direkter Chat mit Vermietern" : "Direct chat with landlords", check: true },
+                  { label: language === "de" ? "Priorisierte Bewerbungen (Premium)" : "Priority applications (Premium)", check: false },
+                  { label: language === "de" ? "WhatsApp Status-Updates" : "WhatsApp status updates", check: false },
+                  { label: language === "de" ? "Verifiziertes Bewerberportfolio" : "Validated application portfolio", check: false },
+                ].map(({ label, check }, i) => (
+                  <li key={i} className={`flex items-center gap-3 ${!check ? "text-outline-variant line-through" : ""}`}>
+                    <span className={`material-symbols-outlined text-[20px] ${check ? "text-[#137333]" : "text-outline-variant"}`}>
+                      {check ? "check_circle" : "cancel"}
+                    </span>
+                    <span>{label}</span>
+                  </li>
+                ))}
               </ul>
             </div>
-            <button className="w-full border border-outline-variant text-primary py-3 rounded-xl font-bold hover:bg-surface-container-low active:scale-95 transition-all mt-8 cursor-pointer">
+
+            <button className="w-full border-2 border-primary text-primary py-3.5 rounded-xl font-bold hover:bg-primary/5 active:scale-98 transition-all mt-8 cursor-pointer text-center text-label-md">
               {language === "de" ? "Kostenlos starten" : "Start Free"}
             </button>
           </div>
 
-          {/* Pro Landlord */}
-          <div className="bg-white border-2 border-primary rounded-2xl p-8 flex flex-col justify-between shadow-lg relative">
-            <div className="absolute top-0 right-8 -translate-y-1/2 bg-primary text-on-primary text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">
-              {language === "de" ? "Empfohlen" : "Recommended"}
-            </div>
-            <div className="space-y-6">
-              <span className="text-[12px] text-primary font-bold uppercase tracking-wider bg-primary-fixed px-3 py-1 rounded-full">
-                {language === "de" ? "Vermieter Pro" : "Landlord Pro"}
-              </span>
-              <div className="flex items-baseline gap-1 mt-2">
-                <span className="text-[40px] font-bold text-primary">29 €</span>
-                <span className="text-on-surface-variant text-[14px]">/ {language === "de" ? "Monat" : "Month"}</span>
+          {/* ── Column 2: Premium Tier (7 cols) ─────────────────── */}
+          <div className="lg:col-span-7 bg-surface-container-lowest border-2 border-[#f07d00] rounded-2xl p-6 md:p-8 flex flex-col justify-between shadow-lg relative bg-gradient-to-b from-white to-[#f07d00]/5">
+            <div>
+              {/* Stepper progress */}
+              <div className="w-full mb-8">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-[14px] font-bold text-[#f07d00]">{t("stepReview")}</span>
+                  <span className="text-[12px] font-bold text-on-surface-variant/80">45% {language === "de" ? "abgeschlossen" : "completed"}</span>
+                </div>
+                {/* Progress bar line */}
+                <div className="w-full h-3 bg-surface-container-high rounded-full overflow-hidden">
+                  <div className="h-full bg-[#f07d00] rounded-full transition-all duration-500 w-[45%]" />
+                </div>
               </div>
-              <ul className="space-y-3 text-body-md text-on-surface-variant">
-                <li className="flex items-center gap-2 font-bold text-primary">
-                  <span className="material-symbols-outlined text-primary text-[20px]">check</span>
-                  {language === "de" ? "Unbegrenzte Inserate" : "Unlimited listings"}
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary text-[20px]">check</span>
-                  {language === "de" ? "AI Eignungs-Filter (98% Match)" : "AI matching filters (98% match)"}
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary text-[20px]">check</span>
-                  {language === "de" ? "Automatische WhatsApp Updates" : "Automated WhatsApp updates"}
-                </li>
-              </ul>
+
+              {/* Price selector display (reproducing image UI) */}
+              <div className="space-y-4 mb-8">
+                {/* 1 Month Option */}
+                <div 
+                  onClick={() => selectPlan("1month")}
+                  className={`relative border-2 rounded-2xl p-6 cursor-pointer flex items-center justify-between transition-all hover:shadow-md ${
+                    selectedDuration === "1month" 
+                      ? "border-[#f07d00] bg-[#f07d00]/5 shadow shadow-[#f07d00]/10 scale-[1.01]" 
+                      : "border-outline-variant hover:border-on-surface-variant bg-white"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                      selectedDuration === "1month" ? "border-[#f07d00]" : "border-outline"
+                    }`}>
+                      {selectedDuration === "1month" && <div className="w-2.5 h-2.5 rounded-full bg-[#f07d00]" />}
+                    </div>
+                    <span className="text-[18px] font-bold text-on-surface">{t("billing1Month")}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[20px] font-bold text-on-surface">10.99 €</span>
+                  </div>
+                </div>
+
+                {/* 3 Months Option (Best Seller) */}
+                <div 
+                  onClick={() => selectPlan("3months")}
+                  className={`relative border-2 rounded-2xl p-6 cursor-pointer flex items-center justify-between transition-all hover:shadow-md ${
+                    selectedDuration === "3months" 
+                      ? "border-[#f07d00] bg-[#f07d00]/5 shadow shadow-[#f07d00]/10 scale-[1.01]" 
+                      : "border-outline-variant hover:border-on-surface-variant bg-white"
+                  }`}
+                >
+                  {/* Badge top-right */}
+                  <div className="absolute top-0 right-6 -translate-y-1/2 bg-[#f07d00] text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-sm">
+                    {t("topSellers")}
+                  </div>
+                  
+                  <div className="flex items-center gap-3">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                      selectedDuration === "3months" ? "border-[#f07d00]" : "border-outline"
+                    }`}>
+                      {selectedDuration === "3months" && <div className="w-2.5 h-2.5 rounded-full bg-[#f07d00]" />}
+                    </div>
+                    <span className="text-[18px] font-bold text-on-surface">{t("billing3Months")}</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[20px] font-bold text-on-surface">9.99 €</div>
+                    <div className="text-[12px] text-on-surface-variant font-medium mt-0.5">{t("perMonth")}</div>
+                  </div>
+                </div>
+
+                {/* 12 Months Option */}
+                <div 
+                  onClick={() => selectPlan("12months")}
+                  className={`relative border-2 rounded-2xl p-6 cursor-pointer flex items-center justify-between transition-all hover:shadow-md ${
+                    selectedDuration === "12months" 
+                      ? "border-[#f07d00] bg-[#f07d00]/5 shadow shadow-[#f07d00]/10 scale-[1.01]" 
+                      : "border-outline-variant hover:border-on-surface-variant bg-white"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                      selectedDuration === "12months" ? "border-[#f07d00]" : "border-outline"
+                    }`}>
+                      {selectedDuration === "12months" && <div className="w-2.5 h-2.5 rounded-full bg-[#f07d00]" />}
+                    </div>
+                    <span className="text-[18px] font-bold text-on-surface">{t("billing12Months")}</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[20px] font-bold text-on-surface">7.99 €</div>
+                    <div className="text-[12px] text-on-surface-variant font-medium mt-0.5">{t("perMonth")}</div>
+                  </div>
+                </div>
+
+                {/* Disclaimer */}
+                <p className="text-[13px] text-on-surface-variant/80 italic mt-2">
+                  {t("pricingDisclaimer")}
+                </p>
+              </div>
+
+              {/* Premium Features List */}
+              <div className="border-t border-outline-variant/60 pt-6 space-y-4">
+                <h4 className="font-bold text-[15px] text-on-surface">
+                  {language === "de" ? "Premium-Vorteile im Überblick:" : "Premium Benefits at a Glance:"}
+                </h4>
+                <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[14px] text-on-surface-variant">
+                  {[
+                    { label: language === "de" ? "Geprüftes Bewerberportfolio" : "Validated applicant portfolio" },
+                    { label: language === "de" ? "Priorisierte Bewerber-Anfragen" : "Priority applicant requests" },
+                    { label: language === "de" ? "Automatische WhatsApp Updates" : "Automated WhatsApp updates" },
+                    { label: language === "de" ? "AI Eignungs-Score (98% Match)" : "AI matching score (98% match)" },
+                    { label: language === "de" ? "Unbegrenzte Chat-Vorgänge" : "Unlimited chat sessions" },
+                    { label: language === "de" ? "Escrow-Treuhandgarantie" : "Secure escrow guarantee" }
+                  ].map(({ label }, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[#f07d00] text-[18px]">verified</span>
+                      <span>{label}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
-            <button className="w-full bg-primary text-on-primary py-3 rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all mt-8 cursor-pointer shadow">
-              {language === "de" ? "Pro 14 Tage testen" : "Try Pro for 14 Days"}
+
+            {/* Checkout action */}
+            <button
+              onClick={handlePayment}
+              disabled={isSubmitting}
+              className="w-full bg-[#f07d00] text-white py-4 rounded-full font-bold text-[18px] hover:opacity-90 active:scale-98 transition-all mt-8 cursor-pointer shadow-md shadow-[#f07d00]/25 flex items-center justify-center gap-2"
+            >
+              {isSubmitting ? (
+                <span className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+              ) : (
+                t("continueToPayment")
+              )}
             </button>
           </div>
         </div>
       </main>
-
       <Footer />
     </>
+  );
+}
+
+export default function PreisePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex-grow flex items-center justify-center min-h-[600px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#f07d00] border-t-transparent" />
+      </div>
+    }>
+      <PreisePageContent />
+    </Suspense>
   );
 }

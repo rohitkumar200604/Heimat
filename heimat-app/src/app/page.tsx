@@ -116,6 +116,7 @@ export default function HomePage() {
   const [stadt, setStadt] = useState("");
   const [zimmer, setZimmer] = useState("all");
   const [preis, setPreis] = useState("");
+  const [selectedPremiumPlan, setSelectedPremiumPlan] = useState<"1month" | "3months" | "12months">("3months");
 
 
 
@@ -355,6 +356,145 @@ export default function HomePage() {
               className="bg-primary text-on-primary px-8 py-4 rounded-lg text-label-md hover:opacity-90 transition-all shadow-lg active:scale-95 font-semibold cursor-pointer"
             >
               {t("listPropertyBtn")}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Mitgliedschaften ───────────────────────────────── */}
+      <section className="py-24 max-w-[1280px] mx-auto px-5 md:px-[48px] w-full border-t border-outline-variant/30">
+        <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
+          <span className="text-secondary text-label-md tracking-wider uppercase block">
+            {language === "de" ? "Flexible Tarife" : "Flexible Plans"}
+          </span>
+          <h2 className="text-headline-lg-mobile md:text-headline-lg text-primary">
+            {language === "de" ? "Finde deine neue Heimat schneller" : "Find Your New Home Faster"}
+          </h2>
+          <p className="text-body-md text-on-surface-variant">
+            {language === "de"
+              ? "Nutze Heimstadt komplett kostenlos oder profitiere von unserem Premium-Paket mit exklusiven Such-Vorteilen."
+              : "Use Heimstadt completely free or get our Premium package with exclusive search benefits."}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+          {/* Free Card */}
+          <div className="lg:col-span-5 bg-white border border-outline-variant rounded-2xl p-8 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow">
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-[20px] font-bold text-primary">{language === "de" ? "Kostenlose Basis-Mitgliedschaft" : "Free Basic Membership"}</h3>
+                <p className="text-[14px] text-on-surface-variant mt-2">
+                  {language === "de" ? "Kostenlos stöbern und direkt bewerben" : "Browse for free and apply directly"}
+                </p>
+                <div className="flex items-baseline gap-1 mt-6">
+                  <span className="text-[40px] font-bold text-primary">0 €</span>
+                  <span className="text-on-surface-variant text-[14px]">/ {language === "de" ? "Monat" : "Month"}</span>
+                </div>
+              </div>
+
+              <ul className="space-y-4 text-[14px] text-on-surface-variant border-t border-outline-variant/40 pt-6">
+                {[
+                  { text: language === "de" ? "Unbegrenzt Immobilien durchsuchen" : "Browse unlimited properties", check: true },
+                  { text: language === "de" ? "Standard-Bewerberliste für Vermieter" : "Standard applicant list for landlords", check: true },
+                  { text: language === "de" ? "Direkter Chat mit Vermietern" : "Direct chat with landlords", check: true },
+                  { text: language === "de" ? "WhatsApp Status-Updates" : "WhatsApp status updates", check: false },
+                  { text: language === "de" ? "Verifiziertes Bewerberportfolio" : "Validated application portfolio", check: false },
+                ].map(({ text, check }, i) => (
+                  <li key={i} className={`flex items-center gap-3 ${!check ? "text-outline-variant/60 line-through" : ""}`}>
+                    <span className={`material-symbols-outlined text-[20px] ${check ? "text-[#137333]" : "text-outline-variant"}`}>
+                      {check ? "check_circle" : "cancel"}
+                    </span>
+                    <span>{text}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <button 
+              onClick={() => router.push("/suche")}
+              className="w-full border-2 border-primary text-primary py-3.5 rounded-xl font-bold hover:bg-primary/5 active:scale-98 transition-all mt-8 cursor-pointer text-center text-label-md"
+            >
+              {language === "de" ? "Jetzt kostenlos starten" : "Start Free Now"}
+            </button>
+          </div>
+
+          {/* Premium Card */}
+          <div className="lg:col-span-7 bg-white border-2 border-[#f07d00] rounded-2xl p-8 flex flex-col justify-between shadow-lg relative bg-gradient-to-b from-white to-[#f07d00]/5">
+            <div className="absolute top-0 right-8 -translate-y-1/2 bg-[#f07d00] text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-sm">
+              {language === "de" ? "Sehr Empfohlen" : "Highly Recommended"}
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-[20px] font-bold text-primary flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#f07d00]">workspace_premium</span>
+                  Heimstadt Premium
+                </h3>
+                <p className="text-[14px] text-on-surface-variant mt-2">
+                  {language === "de"
+                    ? "Maximale Suchgeschwindigkeit mit bevorzugten Bewerbungen & WhatsApp Updates."
+                    : "Maximum search speed with priority applications & WhatsApp updates."}
+                </p>
+              </div>
+
+              {/* Minified Pricing Cards from the reference image */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-outline-variant/40 pt-6">
+                {[
+                  { key: "1month", duration: language === "de" ? "1 Monat*" : "1 month*", price: "10.99 €", sub: "" },
+                  { key: "3months", duration: language === "de" ? "3 Monate" : "3 months", price: "9.99 €", sub: language === "de" ? "/ Monat" : "/per mo", featured: true },
+                  { key: "12months", duration: language === "de" ? "12 Monate" : "12 months", price: "7.99 €", sub: language === "de" ? "/ Monat" : "/per mo" },
+                ].map(({ key, duration, price, sub, featured }, i) => (
+                  <div
+                    key={key}
+                    onClick={() => setSelectedPremiumPlan(key as any)}
+                    className={`p-4 rounded-xl border relative flex flex-col justify-between text-center bg-white cursor-pointer transition-all hover:shadow-md ${
+                      selectedPremiumPlan === key ? "border-[#f07d00] ring-1 ring-[#f07d00]" : "border-outline-variant hover:border-on-surface-variant"
+                    }`}
+                  >
+                    {featured && (
+                      <span className="absolute top-0 left-1/2 -translate-y-1/2 -translate-x-1/2 bg-[#f07d00] text-white text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-sm whitespace-nowrap">
+                        {language === "de" ? "Beliebt" : "Top Seller"}
+                      </span>
+                    )}
+                    <span className="text-[12px] font-bold text-on-surface-variant block mb-2">{duration}</span>
+                    <div>
+                      <span className="text-[18px] font-bold text-primary block">{price}</span>
+                      {sub && <span className="text-[10px] text-on-surface-variant/80 font-medium block mt-0.5">{sub}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-on-surface-variant/80 italic">
+                {language === "de" ? "*ohne validiertes Bewerberportfolio" : "*without a validated application portfolio"}
+              </p>
+
+              {/* Premium Feature Checklist */}
+              <div className="border-t border-outline-variant/40 pt-4 mt-4 space-y-3">
+                <span className="text-[12px] font-bold text-primary uppercase tracking-wider block">
+                  {language === "de" ? "Das ist enthalten:" : "What's included:"}
+                </span>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[13px] text-on-surface-variant">
+                  {[
+                    { label: language === "de" ? "Verifiziertes Bewerberportfolio" : "Validated applicant portfolio" },
+                    { label: language === "de" ? "Priorisierte Bewerber-Anfragen" : "Priority applicant requests" },
+                    { label: language === "de" ? "Automatische WhatsApp Updates" : "Automated WhatsApp updates" },
+                    { label: language === "de" ? "AI Eignungs-Score (98% Match)" : "AI matching score (98% match)" },
+                    { label: language === "de" ? "Unbegrenzte Chat-Vorgänge" : "Unlimited chat sessions" },
+                    { label: language === "de" ? "Escrow-Treuhandgarantie" : "Secure escrow guarantee" }
+                  ].map(({ label }, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[#f07d00] text-[16px]">verified</span>
+                      <span>{label}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <button
+              onClick={() => router.push(`/preise?plan=${selectedPremiumPlan}`)}
+              className="w-full bg-[#f07d00] text-white py-4 rounded-full font-bold text-label-md hover:opacity-90 active:scale-98 transition-all mt-8 cursor-pointer shadow-md shadow-[#f07d00]/20 text-center block"
+            >
+              {language === "de" ? "Premium-Vorteile sichern" : "Get Premium Membership"}
             </button>
           </div>
         </div>

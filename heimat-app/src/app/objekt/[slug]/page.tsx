@@ -391,9 +391,18 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
 
   const handleAddReview = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) {
+      (alert as any)(
+        language === "de" ? "Bitte melde dich zuerst an!" : "Please log in first!",
+        () => {
+          router.push(`/auth/login?redirect=/objekt/${slug}`);
+        }
+      );
+      return;
+    }
     if (!newReviewText.trim()) return;
 
-    const authorName = newReviewAuthor.trim() || (profile?.full_name) || (user?.email?.split("@")[0]) || (language === "de" ? "Gast" : "Guest");
+    const authorName = (profile?.full_name) || (user?.email?.split("@")[0]) || "User";
     
     const newRev = {
       id: Date.now().toString(),
@@ -418,7 +427,6 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
     setReviewsList([newRev, ...reviewsList]);
     setNewReviewText("");
     setNewRating(5);
-    setNewReviewAuthor("");
     setShowSuccess(true);
     setTimeout(() => {
       setShowSuccess(false);
@@ -455,8 +463,12 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
     
     // Auth Guard
     if (!user) {
-      alert(language === "de" ? "Bitte melde dich zuerst an!" : "Please log in first!");
-      router.push(`/auth/login?redirect=/objekt/${slug}`);
+      (alert as any)(
+        language === "de" ? "Bitte melde dich zuerst an!" : "Please log in first!",
+        () => {
+          router.push(`/auth/login?redirect=/objekt/${slug}`);
+        }
+      );
       return;
     }
 
@@ -741,14 +753,25 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
                     <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
                     <span className="text-[16px]">{averageRating}</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setReviewFormOpen(!reviewFormOpen)}
-                    className="bg-primary text-on-primary px-4 py-2.5 rounded-xl text-label-md font-bold hover:opacity-90 active:scale-98 transition-all flex items-center gap-1 cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">add</span>
-                    {t("writeReview")}
-                  </button>
+                  {user ? (
+                    <button
+                      type="button"
+                      onClick={() => setReviewFormOpen(!reviewFormOpen)}
+                      className="bg-primary text-on-primary px-4 py-2.5 rounded-xl text-label-md font-bold hover:opacity-90 active:scale-98 transition-all flex items-center gap-1 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">add</span>
+                      {t("writeReview")}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/auth/login?redirect=/objekt/${slug}`)}
+                      className="bg-surface-container-high hover:bg-surface-container-highest text-primary border border-outline-variant px-4 py-2.5 rounded-xl text-label-md font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">login</span>
+                      {language === "de" ? "Anmelden für Bewertung" : "Log in to Review"}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -836,22 +859,6 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
                     </div>
                   ) : (
                     <>
-                      {/* Guest name input if user is not logged in */}
-                      {!user && (
-                        <div>
-                          <label className="block text-label-md text-on-surface-variant mb-1">
-                            {language === "de" ? "Dein Name (optional)" : "Your Name (optional)"}
-                          </label>
-                          <input
-                            type="text"
-                            placeholder={language === "de" ? "z.B. Anna M." : "e.g., Anna M."}
-                            value={newReviewAuthor}
-                            onChange={(e) => setNewReviewAuthor(e.target.value)}
-                            className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 outline-none focus:ring-2 focus:ring-primary text-[14px]"
-                          />
-                        </div>
-                      )}
-
                       {/* Star selection */}
                       <div>
                         <span className="block text-label-md text-on-surface-variant mb-1">
@@ -929,61 +936,59 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
                   </p>
                 </div>
               ) : (
-                <div className={filteredAndSortedReviews.length > 2 ? "max-h-[480px] overflow-y-auto pr-2 custom-scrollbar" : ""}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {filteredAndSortedReviews.map((rev) => (
-                      <div
-                        key={rev.id}
-                        className={`p-5 rounded-xl border border-outline-variant bg-surface-container-low transition-all duration-300 hover:shadow-md ${
-                          rev.isNew ? "ring-2 ring-primary/30 bg-primary/5 border-primary/30" : ""
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-4 mb-4">
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={rev.avatar}
-                              alt={rev.author}
-                              className="w-11 h-11 rounded-full object-cover bg-surface-variant flex-shrink-0"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(rev.author)}`;
-                              }}
-                            />
-                            <div>
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <h4 className="font-bold text-[15px] text-on-surface leading-tight">
-                                  {rev.author}
-                                </h4>
-                                <span className="flex items-center gap-0.5 bg-[#e6f4ea] text-[#137333] border border-[#137333]/10 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                                  <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
-                                  {t("verifiedGuest")}
-                                </span>
-                              </div>
-                              <p className="text-[12px] text-on-surface-variant/80 font-medium mt-0.5">
-                                {language === "de" ? rev.stayLength.de : rev.stayLength.en} · {language === "de" ? rev.date.de : rev.date.en}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Stars */}
-                          <div className="flex items-center gap-0.5 text-primary">
-                            {Array.from({ length: 5 }).map((_, i) => (
-                              <span
-                                key={i}
-                                className="material-symbols-outlined text-[16px]"
-                                style={{ fontVariationSettings: i < rev.rating ? "'FILL' 1" : "'FILL' 0" }}
-                              >
-                                star
+                <div className="flex flex-row gap-6 pb-4 overflow-x-auto custom-scrollbar snap-x snap-mandatory scroll-smooth w-full">
+                  {filteredAndSortedReviews.map((rev) => (
+                    <div
+                      key={rev.id}
+                      className={`flex-shrink-0 w-[85vw] sm:w-[380px] md:w-[420px] snap-align-start p-5 rounded-xl border border-outline-variant bg-surface-container-low transition-all duration-300 hover:shadow-md ${
+                        rev.isNew ? "ring-2 ring-primary/30 bg-primary/5 border-primary/30" : ""
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-4 mb-4">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={rev.avatar}
+                            alt={rev.author}
+                            className="w-11 h-11 rounded-full object-cover bg-surface-variant flex-shrink-0"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(rev.author)}`;
+                            }}
+                          />
+                          <div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h4 className="font-bold text-[15px] text-on-surface leading-tight">
+                                {rev.author}
+                              </h4>
+                              <span className="flex items-center gap-0.5 bg-[#e6f4ea] text-[#137333] border border-[#137333]/10 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                                <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
+                                {t("verifiedGuest")}
                               </span>
-                            ))}
+                            </div>
+                            <p className="text-[12px] text-on-surface-variant/80 font-medium mt-0.5">
+                              {language === "de" ? rev.stayLength.de : rev.stayLength.en} · {language === "de" ? rev.date.de : rev.date.en}
+                            </p>
                           </div>
                         </div>
 
-                        <p className="text-body-md text-on-surface-variant leading-relaxed whitespace-pre-wrap">
-                          {language === "de" ? rev.text.de : rev.text.en}
-                        </p>
+                        {/* Stars */}
+                        <div className="flex items-center gap-0.5 text-primary">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <span
+                              key={i}
+                              className="material-symbols-outlined text-[16px]"
+                              style={{ fontVariationSettings: i < rev.rating ? "'FILL' 1" : "'FILL' 0" }}
+                            >
+                              star
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    ))}
-                  </div>
+
+                      <p className="text-body-md text-on-surface-variant leading-relaxed whitespace-pre-wrap">
+                        {language === "de" ? rev.text.de : rev.text.en}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

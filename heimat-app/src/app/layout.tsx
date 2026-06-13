@@ -3,6 +3,7 @@ import "./globals.css";
 import Navbar from "@/components/layout/Navbar";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { AuthProvider } from "@/context/AuthContext";
+import GlobalAlert from "@/components/common/GlobalAlert";
 
 export const metadata: Metadata = {
   title: "Heimstadt | Exklusive Immobilien in Deutschland",
@@ -31,6 +32,7 @@ export default function RootLayout({
           <AuthProvider>
             <Navbar />
             <main className="flex-grow flex flex-col">{children}</main>
+            <GlobalAlert />
           </AuthProvider>
         </LanguageProvider>
       </body>

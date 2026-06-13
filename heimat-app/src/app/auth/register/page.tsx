@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useLanguage } from "@/context/LanguageContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/utils/supabase/client";
 import Link from "next/link";
 import Footer from "@/components/layout/Footer";
 
-export default function RegisterPage() {
+function RegisterPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get("redirect");
   const { t, language } = useLanguage();
   
   const [form, setForm] = useState({ name: "", email: "", tel: "", password: "" });
@@ -83,6 +85,10 @@ export default function RegisterPage() {
     }
   };
 
+  const loginLink = redirectUrl 
+    ? `/auth/login?redirect=${encodeURIComponent(redirectUrl)}`
+    : "/auth/login";
+
   if (isRegistered) {
     return (
       <>
@@ -123,7 +129,7 @@ export default function RegisterPage() {
             </div>
             
             <Link
-              href="/auth/login"
+              href={loginLink}
               className="inline-flex items-center justify-center w-full h-12 bg-primary text-on-primary rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all shadow-md gap-2"
             >
               <span>{language === "de" ? "Zur Anmeldung" : "Go to Login"}</span>
@@ -242,7 +248,7 @@ export default function RegisterPage() {
 
           <div className="mt-8 text-center text-body-md">
             <Link
-              href="/auth/login"
+              href={loginLink}
               className="text-primary font-bold hover:underline"
             >
               {t("alreadyHaveAccount")}
@@ -252,5 +258,17 @@ export default function RegisterPage() {
       </div>
       <Footer />
     </>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex-grow flex items-center justify-center min-h-[600px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
+      </div>
+    }>
+      <RegisterPageContent />
+    </Suspense>
   );
 }
