@@ -164,13 +164,6 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
   const [submittingBooking, setSubmittingBooking] = useState(false);
   const [hasSearched, setHasSearched] = useState(true);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const searched = localStorage.getItem("heimat_has_searched") === "true";
-      setHasSearched(searched);
-    }
-  }, []);
-
   // Reviews States
   const [reviewsList, setReviewsList] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -180,6 +173,14 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
   const [newReviewText, setNewReviewText] = useState("");
   const [newReviewAuthor, setNewReviewAuthor] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const searched = localStorage.getItem("heimat_has_searched") === "true";
+      setHasSearched(searched);
+    }
+  }, []);
+
 
   // Pre-fill form when user session is loaded
   useEffect(() => {
@@ -343,7 +344,6 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY !== "mock-anon-key";
 
         if (!isConfigured) {
-          // No real Supabase — immediately load mock data
           setProperty(mocks[slug] || defaultMock);
           return;
         }
@@ -461,7 +461,7 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Auth Guard
+    // Auth Guard — redirect silently without alert
     if (!user) {
       (alert as any)(
         language === "de" ? "Bitte melde dich zuerst an!" : "Please log in first!",
@@ -473,7 +473,7 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
     }
 
     if (profile?.role !== "tenant") {
-      alert(language === "de" ? "Nur Mieter können Buchungen anfragen!" : "Only tenants can request bookings!");
+      router.push(`/auth/login?redirect=/objekt/${slug}`);
       return;
     }
 
@@ -516,12 +516,10 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
 
       if (error) throw error;
 
-      alert(language === "de" ? "Ihre Anfrage wurde gesendet!" : "Your request has been sent!");
       router.push(`/buchen/${data.id}`);
     } catch (err: any) {
       console.error("Error creating booking:", err);
       // Fallback mock redirect in dev mode if tables fail
-      alert(language === "de" ? "Buchungsanfrage initiiert (Mock Mode)" : "Booking request initiated (Mock Mode)");
       router.push(`/buchen/mock-apply-87a`);
     } finally {
       setSubmittingBooking(false);
@@ -733,18 +731,17 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
               </div>
             </div>
 
-            {/* Reviews Card */}
+            {/* Book Before Arrival Section */}
             <div className="mb-12 border border-outline-variant/40 rounded-2xl p-6 md:p-8 bg-surface-container-lowest shadow-sm">
+              {/* Header */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                 <div>
                   <h2 className="text-headline-md text-on-surface flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary text-[28px]">rate_review</span>
-                    {t("reviewsTitle")}
+                    <span className="material-symbols-outlined text-primary text-[28px]">flight_land</span>
+                    {t("bookBeforeArrivalTitle")}
                   </h2>
-                  <p className="text-on-surface-variant text-[14px] mt-1 font-medium">
-                    {language === "de"
-                      ? `${reviewsList.length} Bewertungen für diese Unterkunft`
-                      : `${reviewsList.length} reviews for this property`}
+                  <p className="text-on-surface-variant text-[14px] mt-1 font-medium max-w-lg">
+                    {t("bookBeforeArrivalSubtitle")}
                   </p>
                 </div>
 
@@ -775,69 +772,95 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
                 </div>
               </div>
 
-              {/* Subcategories Ratings Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4 mb-8 pb-8 border-b border-outline-variant">
+              {/* 3-Step Process */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 {[
-                  { key: "cleanliness", label: t("cleanliness"), val: ratings.cleanliness },
-                  { key: "accuracy", label: t("accuracy"), val: ratings.accuracy },
-                  { key: "communication", label: t("communication"), val: ratings.communication },
-                  { key: "location", label: t("location"), val: ratings.location },
-                  { key: "checkIn", label: t("checkIn"), val: ratings.checkIn },
-                  { key: "value", label: t("value"), val: ratings.value },
-                ].map(({ key, label, val }) => (
-                  <div key={key} className="flex items-center justify-between gap-4">
-                    <span className="text-body-md text-on-surface font-medium min-w-[120px]">{label}</span>
-                    <div className="flex-grow flex items-center gap-3">
-                      <div className="flex-grow h-2 bg-surface-container-high rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-primary rounded-full transition-all duration-500"
-                          style={{ width: `${(val / 5) * 100}%` }}
-                        />
-                      </div>
-                      <span className="text-label-md text-on-surface font-bold min-w-[24px] text-right">
-                        {val.toFixed(1)}
-                      </span>
+                  {
+                    step: 1,
+                    icon: "badge",
+                    title: t("bbaStep1Title"),
+                    desc: t("bbaStep1Desc"),
+                    color: "bg-blue-50 text-blue-600 border-blue-200",
+                    iconBg: "bg-blue-100",
+                  },
+                  {
+                    step: 2,
+                    icon: "bolt",
+                    title: t("bbaStep2Title"),
+                    desc: t("bbaStep2Desc"),
+                    color: "bg-amber-50 text-amber-700 border-amber-200",
+                    iconBg: "bg-amber-100",
+                  },
+                  {
+                    step: 3,
+                    icon: "key",
+                    title: t("bbaStep3Title"),
+                    desc: t("bbaStep3Desc"),
+                    color: "bg-emerald-50 text-emerald-700 border-emerald-200",
+                    iconBg: "bg-emerald-100",
+                  },
+                ].map(({ step, icon, title, desc, color, iconBg }) => (
+                  <div
+                    key={step}
+                    className={`relative p-5 rounded-xl border ${color} transition-all duration-300 hover:shadow-md group`}
+                  >
+                    {/* Step number */}
+                    <div className="absolute -top-3 -left-1 w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center text-[12px] font-bold shadow-md">
+                      {step}
                     </div>
+                    {/* Connector line (between steps) */}
+                    {step < 3 && (
+                      <div className="hidden md:block absolute top-1/2 -right-3 w-6 h-[2px] bg-outline-variant/60 -translate-y-1/2 z-10" />
+                    )}
+                    <div className={`w-12 h-12 ${iconBg} rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                      <span className="material-symbols-outlined text-[24px]">{icon}</span>
+                    </div>
+                    <h3 className="text-[16px] font-bold text-on-surface mb-1.5">{title}</h3>
+                    <p className="text-[13px] text-on-surface-variant leading-relaxed">{desc}</p>
                   </div>
                 ))}
               </div>
 
-              {/* Search & Sort Controls */}
-              <div className="flex flex-col sm:flex-row items-center gap-4 mb-6">
-                <div className="relative w-full sm:flex-grow">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">
-                    search
-                  </span>
-                  <input
-                    type="text"
-                    placeholder={t("searchReviews")}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-surface-container-low border border-outline-variant rounded-xl pl-10 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-primary text-[14px] text-on-surface placeholder:text-on-surface-variant/60 transition-all font-medium"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery("")}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">close</span>
-                    </button>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
-                  <label htmlFor="reviews-sort" className="text-label-md text-on-surface-variant whitespace-nowrap">
-                    {t("sortBy")}:
-                  </label>
-                  <select
-                    id="reviews-sort"
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="w-full sm:w-auto bg-surface-container-low border border-outline-variant rounded-xl px-3 py-2.5 text-[14px] font-semibold text-on-surface outline-none focus:ring-2 focus:ring-primary transition-all cursor-pointer"
+              {/* Trust Badges Row */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+                {[
+                  { icon: "lock", label: t("bbaSecurePayment"), fill: true },
+                  { icon: "verified", label: t("bbaVerifiedLandlord"), fill: true },
+                  { icon: "speed", label: t("bbaInstantConfirmation"), fill: false },
+                  { icon: "shield", label: t("bbaEscrowProtection"), fill: true },
+                ].map(({ icon, label, fill }) => (
+                  <div
+                    key={label}
+                    className="flex items-center gap-2.5 p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 hover:border-primary/30 transition-colors"
                   >
-                    <option value="newest">{t("newest")}</option>
-                    <option value="highest">{t("highestRating")}</option>
-                    <option value="lowest">{t("lowestRating")}</option>
-                  </select>
+                    <span
+                      className="material-symbols-outlined text-primary text-[22px] flex-shrink-0"
+                      style={fill ? { fontVariationSettings: "'FILL' 1" } : undefined}
+                    >
+                      {icon}
+                    </span>
+                    <span className="text-[12px] font-semibold text-on-surface leading-tight">{label}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Money-Back Guarantee Card */}
+              <div className="bg-gradient-to-br from-primary/5 via-secondary/5 to-primary/10 border border-primary/15 rounded-xl p-5 md:p-6 flex flex-col md:flex-row items-start md:items-center gap-4 mb-8">
+                <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center flex-shrink-0">
+                  <span className="material-symbols-outlined text-primary text-[32px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                    workspace_premium
+                  </span>
+                </div>
+                <div className="flex-grow">
+                  <h3 className="text-[16px] font-bold text-primary mb-1 flex items-center gap-2">
+                    {t("bbaGuarantee")}
+                    <span className="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      {language === "de" ? "Garantiert" : "Guaranteed"}
+                    </span>
+                  </h3>
+                  <p className="text-[13px] text-on-surface-variant leading-relaxed">
+                    {t("bbaGuaranteeDesc")}
+                  </p>
                 </div>
               </div>
 
@@ -853,7 +876,7 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
                   </h3>
 
                   {showSuccess ? (
-                    <div className="bg-[#e6f4ea] border border-[#137333]/20 text-[#137333] p-4 rounded-lg flex items-center gap-2">
+                    <div className="bg-[#e6f4ea] border border-[#137333]/25 text-[#137333] p-4 rounded-lg flex items-center gap-2">
                       <span className="material-symbols-outlined text-[24px]">check_circle</span>
                       <p className="text-body-md font-semibold">{t("reviewSuccess")}</p>
                     </div>
@@ -927,12 +950,8 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
                   <span className="material-symbols-outlined text-on-surface-variant/40 text-[48px] mb-2 block">
                     rate_review
                   </span>
-                  <p className="text-body-md text-on-surface-variant font-medium">
-                    {searchQuery
-                      ? language === "de"
-                        ? "Keine Bewertungen für diese Suchanfrage gefunden."
-                        : "No reviews found matching your search query."
-                      : t("noReviewsYet")}
+                  <p className="text-body-md text-on-surface-variant">
+                    {t("noReviewsYet")}
                   </p>
                 </div>
               ) : (
@@ -1045,7 +1064,7 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
                           value={form[key as keyof typeof form]}
                           onChange={(e) => setForm({ ...form, [key]: e.target.value })}
                           className="w-full bg-surface-container-low border border-outline-variant rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-[16px]"
-                          required={type !== "tel"}
+                          required
                         />
                       </div>
                     ))}
@@ -1058,7 +1077,7 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
                         value={form.message}
                         onChange={(e) => setForm({ ...form, message: e.target.value })}
                         className="w-full bg-surface-container-low border border-outline-variant rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all resize-none text-[16px]"
-                        required
+                        
                       />
                     </div>
                     <button

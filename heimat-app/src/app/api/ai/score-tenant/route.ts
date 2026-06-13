@@ -5,7 +5,7 @@ export async function POST(req: Request) {
   try {
     const { bookingId, tenantProfile, docTypes } = await req.json();
 
-    const apiKey = process.env.OPENROUTER_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     const supabaseServer = getSupabaseServer();
 
     let dbTenantId = "";
@@ -73,30 +73,32 @@ export async function POST(req: Request) {
         model_version: "mock-fallback-v1",
       };
     } else {
-      // ── Live: OpenRouter AI Chat Completions via native fetch ──
+      // ── Live: Google Gemini AI via REST API ──
+      const systemInstruction = "You are an AI-driven tenant rating engine. Respond ONLY with valid JSON containing: overall_score, employment_score, doc_score, stay_length_score, income_score, reasoning, flags, model_version. Do not format with markdown, only return pure JSON.";
+      const userPrompt = `Booking: ${bookingId}. Profile: ${JSON.stringify(tenantProfile)}. Docs: ${JSON.stringify(docTypes)}`;
+
+      const geminiModel = "gemini-2.5-flash";
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`;
+
       const body = {
-        model: "google/gemini-2.5-flash", // fast and cost-effective default model on OpenRouter
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an AI-driven tenant rating engine. Respond ONLY with valid JSON containing: overall_score, employment_score, doc_score, stay_length_score, income_score, reasoning, flags, model_version. Do not format with markdown, only return pure JSON.",
-          },
+        system_instruction: {
+          parts: [{ text: systemInstruction }],
+        },
+        contents: [
           {
             role: "user",
-            content: `Booking: ${bookingId}. Profile: ${JSON.stringify(tenantProfile)}. Docs: ${JSON.stringify(docTypes)}`,
+            parts: [{ text: userPrompt }],
           },
         ],
-        response_format: { type: "json_object" },
+        generationConfig: {
+          responseMimeType: "application/json",
+        },
       };
 
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      const res = await fetch(geminiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-          "HTTP-Referer": "https://heimstadt-app.vercel.app",
-          "X-Title": "Heimstadt App",
         },
         body: JSON.stringify(body),
       });
@@ -107,7 +109,8 @@ export async function POST(req: Request) {
       }
 
       const json = await res.json();
-      scoreData = JSON.parse(json.choices[0].message.content || "{}");
+      const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+      scoreData = JSON.parse(rawText);
     }
 
     // ── Save score data and update booking if NOT mock ──
@@ -164,10 +167,10 @@ export async function POST(req: Request) {
         console.warn("Could not cache ai_score on tenant_profiles, might not exist yet:", tpScoreErr);
       }
 
-      // 3. Update the bookings pipeline status to docs_review
+      // 3. Update the bookings pipeline status to approved
       const { error: bookingUpdateErr } = await supabaseServer
         .from("bookings")
-        .update({ status: "docs_review" })
+        .update({ status: "approved" })
         .eq("id", bookingId);
 
       if (bookingUpdateErr) throw bookingUpdateErr;
