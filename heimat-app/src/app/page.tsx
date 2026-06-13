@@ -12,31 +12,31 @@ const CITIES = [
     nameDe: "Berlin",
     nameEn: "Berlin",
     count: "2.450",
-    img: "https://images.unsplash.com/photo-1599946347371-68eb71b16afc?auto=format&fit=crop&w=600&q=80",
+    img: "https://images.unsplash.com/photo-1528728329032-2972f65dfb3f?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Nnx8QmVybGlufGVufDB8fDB8fHww",
   },
   {
     nameDe: "München",
     nameEn: "Munich",
     count: "1.820",
-    img: "https://images.unsplash.com/photo-1595853035070-59a39fe84de3?auto=format&fit=crop&w=600&q=80",
+    img: "https://images.unsplash.com/photo-1649609765902-254a227dc960?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OHx8bXVuaWNofGVufDB8fDB8fHww",
   },
   {
     nameDe: "Hamburg",
     nameEn: "Hamburg",
     count: "1.560",
-    img: "https://images.unsplash.com/photo-1473862170180-84427c485ade?auto=format&fit=crop&w=600&q=80",
+    img: "https://images.unsplash.com/photo-1580674631903-7817e4f8a722?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MjB8fGhhbWJ1cmd8ZW58MHx8MHx8fDA%3D",
   },
   {
     nameDe: "Frankfurt",
     nameEn: "Frankfurt",
     count: "1.240",
-    img: "https://images.unsplash.com/photo-1541746972996-4e0b0f43e01a?auto=format&fit=crop&w=600&q=80",
+    img: "https://plus.unsplash.com/premium_photo-1719843507763-9dcd405f9619?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NXx8ZnJhbmtmdXJ0fGVufDB8fDB8fHww",
   },
   {
     nameDe: "Köln",
     nameEn: "Cologne",
     count: "1.100",
-    img: "https://images.unsplash.com/photo-1549877452-9c387954fbc2?auto=format&fit=crop&w=600&q=80",
+    img: "https://images.unsplash.com/photo-1600081925754-e32c08c14c19?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MjB8fEslQzMlQjZsbnxlbnwwfHwwfHx8MA%3D%3D",
   },
   {
     nameDe: "Düsseldorf",
@@ -48,13 +48,13 @@ const CITIES = [
     nameDe: "Stuttgart",
     nameEn: "Stuttgart",
     count: "880",
-    img: "https://images.unsplash.com/photo-1569154941061-e231b4725ef1?auto=format&fit=crop&w=600&q=80",
+    img: "https://images.unsplash.com/photo-1600081926892-4530ddcb3af7?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OHx8RCVDMyVCQ3NzZWxkb3JmfGVufDB8fDB8fHww",
   },
   {
     nameDe: "Leipzig",
     nameEn: "Leipzig",
     count: "720",
-    img: "https://images.unsplash.com/photo-1571266028243-e4733b0f0bb1?auto=format&fit=crop&w=600&q=80",
+    img: "https://images.unsplash.com/photo-1616001029681-ff04e6bfc6c9?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8TGVpcHppZyUyMExlaXB6aWd8ZW58MHx8MHx8fDA%3D",
   },
 ];
 
