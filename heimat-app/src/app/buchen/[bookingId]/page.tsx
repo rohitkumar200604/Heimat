@@ -236,7 +236,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ bookin
       if (!aiData.success) throw new Error(aiData.error || "AI Screening failed");
 
       if (bookingId === "mock-apply-87a" || bookingId.startsWith("mock")) {
-        setBooking((prev: any) => ({ ...prev, status: "approved" }));
+        setBooking((prev: any) => ({ ...prev, status: "docs_review" }));
         setAiScore({
           overall_score: 95,
           income_score: 98,
@@ -339,18 +339,18 @@ export default function BookingDetailPage({ params }: { params: Promise<{ bookin
   const depositAmount = coldRent * depositMonths;
 
   // Pipeline phases
+  // Pipeline phases
   const pipeline = [
     { key: "pending", labelDe: "Dokumente ausstehend", labelEn: "Docs Pending" },
+    { key: "docs_review", labelDe: "Dokumentenprüfung", labelEn: "Docs Under Review" },
     { key: "approved", labelDe: "Freigegeben zur Zahlung", labelEn: "Approved for Deposit" },
     { key: "deposit_paid", labelDe: "Kaution hinterlegt", labelEn: "Deposit Escrowed" },
     { key: "confirmed", labelDe: "Mietvertrag Bestätigt", labelEn: "Contract Confirmed" },
   ];
 
-  const currentPhaseIndex = (() => {
-    const status = booking?.status === "docs_review" ? "approved" : booking?.status;
-    const idx = pipeline.findIndex(p => p.key === status);
-    return idx !== -1 ? idx : 0;
-  })();
+  const currentPhaseIndex = pipeline.findIndex(p => p.key === booking?.status) !== -1
+    ? pipeline.findIndex(p => p.key === booking?.status)
+    : 0;
 
   return (
     <>
@@ -425,135 +425,156 @@ export default function BookingDetailPage({ params }: { params: Promise<{ bookin
           
           {/* Main Info Columns (2/3 width on large screens) */}
           <div className="lg:col-span-2 space-y-8">
-            
-            {/* 1. Document Upload / Verification Panel */}
-            <div className="bg-white border border-outline-variant p-6 md:p-8 rounded-3xl shadow-sm space-y-6">
-              <h2 className="text-headline-sm font-bold text-primary flex items-center gap-3">
-                <span className="material-symbols-outlined text-[28px]">verified_user</span>
-                {t("verifyTitle")}
-              </h2>
-              <p className="text-body-sm text-on-surface-variant leading-relaxed">
-                {language === "de" 
-                  ? "Bitte laden Sie die erforderlichen Dokumente hoch, um das Sicherheitsüberprüfungsverfahren zu starten. Nach dem vollständigen Upload berechnet unsere künstliche Intelligenz den Match Score für den Vermieter." 
-                  : "Please upload the required documents to initiate the background checks. Once all files are uploaded, our AI will score the application suitability for the landlord."}
-              </p>
+                     {/* 1. Document Upload / Verification Panel or Status Page */}
+            {isTenant && booking?.status === "docs_review" ? (
+              <div className="bg-white border border-outline-variant p-8 md:p-12 rounded-3xl shadow-sm text-center flex flex-col items-center justify-center gap-6 min-h-[400px]">
+                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center animate-pulse text-primary shadow-inner">
+                  <span className="material-symbols-outlined text-[40px]">manage_search</span>
+                </div>
+                <div className="max-w-md space-y-2">
+                  <h2 className="text-headline-md font-bold text-primary">
+                    {language === "de" ? "Dokumente werden überprüft" : "We are checking your documents"}
+                  </h2>
+                  <p className="text-body-md text-on-surface-variant leading-relaxed">
+                    {language === "de"
+                      ? "Ihre Unterlagen wurden erfolgreich eingereicht. Wir überprüfen diese nun auf Richtigkeit. Sie werden benachrichtigt, sobald die Prüfung abgeschlossen ist."
+                      : "Your documents have been successfully submitted. We are currently verifying your credentials. You will be notified as soon as the review is complete."}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 bg-yellow-50 text-yellow-800 px-4 py-2 rounded-full font-bold text-[13px] border border-yellow-200">
+                  <span className="material-symbols-outlined text-[18px]">hourglass_empty</span>
+                  {language === "de" ? "Status: Ausstehend" : "Status: Pending"}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white border border-outline-variant p-6 md:p-8 rounded-3xl shadow-sm space-y-6">
+                <h2 className="text-headline-sm font-bold text-primary flex items-center gap-3">
+                  <span className="material-symbols-outlined text-[28px]">verified_user</span>
+                  {t("verifyTitle")}
+                </h2>
+                <p className="text-body-sm text-on-surface-variant leading-relaxed">
+                  {language === "de" 
+                    ? "Bitte laden Sie die erforderlichen Dokumente hoch, um das Sicherheitsüberprüfungsverfahren zu starten. Nach dem vollständigen Upload berechnet unsere künstliche Intelligenz den Match Score für den Vermieter." 
+                    : "Please upload the required documents to initiate the background checks. Once all files are uploaded, our AI will score the application suitability for the landlord."}
+                </p>
 
-              <div className="space-y-4">
-                {[
-                   { key: "passport", label: t("docPassport"), type: "passport", optional: false },
-                   { key: "visa", label: t("docVisa"), type: "visa", optional: true },
-                   { key: "enrollment", label: t("docEnrollment"), type: "enrollment", optional: true },
-                   { key: "income", label: t("docIncome"), type: "income", optional: true },
-                 ].map(({ key, label, type, optional }) => {
-                  const hasDoc = isUploaded(type);
-                  const fileName = getDocFileName(type);
-                  const status = getDocStatus(type);
+                <div className="space-y-4">
+                  {[
+                     { key: "passport", label: t("docPassport"), type: "passport", optional: false },
+                     { key: "visa", label: t("docVisa"), type: "visa", optional: true },
+                     { key: "enrollment", label: t("docEnrollment"), type: "enrollment", optional: true },
+                     { key: "income", label: t("docIncome"), type: "income", optional: true },
+                   ].map(({ key, label, type, optional }) => {
+                    const hasDoc = isUploaded(type);
+                    const fileName = getDocFileName(type);
+                    const status = getDocStatus(type);
 
-                  return (
-                    <div 
-                      key={key} 
-                      className="p-5 bg-surface-container-low rounded-2xl border border-outline-variant/60 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all hover:bg-surface-container"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-label-md font-bold text-primary">{label}</p>
-                          {optional ? (
-                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-surface-variant text-on-surface-variant border border-outline-variant/60">
-                              {language === "de" ? "Optional" : "Optional"}
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                              {language === "de" ? "Pflicht" : "Required"}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[12px] text-on-surface-variant flex items-center gap-1.5">
-                          {hasDoc ? (
-                            <>
-                              <span className="material-symbols-outlined text-[16px] text-primary">description</span>
-                              {fileName}
-                            </>
-                          ) : (
-                            language === "de" ? "Kein Dokument hochgeladen" : "No document uploaded"
-                          )}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-                        {hasDoc && (
-                          <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-                            status === "approved" 
-                              ? "bg-green-100 text-green-800" 
-                              : status === "rejected" 
-                                ? "bg-red-100 text-red-800" 
-                                : "bg-yellow-100 text-yellow-800"
-                          }`}>
-                            {status}
-                          </span>
-                        )}
-
-                        {isTenant && booking?.status === "pending" && (
-                          <div className="flex items-center gap-2">
-                            <input 
-                              type="file" 
-                              id={`upload-${key}`} 
-                              className="hidden" 
-                              accept=".pdf,.png,.jpg,.jpeg"
-                              onChange={(e) => handleFileUpload(type, e)}
-                              disabled={uploadingDoc === type}
-                            />
-                            <label 
-                              htmlFor={`upload-${key}`}
-                              className="bg-primary text-on-primary px-4 py-2 rounded-xl text-[12px] font-bold hover:opacity-95 active:scale-98 transition-all cursor-pointer block text-center select-none"
-                            >
-                              {uploadingDoc === type ? (
-                                <span className="flex items-center gap-1.5">
-                                  <span className="animate-spin rounded-full h-3 w-3 border-2 border-on-primary border-t-transparent" />
-                                  ...
-                                </span>
-                              ) : (
-                                hasDoc ? (language === "de" ? "Ersetzen" : "Replace") : (language === "de" ? "Hochladen" : "Upload")
-                              )}
-                            </label>
-
-                            {hasDoc && (
-                              <button
-                                onClick={() => handleDocRemove(type)}
-                                className="px-3 py-2 rounded-xl text-[12px] font-bold border border-error text-error hover:bg-error/5 active:scale-95 transition-all cursor-pointer flex items-center gap-1"
-                                title={language === "de" ? "Dokument entfernen" : "Remove document"}
-                              >
-                                <span className="material-symbols-outlined text-[14px]">delete</span>
-                                <span>{language === "de" ? "Löschen" : "Remove"}</span>
-                              </button>
+                    return (
+                      <div 
+                        key={key} 
+                        className="p-5 bg-surface-container-low rounded-2xl border border-outline-variant/60 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all hover:bg-surface-container"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-label-md font-bold text-primary">{label}</p>
+                            {optional ? (
+                              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-surface-variant text-on-surface-variant border border-outline-variant/60">
+                                {language === "de" ? "Optional" : "Optional"}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                                {language === "de" ? "Pflicht" : "Required"}
+                              </span>
                             )}
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                          <p className="text-[12px] text-on-surface-variant flex items-center gap-1.5">
+                            {hasDoc ? (
+                              <>
+                                <span className="material-symbols-outlined text-[16px] text-primary">description</span>
+                                {fileName}
+                              </>
+                            ) : (
+                              language === "de" ? "Kein Dokument hochgeladen" : "No document uploaded"
+                            )}
+                          </p>
+                        </div>
 
-              {/* Submit to review action */}
-              {isTenant && booking?.status === "pending" && (
-                <div className="pt-4 border-t border-outline-variant flex justify-end">
-                  <button
-                    onClick={submitForReview}
-                    disabled={documents.length < 1 || submittingReview}
-                    className="bg-primary text-on-primary px-6 py-3.5 rounded-2xl font-bold hover:opacity-95 active:scale-98 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow text-label-md"
-                  >
-                    {submittingReview ? (
-                      <span className="flex items-center gap-2">
-                        <span className="animate-spin rounded-full h-4 w-4 border-2 border-on-primary border-t-transparent" />
-                        {language === "de" ? "Berechne AI Match Score..." : "Calculating AI Match Score..."}
-                      </span>
-                    ) : (
-                      language === "de" ? "Unterlagen zur Überprüfung einreichen" : "Submit Documents for Review"
-                    )}
-                  </button>
+                        <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                          {hasDoc && (
+                            <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${
+                              status === "approved" 
+                                ? "bg-green-100 text-green-800" 
+                                : status === "rejected" 
+                                  ? "bg-red-100 text-red-800" 
+                                  : "bg-yellow-100 text-yellow-800"
+                            }`}>
+                              {status}
+                            </span>
+                          )}
+
+                          {isTenant && booking?.status === "pending" && (
+                            <div className="flex items-center gap-2">
+                              <input 
+                                type="file" 
+                                id={`upload-${key}`} 
+                                className="hidden" 
+                                accept=".pdf,.png,.jpg,.jpeg"
+                                onChange={(e) => handleFileUpload(type, e)}
+                                disabled={uploadingDoc === type}
+                              />
+                              <label 
+                                htmlFor={`upload-${key}`}
+                                className="bg-primary text-on-primary px-4 py-2 rounded-xl text-[12px] font-bold hover:opacity-95 active:scale-98 transition-all cursor-pointer block text-center select-none"
+                              >
+                                {uploadingDoc === type ? (
+                                  <span className="flex items-center gap-1.5">
+                                    <span className="animate-spin rounded-full h-3 w-3 border-2 border-on-primary border-t-transparent" />
+                                    ...
+                                  </span>
+                                ) : (
+                                  hasDoc ? (language === "de" ? "Ersetzen" : "Replace") : (language === "de" ? "Hochladen" : "Upload")
+                                )}
+                              </label>
+
+                              {hasDoc && (
+                                <button
+                                  onClick={() => handleDocRemove(type)}
+                                  className="px-3 py-2 rounded-xl text-[12px] font-bold border border-error text-error hover:bg-error/5 active:scale-95 transition-all cursor-pointer flex items-center gap-1"
+                                  title={language === "de" ? "Dokument entfernen" : "Remove document"}
+                                >
+                                  <span className="material-symbols-outlined text-[14px]">delete</span>
+                                  <span>{language === "de" ? "Löschen" : "Remove"}</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
-            </div>
+
+                {/* Submit to review action */}
+                {isTenant && booking?.status === "pending" && (
+                  <div className="pt-4 border-t border-outline-variant flex justify-end">
+                    <button
+                      onClick={submitForReview}
+                      disabled={documents.length < 1 || submittingReview}
+                      className="bg-primary text-on-primary px-6 py-3.5 rounded-2xl font-bold hover:opacity-95 active:scale-98 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow text-label-md"
+                    >
+                      {submittingReview ? (
+                        <span className="flex items-center gap-2">
+                          <span className="animate-spin rounded-full h-4 w-4 border-2 border-on-primary border-t-transparent" />
+                          {language === "de" ? "Berechne AI Match Score..." : "Calculating AI Match Score..."}
+                        </span>
+                      ) : (
+                        language === "de" ? "Unterlagen zur Überprüfung einreichen" : "Submit Documents for Review"
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* 2. Landlord Review & AI Matching Card */}
             {isLandlord && booking?.status !== "pending" && (
