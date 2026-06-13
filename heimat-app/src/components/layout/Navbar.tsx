@@ -10,6 +10,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const { language, setLanguage, t } = useLanguage();
   const { profile, signOut } = useAuth();
 
@@ -21,7 +22,21 @@ export default function Navbar() {
 
   useEffect(() => {
     setMobileOpen(false);
+    setDropdownOpen(false);
   }, [pathname]);
+
+  // Click outside to close desktop dropdown menu
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".avatar-dropdown-container")) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [dropdownOpen]);
 
   const navLink = (href: string, label: string) => {
     const active = pathname === href || pathname.startsWith(href + "/");
@@ -95,22 +110,67 @@ export default function Navbar() {
           {/* Auth Buttons */}
           <div className="flex items-center gap-3">
             {profile ? (
-              <>
-                <Link
-                  href={getDashboardUrl()}
-                  id="btn-dashboard"
-                  className="px-5 py-2 rounded-lg text-[14px] font-semibold text-primary hover:bg-surface-container-low transition-all active:scale-95 text-center"
-                >
-                  {t("dashboard")}
-                </Link>
+              <div className="relative avatar-dropdown-container">
+                {/* Profile Icon button */}
                 <button
-                  onClick={signOut}
-                  id="btn-logout"
-                  className="px-5 py-2 rounded-lg text-[14px] font-semibold bg-primary text-on-primary hover:opacity-90 transition-all active:scale-95 text-center cursor-pointer font-sans"
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-[16px] cursor-pointer hover:bg-primary/20 transition-all select-none focus:outline-none"
+                  aria-label="User profile menu"
                 >
-                  {t("logout")}
+                  {profile.full_name ? profile.full_name.charAt(0).toUpperCase() : "U"}
                 </button>
-              </>
+
+                {/* Dropdown popup */}
+                {dropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white border border-outline-variant rounded-2xl shadow-xl py-2 z-[999] animate-[fadeIn_0.15s_ease-out] flex flex-col">
+                    {/* User profile card */}
+                    <div className="px-4 py-2 border-b border-outline-variant/40 mb-1">
+                      <p className="text-[14px] font-bold text-on-surface truncate">{profile.full_name}</p>
+                      <p className="text-[11px] text-on-surface-variant capitalize truncate">{profile.role}</p>
+                    </div>
+
+                    <Link
+                      href={getDashboardUrl()}
+                      onClick={() => setDropdownOpen(false)}
+                      className="px-4 py-2.5 text-[14px] text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors flex items-center gap-2"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">space_dashboard</span>
+                      <span>{t("dashboard")}</span>
+                    </Link>
+
+                    <Link
+                      href={`${getDashboardUrl()}?tab=profile`}
+                      onClick={() => setDropdownOpen(false)}
+                      className="px-4 py-2.5 text-[14px] text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors flex items-center gap-2"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">account_circle</span>
+                      <span>{language === "de" ? "Profil anzeigen" : "View Profile"}</span>
+                    </Link>
+
+                    <Link
+                      href={`${getDashboardUrl()}?tab=bookings`}
+                      onClick={() => setDropdownOpen(false)}
+                      className="px-4 py-2.5 text-[14px] text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors flex items-center gap-2"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">calendar_month</span>
+                      <span>{language === "de" ? "Meine Buchungen" : "My Bookings"}</span>
+                    </Link>
+
+                    <hr className="border-outline-variant/40 my-1" />
+
+                    <button
+                      onClick={() => {
+                        setDropdownOpen(false);
+                        signOut();
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-[14px] text-error hover:bg-red-50 transition-colors flex items-center gap-2 cursor-pointer font-sans"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">logout</span>
+                      <span>{t("logout")}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
               <>
                 <Link
@@ -230,15 +290,38 @@ export default function Navbar() {
           <div className="pt-3 border-t border-outline-variant/50 flex flex-col gap-3">
             {profile ? (
               <>
+                {/* Mobile profile card */}
+                <div className="flex items-center gap-3 px-4 py-2 border-b border-outline-variant/30 pb-3 mb-2">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-[16px]">
+                    {profile.full_name ? profile.full_name.charAt(0).toUpperCase() : "U"}
+                  </div>
+                  <div>
+                    <div className="text-[14px] font-bold text-on-surface">{profile.full_name}</div>
+                    <div className="text-[11px] text-on-surface-variant capitalize">{profile.role}</div>
+                  </div>
+                </div>
+
                 <Link
                   href={getDashboardUrl()}
-                  className="w-full py-3 rounded-xl text-[14px] font-semibold text-primary border border-outline-variant hover:bg-surface-container-low transition-all text-center"
+                  className="block px-4 py-3 rounded-xl text-[14px] font-medium text-on-surface-variant hover:bg-surface-container-low"
                 >
                   {t("dashboard")}
                 </Link>
+                <Link
+                  href={`${getDashboardUrl()}?tab=profile`}
+                  className="block px-4 py-3 rounded-xl text-[14px] font-medium text-on-surface-variant hover:bg-surface-container-low"
+                >
+                  {language === "de" ? "Profil anzeigen" : "View Profile"}
+                </Link>
+                <Link
+                  href={`${getDashboardUrl()}?tab=bookings`}
+                  className="block px-4 py-3 rounded-xl text-[14px] font-medium text-on-surface-variant hover:bg-surface-container-low"
+                >
+                  {language === "de" ? "Meine Buchungen" : "My Bookings"}
+                </Link>
                 <button
                   onClick={signOut}
-                  className="w-full py-3 rounded-xl text-[14px] font-semibold bg-primary text-on-primary hover:opacity-90 transition-all text-center cursor-pointer font-sans"
+                  className="w-full py-3 mt-2 rounded-xl text-[14px] font-semibold bg-primary text-on-primary hover:opacity-90 transition-all text-center cursor-pointer font-sans"
                 >
                   {t("logout")}
                 </button>

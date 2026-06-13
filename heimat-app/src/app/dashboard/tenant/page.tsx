@@ -56,6 +56,22 @@ export default function TenantDashboard() {
     }
   }, [user, profile, loading, router]);
 
+  // Read active tab from URL query params
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      if (
+        tabParam === "profile" ||
+        tabParam === "bookings" ||
+        tabParam === "documents" ||
+        tabParam === "favorites"
+      ) {
+        setActiveTab(tabParam as any);
+      }
+    }
+  }, []);
+
   // Fetch initial dashboard and profile data
   const fetchTenantData = async () => {
     if (!user) return;
@@ -299,12 +315,6 @@ export default function TenantDashboard() {
 
   const cancelPremium = async () => {
     if (!user || !isPremium) return;
-    const confirmed = window.confirm(
-      language === "de"
-        ? "Möchten Sie Ihr Premium-Abonnement wirklich kündigen? Ihre Premium-Vorteile werden sofort deaktiviert."
-        : "Are you sure you want to cancel your Premium subscription? Your premium benefits will be deactivated immediately."
-    );
-    if (!confirmed) return;
     try {
       // 1. Clear the localStorage cache so AuthContext re-evaluates
       localStorage.removeItem(`heimat_sub_${user.id}`);
@@ -318,6 +328,13 @@ export default function TenantDashboard() {
 
       // 3. Refresh AuthContext so isPremium recomputes to false
       await refreshProfile();
+
+      // 4. Show custom success popup
+      alert(
+        language === "de"
+          ? "Ihr Premium-Abonnement wurde erfolgreich gekündigt."
+          : "Your premium subscription has been successfully cancelled."
+      );
     } catch (err) {
       console.error("Error cancelling premium:", err);
     }

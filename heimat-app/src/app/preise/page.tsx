@@ -238,7 +238,6 @@ function PreisePageContent() {
                     { label: language === "de" ? "Geprüftes Bewerberportfolio" : "Validated applicant portfolio" },
                     { label: language === "de" ? "Priorisierte Bewerber-Anfragen" : "Priority applicant requests" },
                     { label: language === "de" ? "Automatische WhatsApp Updates" : "Automated WhatsApp updates" },
-                    { label: language === "de" ? "AI Eignungs-Score (98% Match)" : "AI matching score (98% match)" },
                     { label: language === "de" ? "Unbegrenzte Chat-Vorgänge" : "Unlimited chat sessions" },
                     { label: language === "de" ? "Escrow-Treuhandgarantie" : "Secure escrow guarantee" }
                   ].map(({ label }, i) => (
