@@ -84,7 +84,7 @@ export default function GlobalAlert() {
     bgLight: "bg-[#f07d00]/5",
     border: "border-[#f07d00]",
     icon: "info",
-    title: "Meldung",
+    title: "Popup",
   };
 
   if (isError) {
@@ -93,7 +93,7 @@ export default function GlobalAlert() {
       bgLight: "bg-red-50",
       border: "border-red-500",
       icon: "error",
-      title: "Hinweis / Fehler",
+      title: "Popup",
     };
   } else if (isSuccess) {
     theme = {
@@ -101,7 +101,7 @@ export default function GlobalAlert() {
       bgLight: "bg-green-50",
       border: "border-green-600",
       icon: "check_circle",
-      title: "Erfolgreich",
+      title: "Popup",
     };
   }
 

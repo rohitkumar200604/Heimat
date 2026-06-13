@@ -44,6 +44,22 @@ export default function LandlordDashboard() {
     }
   }, [user, profile, loading, router]);
 
+  // Read active tab from URL query params
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      if (
+        tabParam === "overview" ||
+        tabParam === "profile" ||
+        tabParam === "bookings" ||
+        tabParam === "properties"
+      ) {
+        setActiveTab(tabParam as any);
+      }
+    }
+  }, []);
+
   const fetchLandlordData = async () => {
     if (!user) return;
     try {
@@ -231,6 +247,15 @@ export default function LandlordDashboard() {
 
       // 4. Refresh AuthContext so isPremium & subscription are recomputed
       await refreshProfile();
+
+      // 5. Show custom success popup if we just cancelled the premium plan
+      if (isPro) {
+        alert(
+          language === "de"
+            ? "Ihr Premium-Abonnement wurde erfolgreich gekündigt."
+            : "Your premium subscription has been successfully cancelled."
+        );
+      }
     } catch (err) {
       console.error("Error updating subscription tier:", err);
     }
