@@ -155,7 +155,7 @@ const MOCK_REVIEWS: Record<string, Array<{
 export default function ObjektDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const router = useRouter();
-  const { user, profile } = useAuth();
+  const { user, profile, isPremium } = useAuth();
   const { t, language } = useLanguage();
   
   const [property, setProperty] = useState<any>(null);
@@ -173,6 +173,8 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
   const [newReviewText, setNewReviewText] = useState("");
   const [newReviewAuthor, setNewReviewAuthor] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
+
+
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -728,6 +730,71 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
                     <span className="text-body-md">{tag}</span>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Customer Support Chatbot / Premium Support Option */}
+            <div className="mb-12 border border-outline-variant/40 rounded-2xl overflow-hidden bg-gradient-to-br from-surface-container-lowest to-surface-container-low p-6 md:p-8 shadow-sm flex flex-col md:flex-row items-center gap-6 justify-between relative">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-2xl pointer-events-none" />
+              <div className="flex flex-col md:flex-row items-start md:items-center gap-5">
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 relative ${isPremium ? 'bg-primary/10 text-primary' : 'bg-surface-container-highest text-on-surface-variant'}`}>
+                  <span className="material-symbols-outlined text-[32px]">
+                    {isPremium ? 'support_agent' : 'lock'}
+                  </span>
+                  {isPremium && (
+                    <span className="absolute bottom-1 right-1 w-3 h-3 bg-[#34a853] rounded-full border-2 border-surface-container-lowest" />
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${isPremium ? 'bg-primary/10 text-primary' : 'bg-surface-container-high text-on-surface-variant'}`}>
+                      {isPremium 
+                        ? (language === "de" ? "Premium Vorteil" : "Premium Benefit") 
+                        : (language === "de" ? "Premium Feature" : "Premium Feature")}
+                    </span>
+                    {isPremium && (
+                      <span className="bg-[#e6f4ea] text-[#137333] px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-[#34a853] rounded-full animate-pulse" />
+                        Online
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-headline-sm font-bold text-on-surface mb-1">
+                    {isPremium 
+                      ? (language === "de" ? "Persönlicher Premium Support" : "Personal Premium Support")
+                      : (language === "de" ? "Persönlicher Support" : "Personal Support")}
+                  </h3>
+                  <p className="text-body-md text-on-surface-variant max-w-lg leading-relaxed">
+                    {isPremium 
+                      ? (language === "de" 
+                          ? "Chatte direkt mit unserem Heimstadt-Support-Team für alle Fragen zu dieser Wohnung." 
+                          : "Chat directly with our Heimstadt support team for any questions regarding this property.")
+                      : (language === "de"
+                          ? "Schalte den direkten Chat mit unserem Support-Team frei, um Fragen zu dieser Wohnung sofort zu klären."
+                          : "Unlock direct chat with our support team to get answers about this property instantly.")}
+                  </p>
+                </div>
+              </div>
+              <div className="w-full md:w-auto flex-shrink-0">
+                {isPremium ? (
+                  <Link
+                    id="btn-chat-with-us"
+                    href={`/objekt/${slug}/chat`}
+                    className="w-full md:w-auto text-center inline-flex items-center justify-center gap-2 bg-primary text-on-primary px-6 py-3.5 rounded-xl font-bold text-label-md hover:opacity-90 active:scale-95 transition-all shadow-md hover:shadow-primary/20 cursor-pointer font-sans"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">chat</span>
+                    {language === "de" ? "Mit uns chatten" : "Chat with us"}
+                  </Link>
+                ) : (
+                  <Link
+                    id="btn-upgrade-premium"
+                    href="/preise"
+                    className="w-full md:w-auto text-center inline-flex items-center justify-center gap-2 bg-surface-container-highest text-primary border border-outline-variant px-6 py-3.5 rounded-xl font-bold text-label-md hover:bg-surface-container-high active:scale-95 transition-all cursor-pointer font-sans"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">workspace_premium</span>
+                    {language === "de" ? "Premium freischalten" : "Unlock Premium"}
+                  </Link>
+                )}
               </div>
             </div>
 

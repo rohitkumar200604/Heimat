@@ -1,0 +1,317 @@
+"use client";
+
+import { useState, useEffect, useRef, use } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useLanguage } from "@/context/LanguageContext";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/utils/supabase/client";
+
+interface Message {
+  sender: "user" | "bot";
+  text: string;
+  timestamp: string;
+}
+
+export default function PropertyChatPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = use(params);
+  const router = useRouter();
+  const { user, loading: authLoading, isPremium } = useAuth();
+  const { t, language } = useLanguage();
+
+  const [property, setProperty] = useState<any>(null);
+  const [loadingProperty, setLoadingProperty] = useState(true);
+  const [chatMessages, setChatMessages] = useState<Message[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto scroll to bottom
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [chatMessages, chatLoading]);
+
+  // Auth Guard redirect
+  useEffect(() => {
+    if (!authLoading && !isPremium) {
+      router.push("/preise");
+    }
+  }, [authLoading, isPremium, router]);
+
+  // Fetch Property Details
+  useEffect(() => {
+    const fetchPropertyDetails = async () => {
+      setLoadingProperty(true);
+
+      const mocks: Record<string, any> = {
+        "berlin-studio": {
+          id: "berlin-studio",
+          title: language === "de" ? "Helles Studio-Apartment nahe Alexanderplatz" : "Bright Studio Apartment near Alexanderplatz",
+          city: "Berlin",
+          street: "Karl-Liebknecht-Str. 12",
+        },
+        "munich-expat": {
+          id: "munich-expat",
+          title: language === "de" ? "Premium 3-Zimmer-Wohnung am Englischen Garten" : "Premium 3-Room Apartment at Englischen Garten",
+          city: "München",
+          street: "Königinstraße 44",
+        },
+        "hamburg-loft": {
+          id: "hamburg-loft",
+          title: language === "de" ? "Stilvolles Loft in der Speicherstadt" : "Stylish Loft in Speicherstadt",
+          city: "Hamburg",
+          street: "Am Sandtorkai 10",
+        },
+        "berlin-wg": {
+          id: "berlin-wg",
+          title: language === "de" ? "Gemütliches Zimmer in Studenten-WG" : "Cozy Room in Student Shared Apartment",
+          city: "Berlin",
+          street: "Königin-Luise-Str. 15",
+        }
+      };
+
+      const defaultMock = {
+        id: "mock-apply-87a",
+        title: language === "de" ? "Lichtdurchflutete 3-Zimmer-Wohnung am Tiergarten" : "Bright 3-room apartment near Tiergarten",
+        street: "Torstraße 142",
+        city: "Berlin",
+      };
+
+      try {
+        const isConfigured =
+          process.env.NEXT_PUBLIC_SUPABASE_URL &&
+          process.env.NEXT_PUBLIC_SUPABASE_URL !== "https://mock-project.supabase.co" &&
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY !== "mock-anon-key";
+
+        if (!isConfigured) {
+          setProperty(mocks[slug] || defaultMock);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("properties")
+          .select("id, title, city, street")
+          .eq("id", slug)
+          .single();
+
+        if (error) throw error;
+        setProperty(data || mocks[slug] || defaultMock);
+      } catch (err) {
+        console.warn("Could not find property in Supabase, using mock fallback:", err);
+        setProperty(mocks[slug] || defaultMock);
+      } finally {
+        setLoadingProperty(false);
+      }
+    };
+
+    fetchPropertyDetails();
+  }, [slug, language]);
+
+  // Load chat history from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedChat = localStorage.getItem(`heimat_chat_${slug}`);
+      if (savedChat) {
+        try {
+          setChatMessages(JSON.parse(savedChat));
+        } catch (e) {
+          console.error("Failed to parse cached chat history:", e);
+        }
+      } else {
+        // Initial welcome message
+        const welcome: Message = {
+          sender: "bot",
+          text: language === "de"
+            ? "Hallo! Ich bin dein Heimstadt-Assistent. Hast du Fragen zu dieser Wohnung oder zum Ablauf der Buchung? Ich helfe dir gerne!"
+            : "Hi! I'm your Heimstadt assistant. Do you have any questions about this property or the booking process? I'm happy to help!",
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setChatMessages([welcome]);
+        localStorage.setItem(`heimat_chat_${slug}`, JSON.stringify([welcome]));
+      }
+    }
+  }, [slug, language]);
+
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim() || chatLoading) return;
+
+    const userMsgText = chatInput.trim();
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const userMessage: Message = {
+      sender: "user",
+      text: userMsgText,
+      timestamp: time
+    };
+
+    const updatedMessages = [...chatMessages, userMessage];
+    setChatMessages(updatedMessages);
+    localStorage.setItem(`heimat_chat_${slug}`, JSON.stringify(updatedMessages));
+    setChatInput("");
+    setChatLoading(true);
+
+    // Simulate 1 second typing delay and auto-response
+    setTimeout(() => {
+      const responseTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const botMessage: Message = {
+        sender: "bot",
+        text: language === "de"
+          ? "Vielen Dank für deine Nachricht. Ein Mitglied unseres Teams wird deine Anfrage prüfen und dir in Kürze hier antworten."
+          : "Thank you for your message. A member of our team will review your inquiry and reply to you here shortly.",
+        timestamp: responseTime
+      };
+
+      const finalMessages = [...updatedMessages, botMessage];
+      setChatMessages(finalMessages);
+      localStorage.setItem(`heimat_chat_${slug}`, JSON.stringify(finalMessages));
+      setChatLoading(false);
+    }, 1000);
+  };
+
+  // Render Loader if Auth or Property Details are Loading
+  if (authLoading || (loadingProperty && isPremium)) {
+    return (
+      <div className="flex-grow flex items-center justify-center min-h-[600px] bg-surface-container-lowest">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  // Double check protection check
+  if (!isPremium) {
+    return (
+      <main className="max-w-[1280px] mx-auto px-5 md:px-[48px] py-16 flex flex-col items-center justify-center min-h-[600px] text-center gap-6">
+        <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center text-primary shadow-inner">
+          <span className="material-symbols-outlined text-[48px]">lock</span>
+        </div>
+        <div>
+          <h1 className="text-headline-lg font-bold text-primary mb-3">
+            {language === "de" ? "Zugriff eingeschränkt" : "Access Restricted"}
+          </h1>
+          <p className="text-body-md text-on-surface-variant max-w-md">
+            {language === "de"
+              ? "Dieses Feature ist exklusiv für Premium-Abonnenten verfügbar."
+              : "This feature is exclusively available to Premium subscribers."}
+          </p>
+        </div>
+        <button
+          onClick={() => router.push("/preise")}
+          className="bg-primary text-on-primary px-8 py-4 rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all shadow-lg"
+        >
+          {language === "de" ? "Premium freischalten" : "Unlock Premium"}
+        </button>
+      </main>
+    );
+  }
+
+  return (
+    <main className="max-w-[1280px] mx-auto px-4 md:px-[48px] py-6 w-full flex-grow flex flex-col min-h-[calc(100vh-140px)]">
+      {/* Back to Property Navigation Link */}
+      <div className="mb-4">
+        <Link
+          href={`/objekt/${slug}`}
+          className="inline-flex items-center gap-2 text-on-surface-variant hover:text-primary font-semibold text-[14px] transition-colors"
+        >
+          <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+          {language === "de" ? "Zurück zum Objekt" : "Back to property"}
+        </Link>
+      </div>
+
+      {/* Main Chat Area */}
+      <div className="flex-grow border border-outline-variant/40 rounded-2xl overflow-hidden bg-surface-container-lowest shadow-lg flex flex-col h-[600px] md:h-[700px] relative">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+        
+        {/* Chat Header */}
+        <div className="bg-primary px-6 py-4 flex items-center justify-between border-b border-outline-variant/20 shadow-md z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-on-primary/10 rounded-full flex items-center justify-center text-on-primary relative">
+              <span className="material-symbols-outlined text-[28px]">support_agent</span>
+              <span className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-[#34a853] rounded-full border-2 border-primary ring-2 ring-primary-container" />
+            </div>
+            <div>
+              <h3 className="font-bold text-on-primary text-[16px] leading-tight">
+                Heimstadt Support Team
+              </h3>
+              <p className="text-[12px] text-on-primary/80 font-medium mt-0.5 flex items-center gap-1.5">
+                {property ? property.title : (language === "de" ? "Fragen zur Wohnung" : "Questions about property")}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 bg-on-primary/10 text-on-primary px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
+            <span className="w-1.5 h-1.5 bg-[#34a853] rounded-full animate-pulse" />
+            Online
+          </div>
+        </div>
+
+        {/* Chat History View */}
+        <div className="flex-grow p-6 overflow-y-auto space-y-4 bg-surface-container-lowest max-h-[calc(100%-140px)] flex flex-col justify-start custom-scrollbar">
+          {chatMessages.map((m, idx) => {
+            const isBot = m.sender === "bot";
+            return (
+              <div
+                key={idx}
+                className={`flex flex-col max-w-[80%] md:max-w-[70%] ${isBot ? "self-start items-start animate-in slide-in-from-left-2 duration-300" : "self-end items-end animate-in slide-in-from-right-2 duration-300"}`}
+              >
+                <div
+                  className={`p-4 rounded-2xl text-[14px] leading-relaxed shadow-sm ${
+                    isBot
+                      ? "bg-surface-container-high text-on-surface rounded-tl-sm"
+                      : "bg-primary text-on-primary rounded-tr-sm"
+                  }`}
+                >
+                  {m.text}
+                </div>
+                <span className="text-[10px] text-on-surface-variant/60 font-semibold mt-1 px-1">
+                  {m.timestamp}
+                </span>
+              </div>
+            );
+          })}
+
+          {chatLoading && (
+            <div className="self-start flex flex-col items-start max-w-[80%] animate-pulse">
+              <div className="bg-surface-container-high p-4 rounded-2xl rounded-tl-sm flex items-center gap-1.5 h-[44px]">
+                <span className="w-2 h-2 bg-on-surface-variant/40 rounded-full animate-bounce delay-75" />
+                <span className="w-2 h-2 bg-on-surface-variant/40 rounded-full animate-bounce delay-150" />
+                <span className="w-2 h-2 bg-on-surface-variant/40 rounded-full animate-bounce delay-300" />
+              </div>
+              <span className="text-[10px] text-on-surface-variant/60 font-semibold mt-1 px-1">
+                {language === "de" ? "Heimstadt schreibt..." : "Heimstadt typing..."}
+              </span>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Chat Input form */}
+        <form onSubmit={handleSendMessage} className="p-4 border-t border-outline-variant bg-surface-container-lowest flex gap-3 z-10 shadow-inner">
+          <input
+            id="chat-input-field"
+            type="text"
+            placeholder={language === "de" ? "Nachricht eingeben..." : "Type your message here..."}
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            disabled={chatLoading}
+            autoComplete="off"
+            className="flex-grow bg-surface-container-low border border-outline-variant rounded-xl px-4 py-3.5 text-[15px] outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+          />
+          <button
+            id="chat-send-button"
+            type="submit"
+            disabled={!chatInput.trim() || chatLoading}
+            className="bg-primary text-on-primary w-12 h-12 rounded-xl flex items-center justify-center hover:opacity-90 active:scale-95 transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-[20px] transform rotate-[-30deg]">send</span>
+          </button>
+        </form>
+      </div>
+    </main>
+  );
+}
