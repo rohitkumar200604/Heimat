@@ -87,6 +87,12 @@ CREATE POLICY "Landlords can view documents of tenants who booked their properti
 CREATE POLICY "Users can view their own subscription status" ON public.subscriptions
     FOR SELECT USING (auth.uid() = user_id);
 
+CREATE POLICY "Users can insert their own subscriptions" ON public.subscriptions
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own subscriptions" ON public.subscriptions
+    FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
 -- 8. Bookings Policies
 CREATE POLICY "Tenants can view and create bookings" ON public.bookings
     FOR SELECT USING (auth.uid() = tenant_id);

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/utils/supabase/client";
+import { supabase, isSupabaseConfigured } from "@/utils/supabase/client";
 import Footer from "@/components/layout/Footer";
 import Link from "next/link";
 
@@ -68,6 +68,23 @@ export default function LandlordDashboard() {
           full_name: profile?.full_name || "",
           phone: profile?.phone || "",
         }));
+        if (!isSupabaseConfigured()) {
+          const localWhatsapp = localStorage.getItem(`heimat_mock_landlord_whatsapp_${user.id}`) === "true";
+          setLandlordProfile({
+            id: "mock-landlord-id",
+            user_id: user.id,
+            subscription_tier: isPremium ? "pro" : "free",
+            whatsapp_enabled: localWhatsapp,
+            stripe_account_id: "acct_mock123",
+            iban_last4: "1234",
+          });
+          setProfileForm({
+            full_name: profile?.full_name || "Mock Landlord",
+            phone: profile?.phone || "+49 176 123456",
+            stripe_account_id: "acct_mock123",
+            iban_last4: "1234",
+          });
+        }
       }
 
       // 2. Fetch booking requests for properties owned by landlord
@@ -141,6 +158,11 @@ export default function LandlordDashboard() {
   const toggleWhatsApp = async () => {
     if (!user || !landlordProfile || landlordProfile.subscription_tier !== "pro") return;
     const nextVal = !landlordProfile.whatsapp_enabled;
+    if (!isSupabaseConfigured()) {
+      setLandlordProfile({ ...landlordProfile, whatsapp_enabled: nextVal });
+      localStorage.setItem(`heimat_mock_landlord_whatsapp_${user.id}`, String(nextVal));
+      return;
+    }
     try {
       const { error } = await supabase
         .from("landlord_profiles")
@@ -158,28 +180,46 @@ export default function LandlordDashboard() {
     const isPro = landlordProfile.subscription_tier === "pro";
     const nextVal = isPro ? "free" : "pro";
     try {
-      // 1. Update landlord_profiles tier
-      const { error } = await supabase
-        .from("landlord_profiles")
-        .update({ 
-          subscription_tier: nextVal,
-          // Disable whatsapp if downgrading
-          ...(isPro ? { whatsapp_enabled: false } : {})
-        })
-        .eq("user_id", user.id);
-      if (error) throw error;
+      if (isSupabaseConfigured()) {
+        // 1. Update landlord_profiles tier
+        const { error } = await supabase
+          .from("landlord_profiles")
+          .update({ 
+            subscription_tier: nextVal,
+            // Disable whatsapp if downgrading
+            ...(isPro ? { whatsapp_enabled: false } : {})
+          })
+          .eq("user_id", user.id);
+        if (error) throw error;
 
-      // 2. If cancelling premium: clear localStorage cache + mark DB subscription canceled
-      if (isPro) {
-        // Clear the localStorage entry so AuthContext stops treating user as premium
-        localStorage.removeItem(`heimat_sub_${user.id}`);
+        // 2. If cancelling premium: clear localStorage cache + mark DB subscription canceled
+        if (isPro) {
+          // Clear the localStorage entry so AuthContext stops treating user as premium
+          localStorage.removeItem(`heimat_sub_${user.id}`);
 
-        // Mark any active subscriptions as canceled in the DB (enum: 'canceled')
-        await supabase
-          .from("subscriptions")
-          .update({ status: "canceled", cancel_at_period_end: true })
-          .eq("user_id", user.id)
-          .eq("status", "active");
+          // Mark any active subscriptions as canceled in the DB (enum: 'canceled')
+          await supabase
+            .from("subscriptions")
+            .update({ status: "canceled", cancel_at_period_end: true })
+            .eq("user_id", user.id)
+            .eq("status", "active");
+        }
+      } else {
+        if (isPro) {
+          localStorage.removeItem(`heimat_sub_${user.id}`);
+          localStorage.removeItem(`heimat_mock_landlord_whatsapp_${user.id}`);
+        } else {
+          const start = new Date();
+          const end = new Date();
+          end.setMonth(end.getMonth() + 3);
+          localStorage.setItem(`heimat_sub_${user.id}`, JSON.stringify({
+            plan: "3months",
+            status: "active",
+            startDate: start.toISOString(),
+            endDate: end.toISOString(),
+            cancelAtPeriodEnd: false,
+          }));
+        }
       }
 
       // 3. Update local landlordProfile state
