@@ -252,15 +252,14 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Auth Guard
+    // Auth Guard — redirect silently without alert
     if (!user) {
-      alert(language === "de" ? "Bitte melde dich zuerst an!" : "Please log in first!");
       router.push(`/auth/login?redirect=/objekt/${slug}`);
       return;
     }
 
     if (profile?.role !== "tenant") {
-      alert(language === "de" ? "Nur Mieter können Buchungen anfragen!" : "Only tenants can request bookings!");
+      router.push(`/auth/login?redirect=/objekt/${slug}`);
       return;
     }
 
@@ -303,12 +302,10 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
 
       if (error) throw error;
 
-      alert(language === "de" ? "Ihre Anfrage wurde gesendet!" : "Your request has been sent!");
       router.push(`/buchen/${data.id}`);
     } catch (err: any) {
       console.error("Error creating booking:", err);
       // Fallback mock redirect in dev mode if tables fail
-      alert(language === "de" ? "Buchungsanfrage initiiert (Mock Mode)" : "Booking request initiated (Mock Mode)");
       router.push(`/buchen/mock-apply-87a`);
     } finally {
       setSubmittingBooking(false);
@@ -684,7 +681,7 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
                           value={form[key as keyof typeof form]}
                           onChange={(e) => setForm({ ...form, [key]: e.target.value })}
                           className="w-full bg-surface-container-low border border-outline-variant rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-[16px]"
-                          required={type !== "tel"}
+                          required
                         />
                       </div>
                     ))}
@@ -697,7 +694,7 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
                         value={form.message}
                         onChange={(e) => setForm({ ...form, message: e.target.value })}
                         className="w-full bg-surface-container-low border border-outline-variant rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all resize-none text-[16px]"
-                        required
+                        
                       />
                     </div>
                     <button
