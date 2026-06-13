@@ -167,10 +167,10 @@ export async function POST(req: Request) {
         console.warn("Could not cache ai_score on tenant_profiles, might not exist yet:", tpScoreErr);
       }
 
-      // 3. Update the bookings pipeline status to approved
+      // 3. Update the bookings pipeline status to docs_review
       const { error: bookingUpdateErr } = await supabaseServer
         .from("bookings")
-        .update({ status: "approved" })
+        .update({ status: "docs_review" })
         .eq("id", bookingId);
 
       if (bookingUpdateErr) throw bookingUpdateErr;

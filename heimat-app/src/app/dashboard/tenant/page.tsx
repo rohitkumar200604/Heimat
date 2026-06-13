@@ -999,8 +999,8 @@ export default function TenantDashboard() {
                         {activeBooking.status === "docs_review" && (
                           <p className="text-[13px] text-on-surface-variant leading-relaxed">
                             {language === "de"
-                              ? "Ihre Unterlagen werden verarbeitet. Bitte gedulden Sie sich, bis die automatische Prüfung abgeschlossen ist."
-                              : "Your verification papers are under process. Please wait while AI matching runs verification algorithms."}
+                              ? "Wir überprüfen Ihre Dokumente. Status: Ausstehend."
+                              : "We are checking your documents. Status: Pending."}
                           </p>
                         )}
                         {activeBooking.status === "approved" && (
