@@ -525,7 +525,6 @@ export default function TenantDashboard() {
   };
 
   const getPipelineSteps = (status: string) => {
-    const docReviewActive = ["docs_review", "approved", "deposit_paid", "confirmed"].includes(status);
     const approvedActive = ["approved", "deposit_paid", "confirmed"].includes(status);
     const depositActive = ["deposit_paid", "confirmed"].includes(status);
     const confirmedActive = status === "confirmed";
@@ -533,8 +532,7 @@ export default function TenantDashboard() {
     return [
       { labelDe: "Suche", labelEn: "Discovery", active: true },
       { labelDe: "Bewerbung", labelEn: "Intent", active: true },
-      { labelDe: "Unterlagen", labelEn: "Documents", active: docReviewActive },
-      { labelDe: "Prüfung", labelEn: "AI Match", active: approvedActive },
+      { labelDe: "Unterlagen", labelEn: "Documents", active: true },
       { labelDe: "Genehmigung", labelEn: "Approval", active: approvedActive },
       { labelDe: "Kaution", labelEn: "Deposit", active: depositActive },
       { labelDe: "Einzug", labelEn: "Move-In", active: confirmedActive },

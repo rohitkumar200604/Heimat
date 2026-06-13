@@ -325,15 +325,16 @@ export default function BookingDetailPage({ params }: { params: Promise<{ bookin
   // Pipeline phases
   const pipeline = [
     { key: "pending", labelDe: "Dokumente ausstehend", labelEn: "Docs Pending" },
-    { key: "docs_review", labelDe: "Prüfung / AI Match", labelEn: "Review & AI Match" },
     { key: "approved", labelDe: "Freigegeben zur Zahlung", labelEn: "Approved for Deposit" },
     { key: "deposit_paid", labelDe: "Kaution hinterlegt", labelEn: "Deposit Escrowed" },
     { key: "confirmed", labelDe: "Mietvertrag Bestätigt", labelEn: "Contract Confirmed" },
   ];
 
-  const currentPhaseIndex = pipeline.findIndex(p => p.key === booking?.status) !== -1
-    ? pipeline.findIndex(p => p.key === booking?.status)
-    : 0;
+  const currentPhaseIndex = (() => {
+    const status = booking?.status === "docs_review" ? "approved" : booking?.status;
+    const idx = pipeline.findIndex(p => p.key === status);
+    return idx !== -1 ? idx : 0;
+  })();
 
   return (
     <>
@@ -539,7 +540,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ bookin
             </div>
 
             {/* 2. Landlord Review & AI Matching Card */}
-            {booking?.status !== "pending" && (
+            {isLandlord && booking?.status !== "pending" && (
               <div className="bg-white border border-outline-variant p-6 md:p-8 rounded-3xl shadow-sm space-y-6">
                 <div className="flex justify-between items-center flex-wrap gap-4 border-b border-outline-variant pb-4">
                   <h2 className="text-headline-sm font-bold text-primary flex items-center gap-3">
