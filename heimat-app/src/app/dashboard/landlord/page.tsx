@@ -171,9 +171,6 @@ function LandlordDashboardContent() {
     fetchLandlordData();
   }, [user, profile]);
 
-<<<<<<< HEAD
-
-=======
   const toggleWhatsApp = async () => {
     if (!user || !landlordProfile || landlordProfile.subscription_tier !== "pro") return;
     const nextVal = !landlordProfile.whatsapp_enabled;
@@ -193,7 +190,6 @@ function LandlordDashboardContent() {
       console.error("Error toggling WhatsApp:", err);
     }
   };
->>>>>>> 3ecbece738732551303466431f15a0dcddf642bd
 
   const toggleSubscription = async () => {
     if (!user || !landlordProfile) return;

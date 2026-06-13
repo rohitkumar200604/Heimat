@@ -24,6 +24,7 @@ export default function TenantDashboard() {
   const [loadingDashboard, setLoadingDashboard] = useState(true);
   const [favoriteListings, setFavoriteListings] = useState<any[]>([]);
   const [loadingFavorites, setLoadingFavorites] = useState(false);
+  const [whatsappEnabled, setWhatsappEnabled] = useState(false);
   
   // Form State
   const [profileForm, setProfileForm] = useState({
@@ -134,6 +135,7 @@ export default function TenantDashboard() {
       // Suppress single row not found errors to let signup trigger catch up
       if (!tpErr && tpData) {
         setTenantProfile(tpData);
+        setWhatsappEnabled(tpData.whatsapp_enabled ?? false);
         setProfileForm({
           full_name: profile?.full_name || "",
           phone: profile?.phone || "",
@@ -168,9 +170,6 @@ export default function TenantDashboard() {
     fetchTenantData();
   }, [user, profile]);
 
-<<<<<<< HEAD
-
-=======
   const toggleWhatsApp = async () => {
     if (!user || !isPremium) return;
     const next = !whatsappEnabled;
@@ -198,7 +197,6 @@ export default function TenantDashboard() {
       console.error("Error toggling WhatsApp:", err);
     }
   };
->>>>>>> 3ecbece738732551303466431f15a0dcddf642bd
 
   const fetchFavorites = async () => {
     setLoadingFavorites(true);
