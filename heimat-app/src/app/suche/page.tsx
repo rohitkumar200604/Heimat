@@ -130,8 +130,10 @@ function SuchePageContent() {
   const zimmerParam = searchParams.get("zimmer") || "all";
   const preisParam = searchParams.get("preis") || "";
 
+  const hasSearched = stadtParam.trim() !== "";
+
   const [listings, setListings] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!!stadtParam.trim());
   const [view, setView] = useState<"grid" | "list">("grid");
   const [showMap, setShowMap] = useState(true);
 
@@ -233,6 +235,12 @@ function SuchePageContent() {
 
   // ── Data fetching ─────────────────────────────────────────────────────
   useEffect(() => {
+    if (!hasSearched) {
+      setListings([]);
+      setLoading(false);
+      return;
+    }
+
     const fetchListings = async () => {
       setLoading(true);
 
@@ -367,7 +375,13 @@ function SuchePageContent() {
     };
 
     fetchListings();
-  }, [stadtParam, propertyType, priceRange, activeFilters, sort, language]);
+  }, [stadtParam, propertyType, priceRange, activeFilters, sort, language, hasSearched]);
+
+  useEffect(() => {
+    if (hasSearched) {
+      localStorage.setItem("heimat_has_searched", "true");
+    }
+  }, [hasSearched]);
 
   const getPrimaryPhoto = (l: any) => {
     if (l.property_photos?.length > 0) {
@@ -578,7 +592,12 @@ function SuchePageContent() {
           <button
             id="btn-suche-search"
             onClick={applySearch}
-            className="flex items-center gap-1.5 bg-primary text-on-primary px-3 py-2 rounded-lg text-label-sm font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer flex-shrink-0 shadow-sm"
+            disabled={searchInput.trim() === ""}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-label-sm font-bold transition-all flex-shrink-0 shadow-sm ${
+              searchInput.trim() === ""
+                ? "bg-outline-variant text-on-surface-variant cursor-not-allowed opacity-50"
+                : "bg-primary text-on-primary hover:opacity-90 active:scale-95 cursor-pointer"
+            }`}
           >
             <span className="material-symbols-outlined text-[17px]">search</span>
             <span className="hidden md:block">{language === "de" ? "Suchen" : "Search"}</span>
@@ -622,17 +641,16 @@ function SuchePageContent() {
           <div className="flex justify-between items-end mb-8 flex-wrap gap-4">
             <div>
               <h1 className="text-headline-lg-mobile md:text-headline-lg text-primary">
-                {(searchInput || stadtParam)
-                  ? (language === "de" ? `Wohnungen in ${searchInput || stadtParam}` : `Apartments in ${searchInput || stadtParam}`)
-                  : (language === "de" ? "Alle Wohnungen" : "All Apartments")}
+                {hasSearched
+                  ? (stadtParam
+                    ? (language === "de" ? `Wohnungen in ${stadtParam}` : `Apartments in ${stadtParam}`)
+                    : (language === "de" ? "Gefilterte Wohnungen" : "Filtered Apartments"))
+                  : (language === "de" ? "Wo möchtest du wohnen?" : "Where do you want to live?")}
               </h1>
               <p className="text-body-md text-on-surface-variant">
-                {listings.length} {t("resultsFound")}
-                {sort !== "newest" && (
-                  <span className="ml-2 text-[12px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">
-                    {currentSortLabel}
-                  </span>
-                )}
+                {hasSearched
+                  ? <>{listings.length} {t("resultsFound")}{sort !== "newest" && <span className="ml-2 text-[12px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">{currentSortLabel}</span>}</>
+                  : (language === "de" ? "Gib eine Stadt ein, um passende Inserate freizuschalten." : "Enter a city to unlock matching listings.")}
               </p>
             </div>
             <div className="hidden sm:flex gap-2">
@@ -693,6 +711,30 @@ function SuchePageContent() {
           {loading ? (
             <div className="flex justify-center items-center py-24 w-full">
               <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
+            </div>
+          ) : !hasSearched ? (
+            /* ── Empty state: no input given yet ── */
+            <div className="flex flex-col items-center justify-center py-20 w-full text-center gap-6">
+              <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mb-2 animate-bounce">
+                <span className="material-symbols-outlined text-primary text-[42px]" style={{ fontVariationSettings: "'FILL' 1" }}>search</span>
+              </div>
+              <div>
+                <h2 className="text-headline-md font-bold text-primary mb-2">
+                  {language === "de" ? "Wo möchtest du wohnen?" : "Where do you want to live?"}
+                </h2>
+                <p className="text-body-md text-on-surface-variant max-w-sm mx-auto leading-relaxed">
+                  {language === "de"
+                    ? "Gib eine Stadt in das Suchfeld ein, um passende Inserate freizuschalten."
+                    : "Enter a city in the search bar above to unlock matching listings."}
+                </p>
+              </div>
+              <button
+                onClick={() => document.getElementById("suche-city-search")?.focus()}
+                className="flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-xl font-bold text-label-md hover:opacity-90 active:scale-95 transition-all cursor-pointer shadow-md"
+              >
+                <span className="material-symbols-outlined text-[20px]">edit</span>
+                {language === "de" ? "Stadt eingeben" : "Enter a city"}
+              </button>
             </div>
           ) : listings.length === 0 ? (
             <div className="text-center py-24 text-on-surface-variant text-body-md w-full border-2 border-dashed border-outline-variant/40 rounded-2xl bg-white">

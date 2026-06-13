@@ -162,6 +162,14 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
   const [loadingProperty, setLoadingProperty] = useState(true);
   const [form, setForm] = useState({ name: "", email: "", tel: "", message: "" });
   const [submittingBooking, setSubmittingBooking] = useState(false);
+  const [hasSearched, setHasSearched] = useState(true);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const searched = localStorage.getItem("heimat_has_searched") === "true";
+      setHasSearched(searched);
+    }
+  }, []);
 
   // Reviews States
   const [reviewsList, setReviewsList] = useState<any[]>([]);
@@ -188,15 +196,166 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
   useEffect(() => {
     const fetchPropertyDetails = async () => {
       setLoadingProperty(true);
+
+      const mocks: Record<string, any> = {
+        "berlin-studio": {
+          id: "berlin-studio",
+          title: language === "de" ? "Helles Studio-Apartment nahe Alexanderplatz" : "Bright Studio Apartment near Alexanderplatz",
+          city: "Berlin",
+          street: "Karl-Liebknecht-Str. 12",
+          zip: "10178",
+          rooms: 1,
+          size_sqm: 38,
+          floor: 2,
+          rent_cold: 720.00,
+          rent_utilities: 80.00,
+          rent_heating: 70.00,
+          deposit_months: 3,
+          available_from: new Date().toISOString().split("T")[0],
+          description: language === "de"
+            ? "Ein modernes, voll ausgestattetes Apartment mit perfekter Anbindung. Ideal für Studierende oder Expats."
+            : "A modern, fully equipped apartment with perfect transport links. Ideal for students or expats.",
+          amenities: ["balcony", "kitchen"],
+          landlord_profiles: {
+            user_id: "mock-landlord-id",
+            profiles: {
+              full_name: "Markus Weber",
+              avatar_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
+            }
+          },
+          property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80", is_primary: true }]
+        },
+        "munich-expat": {
+          id: "munich-expat",
+          title: language === "de" ? "Premium 3-Zimmer-Wohnung am Englischen Garten" : "Premium 3-Room Apartment at Englischen Garten",
+          city: "München",
+          street: "Königinstraße 44",
+          zip: "80539",
+          rooms: 3,
+          size_sqm: 82,
+          floor: 3,
+          rent_cold: 1650.00,
+          rent_utilities: 150.00,
+          rent_heating: 110.00,
+          deposit_months: 3,
+          available_from: new Date().toISOString().split("T")[0],
+          description: language === "de"
+            ? "Lichtdurchflutete, großzügige 3-Zimmer-Wohnung in bester Lage direkt am Englischen Garten."
+            : "Bright, spacious 3-room apartment in a prime location directly on the English Garden.",
+          amenities: ["kitchen", "elevator"],
+          landlord_profiles: {
+            user_id: "mock-landlord-id",
+            profiles: {
+              full_name: "Sabine Meyer",
+              avatar_url: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80"
+            }
+          },
+          property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80", is_primary: true }]
+        },
+        "hamburg-loft": {
+          id: "hamburg-loft",
+          title: language === "de" ? "Stilvolles Loft in der Speicherstadt" : "Stylish Loft in Speicherstadt",
+          city: "Hamburg",
+          street: "Am Sandtorkai 10",
+          zip: "20457",
+          rooms: 2,
+          size_sqm: 65,
+          floor: 4,
+          rent_cold: 1120.00,
+          rent_utilities: 110.00,
+          rent_heating: 90.00,
+          deposit_months: 3,
+          available_from: new Date().toISOString().split("T")[0],
+          description: language === "de"
+            ? "Exklusives Design-Loft mit hohen Decken und Backsteinwänden in historischer Speicherstadt."
+            : "Exclusive design loft with high ceilings and brick walls in the historic Speicherstadt.",
+          amenities: ["balcony", "kitchen"],
+          landlord_profiles: {
+            user_id: "mock-landlord-id",
+            profiles: {
+              full_name: "Jan Hansen",
+              avatar_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80"
+            }
+          },
+          property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80", is_primary: true }]
+        },
+        "berlin-wg": {
+          id: "berlin-wg",
+          title: language === "de" ? "Gemütliches Zimmer in Studenten-WG" : "Cozy Room in Student Shared Apartment",
+          city: "Berlin",
+          street: "Königin-Luise-Str. 15",
+          zip: "14195",
+          rooms: 1,
+          size_sqm: 20,
+          floor: 1,
+          rent_cold: 450.00,
+          rent_utilities: 60.00,
+          rent_heating: 40.00,
+          deposit_months: 2,
+          available_from: new Date().toISOString().split("T")[0],
+          description: language === "de"
+            ? "Gemütliches, voll möbliertes WG-Zimmer in Dahlem, ideal für Studierende der FU Berlin."
+            : "Cozy, fully furnished room in a shared apartment in Dahlem, ideal for students at FU Berlin.",
+          amenities: ["kitchen"],
+          landlord_profiles: {
+            user_id: "mock-landlord-id",
+            profiles: {
+              full_name: "Lukas Becker",
+              avatar_url: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80"
+            }
+          },
+          property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=800&q=80", is_primary: true }]
+        }
+      };
+
+      const defaultMock = {
+        id: "mock-apply-87a",
+        title: language === "de" ? "Lichtdurchflutete 3-Zimmer-Wohnung am Tiergarten" : "Bright 3-room apartment near Tiergarten",
+        street: "Torstraße 142",
+        city: "Berlin",
+        zip: "10119",
+        size_sqm: 94,
+        rooms: 3.0,
+        floor: 3,
+        rent_cold: 1850.00,
+        rent_utilities: 240.00,
+        rent_heating: 110.00,
+        deposit_months: 3,
+        available_from: new Date().toISOString().split("T")[0],
+        description: language === "de"
+          ? "Diese exklusive 3-Zimmer-Wohnung befindet sich in einem hochwertig sanierten Altbau direkt im Herzen von Berlin-Mitte..."
+          : "This exclusive 3-room apartment is located in a beautifully renovated historic building...",
+        amenities: ["balcony", "kitchen", "elevator", "parking"],
+        landlord_profiles: {
+          user_id: "mock-landlord-id",
+          profiles: {
+            full_name: "Markus Weber",
+            avatar_url: "https://lh3.googleusercontent.com/aida-public/AB6AXuDseZjk82kjQbnLSXbDkHWEWulM4KfFgYBDXycQaSmuqqisRGTl07u31j4oOwXkm3q5WoqT6IO6LZofXIgPbzAayc83Lr7T8iXBp2tOVoBLgekS6R8V2qGgbvQlLprRbdTGED2d7rGiUUVJ2RrQFkFDPJGemX3lLUHYRhfJRoF7vsrrg61HdCLCj5FB3L9IX4kXwG7s-zgEBuZIBROZWg2f81RudBpvhoqL9Yq43cRjmRiaY5FjnWsDwmUR5U4LUqQ2n3lh8S4UeiyL"
+          }
+        }
+      };
+
       try {
+        const isConfigured =
+          process.env.NEXT_PUBLIC_SUPABASE_URL &&
+          process.env.NEXT_PUBLIC_SUPABASE_URL !== "https://mock-project.supabase.co" &&
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY !== "mock-anon-key";
+
+        if (!isConfigured) {
+          // No real Supabase — immediately load mock data
+          setProperty(mocks[slug] || defaultMock);
+          return;
+        }
+
         const { data, error } = await supabase
           .from("properties")
           .select(`
             *,
-            landlord_profiles!inner (
+            landlord_profiles (
               id,
               user_id,
-              profiles!inner (
+              profiles (
                 full_name,
                 avatar_url
               )
@@ -210,151 +369,11 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
           .single();
 
         if (error) throw error;
-        setProperty(data);
+        setProperty(data || mocks[slug] || defaultMock);
       } catch (err) {
         console.warn("Could not find property in Supabase, using mock fallback:", err);
+        setProperty(mocks[slug] || defaultMock);
       } finally {
-        setProperty((current: any) => {
-          if (current) return current;
-
-          const mocks: Record<string, any> = {
-            "berlin-studio": {
-              id: "berlin-studio",
-              title: language === "de" ? "Helles Studio-Apartment nahe Alexanderplatz" : "Bright Studio Apartment near Alexanderplatz",
-              city: "Berlin",
-              street: "Karl-Liebknecht-Str. 12",
-              zip: "10178",
-              rooms: 1,
-              size_sqm: 38,
-              floor: 2,
-              rent_cold: 720.00,
-              rent_utilities: 80.00,
-              rent_heating: 70.00,
-              deposit_months: 3,
-              available_from: new Date().toISOString().split("T")[0],
-              description: language === "de" 
-                ? "Ein modernes, voll ausgestattetes Apartment mit perfekter Anbindung. Ideal für Studierende oder Expats."
-                : "A modern, fully equipped apartment with perfect transport links. Ideal for students or expats.",
-              amenities: ["balcony", "kitchen"],
-              landlord_profiles: {
-                user_id: "mock-landlord-id",
-                profiles: {
-                  full_name: "Markus Weber",
-                  avatar_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
-                }
-              },
-              property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80", is_primary: true }]
-            },
-            "munich-expat": {
-              id: "munich-expat",
-              title: language === "de" ? "Premium 3-Zimmer-Wohnung am Englischen Garten" : "Premium 3-Room Apartment at Englischen Garten",
-              city: "München",
-              street: "Königinstraße 44",
-              zip: "80539",
-              rooms: 3,
-              size_sqm: 82,
-              floor: 3,
-              rent_cold: 1650.00,
-              rent_utilities: 150.00,
-              rent_heating: 110.00,
-              deposit_months: 3,
-              available_from: new Date().toISOString().split("T")[0],
-              description: language === "de"
-                ? "Lichtdurchflutete, großzügige 3-Zimmer-Wohnung in bester Lage direkt am Englischen Garten."
-                : "Bright, spacious 3-room apartment in a prime location directly on the English Garden.",
-              amenities: ["kitchen", "elevator"],
-              landlord_profiles: {
-                user_id: "mock-landlord-id",
-                profiles: {
-                  full_name: "Sabine Meyer",
-                  avatar_url: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80"
-                }
-              },
-              property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80", is_primary: true }]
-            },
-            "hamburg-loft": {
-              id: "hamburg-loft",
-              title: language === "de" ? "Stilvolles Loft in der Speicherstadt" : "Stylish Loft in Speicherstadt",
-              city: "Hamburg",
-              street: "Am Sandtorkai 10",
-              zip: "20457",
-              rooms: 2,
-              size_sqm: 65,
-              floor: 4,
-              rent_cold: 1120.00,
-              rent_utilities: 110.00,
-              rent_heating: 90.00,
-              deposit_months: 3,
-              available_from: new Date().toISOString().split("T")[0],
-              description: language === "de"
-                ? "Exklusives Design-Loft mit hohen Decken und Backsteinwänden in historischer Speicherstadt."
-                : "Exclusive design loft with high ceilings and brick walls in the historic Speicherstadt.",
-              amenities: ["balcony", "kitchen"],
-              landlord_profiles: {
-                user_id: "mock-landlord-id",
-                profiles: {
-                  full_name: "Jan Hansen",
-                  avatar_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80"
-                }
-              },
-              property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80", is_primary: true }]
-            },
-            "berlin-wg": {
-              id: "berlin-wg",
-              title: language === "de" ? "Gemütliches Zimmer in Studenten-WG" : "Cozy Room in Student Shared Apartment",
-              city: "Berlin",
-              street: "Königin-Luise-Str. 15",
-              zip: "14195",
-              rooms: 1,
-              size_sqm: 20,
-              floor: 1,
-              rent_cold: 450.00,
-              rent_utilities: 60.00,
-              rent_heating: 40.00,
-              deposit_months: 2,
-              available_from: new Date().toISOString().split("T")[0],
-              description: language === "de"
-                ? "Gemütliches, voll möbliertes WG-Zimmer in Dahlem, ideal für Studierende der FU Berlin."
-                : "Cozy, fully furnished room in a shared apartment in Dahlem, ideal for students at FU Berlin.",
-              amenities: ["kitchen"],
-              landlord_profiles: {
-                user_id: "mock-landlord-id",
-                profiles: {
-                  full_name: "Lukas Becker",
-                  avatar_url: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80"
-                }
-              },
-              property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=800&q=80", is_primary: true }]
-            }
-          };
-
-          return mocks[slug] || {
-            id: "mock-apply-87a",
-            title: language === "de" ? "Lichtdurchflutete 3-Zimmer-Wohnung am Tiergarten" : "Bright 3-room apartment near Tiergarten",
-            street: "Torstraße 142",
-            city: "Berlin",
-            zip: "10119",
-            size_sqm: 94,
-            rooms: 3.0,
-            floor: 3,
-            rent_cold: 1850.00,
-            rent_utilities: 240.00,
-            rent_heating: 110.00,
-            deposit_months: 3,
-            available_from: new Date().toISOString().split("T")[0],
-            description: language === "de" 
-              ? "Diese exklusive 3-Zimmer-Wohnung befindet sich in einem hochwertig sanierten Altbau direkt im Herzen von Berlin-Mitte..." 
-              : "This exclusive 3-room apartment is located in a beautifully renovated historic building...",
-            amenities: ["balcony", "kitchen", "elevator", "parking"],
-            landlord_profiles: {
-              user_id: "mock-landlord-id",
-              profiles: {
-                full_name: "Markus Weber",
-                avatar_url: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80"
-              }
-            }
-          };
-        });
         setLoadingProperty(false);
       }
     };
@@ -502,6 +521,33 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
       <div className="flex-grow flex items-center justify-center min-h-[600px]">
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
       </div>
+    );
+  }
+
+  if (!hasSearched) {
+    return (
+      <main className="max-w-[1280px] mx-auto px-5 md:px-[48px] py-16 flex flex-col items-center justify-center min-h-[600px] text-center gap-6">
+        <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center animate-pulse text-primary shadow-inner">
+          <span className="material-symbols-outlined text-[48px]">lock</span>
+        </div>
+        <div className="max-w-md">
+          <h1 className="text-headline-lg font-bold text-primary mb-3">
+            {language === "de" ? "Zugriff eingeschränkt" : "Access Restricted"}
+          </h1>
+          <p className="text-body-md text-on-surface-variant leading-relaxed">
+            {language === "de"
+              ? "Um die Details dieses Objekts anzuzeigen und den Vermieter zu kontaktieren, müssen Sie zuerst eine Suche nach einer Stadt durchführen."
+              : "To view this property's details and contact the landlord, you must first perform a search for a city."}
+          </p>
+        </div>
+        <button
+          onClick={() => router.push("/suche")}
+          className="flex items-center gap-2 bg-primary text-on-primary px-8 py-4 rounded-xl font-bold text-label-md hover:opacity-90 active:scale-95 transition-all cursor-pointer shadow-lg hover:shadow-primary/25 font-sans"
+        >
+          <span className="material-symbols-outlined">search</span>
+          {language === "de" ? "Jetzt Suche starten" : "Start Search Now"}
+        </button>
+      </main>
     );
   }
 
