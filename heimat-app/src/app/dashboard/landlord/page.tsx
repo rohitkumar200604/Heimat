@@ -158,6 +158,7 @@ export default function LandlordDashboard() {
     const isPro = landlordProfile.subscription_tier === "pro";
     const nextVal = isPro ? "free" : "pro";
     try {
+      // 1. Update landlord_profiles tier
       const { error } = await supabase
         .from("landlord_profiles")
         .update({ 
@@ -167,11 +168,29 @@ export default function LandlordDashboard() {
         })
         .eq("user_id", user.id);
       if (error) throw error;
+
+      // 2. If cancelling premium: clear localStorage cache + mark DB subscription canceled
+      if (isPro) {
+        // Clear the localStorage entry so AuthContext stops treating user as premium
+        localStorage.removeItem(`heimat_sub_${user.id}`);
+
+        // Mark any active subscriptions as canceled in the DB (enum: 'canceled')
+        await supabase
+          .from("subscriptions")
+          .update({ status: "canceled", cancel_at_period_end: true })
+          .eq("user_id", user.id)
+          .eq("status", "active");
+      }
+
+      // 3. Update local landlordProfile state
       setLandlordProfile({ 
         ...landlordProfile, 
         subscription_tier: nextVal,
         ...(isPro ? { whatsapp_enabled: false } : {})
       });
+
+      // 4. Refresh AuthContext so isPremium & subscription are recomputed
+      await refreshProfile();
     } catch (err) {
       console.error("Error updating subscription tier:", err);
     }
