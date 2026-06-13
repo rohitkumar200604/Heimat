@@ -18,10 +18,16 @@ export default function InserierenPage() {
   const [uploadedPhotos, setUploadedPhotos] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const autocompleteRef = useRef<any>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
+  const googleMapRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
 
   const [step1, setStep1] = useState({ typ: "apartment", strasse: "", plz: "", stadt: "" });
-  const [step2, setStep2] = useState({ kaltmiete: "", nebenkosten: "", flaeche: "", zimmer: "" });
-  const [step4, setStep4] = useState({ titel: "", beschreibung: "" });
+  const [step2, setStep2] = useState({ kaltmiete: "", nebenkosten: "", heizkosten: "", flaeche: "", zimmer: "", etage: "" });
+  const [step4, setStep4] = useState({ titel: "", beschreibung: "", verfuegbar_ab: "", kaution_monate: "3", moebliert: false, min_monate: "1", max_monate: "" });
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [geocoding, setGeocoding] = useState(false);
 
   // Route protection
   useEffect(() => {
@@ -49,11 +55,159 @@ export default function InserierenPage() {
     }
   }, [user, profile]);
 
+  // ── Load Google Maps + Places Autocomplete ──────────────────────
+  useEffect(() => {
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    if (!apiKey || typeof window === "undefined") return;
+    if ((window as any).google?.maps) {
+      initAutocomplete();
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => initAutocomplete();
+    document.head.appendChild(script);
+  }, []);
+
+  // Ref handler for map interaction to avoid hook lifecycle issues
+  const handleMapClickOrDragRef = useRef<((lat: number, lng: number) => void) | null>(null);
+  handleMapClickOrDragRef.current = (lat: number, lng: number) => {
+    setCoords({ lat, lng });
+    if (markerRef.current) {
+      markerRef.current.setPosition({ lat, lng });
+    }
+
+    const geocoder = new (window as any).google.maps.Geocoder();
+    geocoder.geocode({ location: { lat, lng } }, (results: any, status: any) => {
+      if (status === "OK" && results[0]) {
+        const comps = results[0].address_components || [];
+        const get = (type: string) => comps.find((c: any) => c.types.includes(type))?.long_name || "";
+        const street = `${get("route")} ${get("street_number")}`.trim();
+        const plz = get("postal_code");
+        const stadt = get("locality") || get("administrative_area_level_1");
+        setStep1(prev => ({
+          ...prev,
+          strasse: street || prev.strasse,
+          plz: plz || prev.plz,
+          stadt: stadt || prev.stadt
+        }));
+      }
+    });
+  };
+
+  // Init map once the map div mounts (step 1)
+  useEffect(() => {
+    if (step !== 1) return;
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    if (!apiKey || !(window as any).google?.maps) return;
+    if (!mapRef.current || googleMapRef.current) return;
+    const center = coords || { lat: 52.52, lng: 13.405 }; // Default: Berlin
+    const map = new (window as any).google.maps.Map(mapRef.current, {
+      center,
+      zoom: coords ? 16 : 11,
+      disableDefaultUI: false,
+      mapTypeControl: false,
+      streetViewControl: false,
+    });
+    googleMapRef.current = map;
+
+    // Click on map to place/move the marker
+    map.addListener("click", (e: any) => {
+      if (e.latLng) {
+        handleMapClickOrDragRef.current?.(e.latLng.lat(), e.latLng.lng());
+      }
+    });
+
+    if (coords) {
+      const marker = new (window as any).google.maps.Marker({
+        position: coords,
+        map,
+        draggable: true,
+      });
+      markerRef.current = marker;
+      marker.addListener("dragend", (e: any) => {
+        if (e.latLng) {
+          handleMapClickOrDragRef.current?.(e.latLng.lat(), e.latLng.lng());
+        }
+      });
+    }
+  }, [step]);
+
+  const initAutocomplete = () => {
+    const input = document.getElementById("step1-strasse") as HTMLInputElement;
+    if (!input || !(window as any).google?.maps?.places) return;
+    const ac = new (window as any).google.maps.places.Autocomplete(input, {
+      types: ["address"],
+      componentRestrictions: { country: "de" },
+      fields: ["address_components", "geometry", "formatted_address"],
+    });
+    autocompleteRef.current = ac;
+    ac.addListener("place_changed", () => {
+      const place = ac.getPlace();
+      if (!place.geometry) return;
+      const comps = place.address_components || [];
+      const get = (type: string) => comps.find((c: any) => c.types.includes(type))?.long_name || "";
+      const street = `${get("route")} ${get("street_number")}`.trim();
+      const plz = get("postal_code");
+      const stadt = get("locality") || get("administrative_area_level_1");
+      setStep1(prev => ({ ...prev, strasse: street || prev.strasse, plz: plz || prev.plz, stadt: stadt || prev.stadt }));
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+      setCoords({ lat, lng });
+      // Update map
+      if (googleMapRef.current) {
+        googleMapRef.current.setCenter({ lat, lng });
+        googleMapRef.current.setZoom(16);
+        if (markerRef.current) {
+          markerRef.current.setPosition({ lat, lng });
+        } else {
+          const marker = new (window as any).google.maps.Marker({
+            position: { lat, lng },
+            map: googleMapRef.current,
+            draggable: true,
+          });
+          markerRef.current = marker;
+          marker.addListener("dragend", (e: any) => {
+            if (e.latLng) {
+              handleMapClickOrDragRef.current?.(e.latLng.lat(), e.latLng.lng());
+            }
+          });
+        }
+      }
+    });
+  };
+
+  // Geocode address when Next button is hit on step 1 (fallback if autocomplete not used)
+  const geocodeAddress = async (): Promise<{ lat: number; lng: number } | null> => {
+    if (coords) return coords;
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    if (!apiKey) return null;
+    const address = `${step1.strasse}, ${step1.plz} ${step1.stadt}`;
+    setGeocoding(true);
+    try {
+      const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`);
+      const data = await res.json();
+      if (data.results?.[0]?.geometry?.location) {
+        const { lat, lng } = data.results[0].geometry.location;
+        setCoords({ lat, lng });
+        return { lat, lng };
+      }
+    } catch (e) {
+      console.warn("Geocoding failed:", e);
+    } finally {
+      setGeocoding(false);
+    }
+    return null;
+  };
+
   const stepsList = [
     { num: 1, label: t("indicatorBasis"), icon: "location_on" },
     { num: 2, label: t("indicatorPrice"), icon: "euro_symbol" },
     { num: 3, label: t("indicatorPhotos"), icon: "add_a_photo" },
     { num: 4, label: t("indicatorDesc"), icon: "description" },
+    { num: 5, label: language === "de" ? "Details" : "Details", icon: "tune" },
   ];
 
   const amenityOpts = [
@@ -135,6 +289,10 @@ export default function InserierenPage() {
 
   const goNext = async () => {
     if (step < stepsList.length) {
+      // On step 1, try geocoding if coords not already set
+      if (step === 1 && !coords) {
+        await geocodeAddress();
+      }
       setStep(step + 1);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
@@ -163,13 +321,18 @@ export default function InserierenPage() {
           rooms: parseFloat(step2.zimmer),
           rent_cold: parseFloat(step2.kaltmiete),
           rent_utilities: parseFloat(step2.nebenkosten || "0"),
-          rent_heating: 0.00,
-          deposit_months: 3,
-          available_from: new Date().toISOString().split("T")[0],
-          furnished: amenities.includes(language === "de" ? "Möbliert" : "Furnished") || false,
+          rent_heating: parseFloat(step2.heizkosten || "0"),
+          deposit_months: parseInt(step4.kaution_monate || "3"),
+          available_from: step4.verfuegbar_ab || new Date().toISOString().split("T")[0],
+          furnished: step4.moebliert,
           pets_allowed: amenities.includes(t("petsAllowed")),
           amenities: amenities,
-          status: "active"
+          status: "active",
+          lat: coords?.lat ?? null,
+          lng: coords?.lng ?? null,
+          floor: step2.etage ? parseInt(step2.etage) : null,
+          min_stay_months: step4.min_monate ? parseInt(step4.min_monate) : 1,
+          max_stay_months: step4.max_monate ? parseInt(step4.max_monate) : null,
         })
         .select()
         .single();
@@ -342,14 +505,31 @@ export default function InserierenPage() {
                   </div>
                 </div>
 
-                {/* Map preview */}
-                <div className="mt-8 rounded-xl overflow-hidden h-64 relative bg-surface-container">
-                  <img
-                    src="https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=1200&q=80"
-                    alt="Kartenvorschau"
-                    className="w-full h-full object-cover grayscale opacity-80"
-                  />
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-primary rounded-full border-4 border-white shadow-lg animate-pulse" />
+                {/* Map — Google Maps or fallback placeholder */}
+                <div className="mt-8 rounded-xl overflow-hidden relative border border-outline-variant shadow-sm" style={{ height: "320px" }}>
+                  {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
+                    <div ref={mapRef} className="w-full h-full" id="google-map-container" />
+                  ) : (
+                    // Fallback when no API key configured
+                    <div className="w-full h-full bg-surface-container flex flex-col items-center justify-center gap-3 text-on-surface-variant">
+                      <span className="material-symbols-outlined text-[48px] opacity-40">map</span>
+                      <p className="text-[13px] font-semibold opacity-60">
+                        {language === "de" ? "Google Maps API-Schlüssel erforderlich" : "Google Maps API key required"}
+                      </p>
+                      <p className="text-[11px] opacity-40">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</p>
+                    </div>
+                  )}
+                  {coords && (
+                    <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg shadow text-[11px] font-semibold text-primary border border-outline-variant flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[14px] text-[#f07d00]">location_on</span>
+                      {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
+                    </div>
+                  )}
+                  {geocoding && (
+                    <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-3 border-primary border-t-transparent" />
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -365,8 +545,10 @@ export default function InserierenPage() {
                   {[
                     { id: "kaltmiete", label: `${t("coldRent")} (€)`, placeholder: "0.00", key: "kaltmiete" },
                     { id: "nebenkosten", label: `${t("utilities")} (€)`, placeholder: "0.00", key: "nebenkosten" },
+                    { id: "heizkosten", label: `${language === "de" ? "Heizkosten" : "Heating Costs"} (€)`, placeholder: "0.00", key: "heizkosten" },
                     { id: "flaeche", label: `${t("livingArea")} (m²)`, placeholder: "z.B. 75", key: "flaeche" },
                     { id: "zimmer", label: `${t("rooms")}`, placeholder: "z.B. 3", key: "zimmer" },
+                    { id: "etage", label: `${language === "de" ? "Etage" : "Floor"}`, placeholder: "z.B. 2", key: "etage" },
                   ].map(({ id, label, placeholder, key }) => (
                     <div key={id} className="space-y-2">
                       <label className="text-label-md text-on-surface font-medium">{label}</label>
@@ -539,6 +721,136 @@ export default function InserierenPage() {
                           <span className="text-label-md">{a}</span>
                         </label>
                       ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 5: Additional Details */}
+            {step === 5 && (
+              <div id="step-5" className="glass-card rounded-xl p-6 md:p-8 shadow-sm border border-outline-variant">
+                <div className="flex items-center gap-3 mb-8">
+                  <span className="material-symbols-outlined text-primary text-[32px]">tune</span>
+                  <h2 className="text-headline-md">{language === "de" ? "Weitere Details" : "Additional Details"}</h2>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Available From */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-label-md text-on-surface font-medium">
+                        {language === "de" ? "Verfügbar ab" : "Available From"}
+                      </label>
+                      <input
+                        id="step5-verfuegbar"
+                        type="date"
+                        value={step4.verfuegbar_ab}
+                        onChange={(e) => setStep4({ ...step4, verfuegbar_ab: e.target.value })}
+                        min={new Date().toISOString().split("T")[0]}
+                        className="w-full h-14 bg-surface border border-outline-variant rounded-lg px-4 focus:ring-2 focus:ring-primary focus:border-primary outline-none text-[16px]"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-label-md text-on-surface font-medium">
+                        {language === "de" ? "Kaution (Monate)" : "Deposit (Months)"}
+                      </label>
+                      <select
+                        id="step5-kaution"
+                        value={step4.kaution_monate}
+                        onChange={(e) => setStep4({ ...step4, kaution_monate: e.target.value })}
+                        className="w-full h-14 bg-surface border border-outline-variant rounded-lg px-4 focus:ring-2 focus:ring-primary focus:border-primary outline-none text-[16px]"
+                      >
+                        <option value="1">1 {language === "de" ? "Monat" : "month"}</option>
+                        <option value="2">2 {language === "de" ? "Monate" : "months"}</option>
+                        <option value="3">3 {language === "de" ? "Monate" : "months"}</option>
+                        <option value="4">4 {language === "de" ? "Monate" : "months"}</option>
+                        <option value="6">6 {language === "de" ? "Monate" : "months"}</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Min / Max Stay */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-label-md text-on-surface font-medium">
+                        {language === "de" ? "Mindestmietdauer (Monate)" : "Minimum Stay (Months)"}
+                      </label>
+                      <input
+                        id="step5-min-monate"
+                        type="number"
+                        min="1"
+                        placeholder="z.B. 3"
+                        value={step4.min_monate}
+                        onChange={(e) => setStep4({ ...step4, min_monate: e.target.value })}
+                        className="w-full h-14 bg-surface border border-outline-variant rounded-lg px-4 focus:ring-2 focus:ring-primary focus:border-primary outline-none text-[16px]"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-label-md text-on-surface font-medium">
+                        {language === "de" ? "Maximale Mietdauer (Monate, optional)" : "Maximum Stay (Months, optional)"}
+                      </label>
+                      <input
+                        id="step5-max-monate"
+                        type="number"
+                        min="1"
+                        placeholder={language === "de" ? "Unbegrenzt" : "Unlimited"}
+                        value={step4.max_monate}
+                        onChange={(e) => setStep4({ ...step4, max_monate: e.target.value })}
+                        className="w-full h-14 bg-surface border border-outline-variant rounded-lg px-4 focus:ring-2 focus:ring-primary focus:border-primary outline-none text-[16px]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Furnished toggle */}
+                  <div className="flex items-center justify-between p-5 bg-surface-container-low rounded-xl border border-outline-variant">
+                    <div>
+                      <h4 className="text-label-md font-bold text-on-surface">
+                        {language === "de" ? "Möbliert" : "Furnished"}
+                      </h4>
+                      <p className="text-[12px] text-on-surface-variant mt-0.5">
+                        {language === "de" ? "Ist die Wohnung möbliert?" : "Is the apartment furnished?"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setStep4(p => ({ ...p, moebliert: !p.moebliert }))}
+                      className={`w-12 h-7 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer ${
+                        step4.moebliert ? "bg-primary" : "bg-outline-variant"
+                      }`}
+                    >
+                      <div className={`w-6 h-6 bg-white rounded-full shadow transition-transform duration-200 ${step4.moebliert ? "translate-x-5" : "translate-x-0"}`} />
+                    </button>
+                  </div>
+
+                  {/* Summary card before publish */}
+                  <div className="p-5 bg-primary/5 rounded-xl border border-primary/20">
+                    <h4 className="text-label-md font-bold text-primary flex items-center gap-2 mb-3">
+                      <span className="material-symbols-outlined text-[18px]">checklist</span>
+                      {language === "de" ? "Zusammenfassung" : "Listing Summary"}
+                    </h4>
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-1.5 text-[13px]">
+                      <span className="text-on-surface-variant">{language === "de" ? "Typ" : "Type"}:</span>
+                      <span className="font-semibold text-primary capitalize">{step1.typ}</span>
+                      <span className="text-on-surface-variant">{language === "de" ? "Adresse" : "Address"}:</span>
+                      <span className="font-semibold text-primary">{step1.strasse}, {step1.plz} {step1.stadt}</span>
+                      <span className="text-on-surface-variant">{language === "de" ? "Kaltmiete" : "Cold Rent"}:</span>
+                      <span className="font-semibold text-primary">{step2.kaltmiete} €</span>
+                      <span className="text-on-surface-variant">{language === "de" ? "Fläche" : "Area"}:</span>
+                      <span className="font-semibold text-primary">{step2.flaeche} m²</span>
+                      <span className="text-on-surface-variant">{language === "de" ? "Zimmer" : "Rooms"}:</span>
+                      <span className="font-semibold text-primary">{step2.zimmer}</span>
+                      {coords && (
+                        <>
+                          <span className="text-on-surface-variant">{language === "de" ? "GPS" : "GPS"}:</span>
+                          <span className="font-semibold text-[#f07d00] flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[13px]">my_location</span>
+                            {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

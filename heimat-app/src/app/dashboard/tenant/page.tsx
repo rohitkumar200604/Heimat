@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/utils/supabase/client";
+import { supabase, isSupabaseConfigured } from "@/utils/supabase/client";
 import Footer from "@/components/layout/Footer";
 import Link from "next/link";
 
@@ -151,6 +151,10 @@ export default function TenantDashboard() {
           full_name: profile?.full_name || "",
           phone: profile?.phone || "",
         }));
+        if (!isSupabaseConfigured()) {
+          const localWhatsapp = localStorage.getItem(`heimat_mock_whatsapp_${user.id}`);
+          setWhatsappEnabled(localWhatsapp === "true");
+        }
       }
 
     } catch (err) {
@@ -164,7 +168,37 @@ export default function TenantDashboard() {
     fetchTenantData();
   }, [user, profile]);
 
+<<<<<<< HEAD
 
+=======
+  const toggleWhatsApp = async () => {
+    if (!user || !isPremium) return;
+    const next = !whatsappEnabled;
+    setWhatsappEnabled(next); // optimistic update
+    
+    if (!isSupabaseConfigured()) {
+      localStorage.setItem(`heimat_mock_whatsapp_${user.id}`, String(next));
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("tenant_profiles")
+        .upsert(
+          { user_id: user.id, whatsapp_enabled: next },
+          { onConflict: "user_id" }
+        );
+      if (error) {
+        // Roll back on failure
+        setWhatsappEnabled(!next);
+        console.error("Error toggling WhatsApp:", error);
+      }
+    } catch (err) {
+      setWhatsappEnabled(!next);
+      console.error("Error toggling WhatsApp:", err);
+    }
+  };
+>>>>>>> 3ecbece738732551303466431f15a0dcddf642bd
 
   const fetchFavorites = async () => {
     setLoadingFavorites(true);
@@ -296,13 +330,22 @@ export default function TenantDashboard() {
     try {
       // 1. Clear the localStorage cache so AuthContext re-evaluates
       localStorage.removeItem(`heimat_sub_${user.id}`);
+      localStorage.removeItem(`heimat_mock_whatsapp_${user.id}`);
+      setWhatsappEnabled(false);
 
       // 2. Mark all active subscriptions as canceled in the DB (enum: 'canceled')
-      await supabase
-        .from("subscriptions")
-        .update({ status: "canceled", cancel_at_period_end: true })
-        .eq("user_id", user.id)
-        .eq("status", "active");
+      if (isSupabaseConfigured()) {
+        await supabase
+          .from("subscriptions")
+          .update({ status: "canceled", cancel_at_period_end: true })
+          .eq("user_id", user.id)
+          .eq("status", "active");
+
+        await supabase
+          .from("tenant_profiles")
+          .update({ whatsapp_enabled: false })
+          .eq("user_id", user.id);
+      }
 
       // 3. Refresh AuthContext so isPremium recomputes to false
       await refreshProfile();
