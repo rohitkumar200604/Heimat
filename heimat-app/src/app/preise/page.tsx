@@ -114,7 +114,6 @@ function PreisePageContent() {
                   { label: language === "de" ? "Standard-Bewerberliste für Vermieter" : "Standard applicant list for landlords", check: true },
                   { label: language === "de" ? "Direkter Chat mit Vermietern" : "Direct chat with landlords", check: true },
                   { label: language === "de" ? "Priorisierte Bewerbungen (Premium)" : "Priority applications (Premium)", check: false },
-                  { label: language === "de" ? "WhatsApp Status-Updates" : "WhatsApp status updates", check: false },
                   { label: language === "de" ? "Verifiziertes Bewerberportfolio" : "Validated application portfolio", check: false },
                 ].map(({ label, check }, i) => (
                   <li key={i} className={`flex items-center gap-3 ${!check ? "text-outline-variant line-through" : ""}`}>
@@ -237,7 +236,6 @@ function PreisePageContent() {
                   {[
                     { label: language === "de" ? "Geprüftes Bewerberportfolio" : "Validated applicant portfolio" },
                     { label: language === "de" ? "Priorisierte Bewerber-Anfragen" : "Priority applicant requests" },
-                    { label: language === "de" ? "Automatische WhatsApp Updates" : "Automated WhatsApp updates" },
                     { label: language === "de" ? "Unbegrenzte Chat-Vorgänge" : "Unlimited chat sessions" },
                     { label: language === "de" ? "Escrow-Treuhandgarantie" : "Secure escrow guarantee" }
                   ].map(({ label }, i) => (

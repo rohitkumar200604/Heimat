@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/supabase/client";
 import Footer from "@/components/layout/Footer";
 import Link from "next/link";
 
-export default function LandlordDashboard() {
+function LandlordDashboardContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, profile, loading, refreshProfile, isPremium, subscription } = useAuth();
   const { t, language } = useLanguage();
   
@@ -46,19 +47,18 @@ export default function LandlordDashboard() {
 
   // Read active tab from URL query params
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const tabParam = params.get("tab");
-      if (
-        tabParam === "overview" ||
-        tabParam === "profile" ||
-        tabParam === "bookings" ||
-        tabParam === "properties"
-      ) {
-        setActiveTab(tabParam as any);
-      }
+    const tabParam = searchParams.get("tab");
+    if (
+      tabParam === "overview" ||
+      tabParam === "profile" ||
+      tabParam === "bookings" ||
+      tabParam === "properties"
+    ) {
+      setActiveTab(tabParam as any);
+    } else {
+      setActiveTab("overview");
     }
-  }, []);
+  }, [searchParams]);
 
   const fetchLandlordData = async () => {
     if (!user) return;
@@ -154,20 +154,7 @@ export default function LandlordDashboard() {
     fetchLandlordData();
   }, [user, profile]);
 
-  const toggleWhatsApp = async () => {
-    if (!user || !landlordProfile || landlordProfile.subscription_tier !== "pro") return;
-    const nextVal = !landlordProfile.whatsapp_enabled;
-    try {
-      const { error } = await supabase
-        .from("landlord_profiles")
-        .update({ whatsapp_enabled: nextVal })
-        .eq("user_id", user.id);
-      if (error) throw error;
-      setLandlordProfile({ ...landlordProfile, whatsapp_enabled: nextVal });
-    } catch (err) {
-      console.error("Error toggling WhatsApp:", err);
-    }
-  };
+
 
   const toggleSubscription = async () => {
     if (!user || !landlordProfile) return;
@@ -277,7 +264,6 @@ export default function LandlordDashboard() {
   }
 
   const isProTier = landlordProfile?.subscription_tier === "pro" || isPremium;
-  const whatsAppActive = isProTier && landlordProfile?.whatsapp_enabled;
 
   return (
     <>
@@ -509,16 +495,6 @@ export default function LandlordDashboard() {
                                 </p>
                               </div>
                               <div className="flex items-center gap-3 ml-auto sm:ml-0">
-                                {isProTier ? (
-                                  <span className="bg-primary/10 border border-primary/20 text-primary px-3 py-1 rounded-full text-[11px] font-bold">
-                                    AI Match: {score ? `${score.overall_score}%` : "TBD"}
-                                  </span>
-                                ) : (
-                                  <span className="bg-surface-container-high border border-outline-variant text-outline-variant px-3 py-1 rounded-full text-[11px] font-bold flex items-center gap-1">
-                                    <span className="material-symbols-outlined text-[12px]">lock</span>
-                                    AI Match
-                                  </span>
-                                )}
                                 <Link 
                                   href={`/buchen/${b.id}`} 
                                   className="bg-primary text-on-primary px-4 py-1.5 rounded-lg text-[12px] font-bold hover:opacity-90 active:scale-95 transition-all shadow-sm"
@@ -547,8 +523,8 @@ export default function LandlordDashboard() {
                           <span className="text-[18px] font-black text-primary block mt-1">{language === "de" ? "Kostenlose Basis" : "Free Basic"}</span>
                           <p className="text-[12px] text-on-surface-variant mt-2 leading-relaxed">
                             {language === "de" 
-                              ? "Upgrade auf Premium, um verifizierte Bewerber-Portfolios einzusehen, AI-Eignungsscores freizuschalten und WhatsApp-Updates zu aktivieren."
-                              : "Upgrade to Premium to view validated applicant portfolios, unlock AI suitability scores, and enable automated WhatsApp notifications."}
+                              ? "Upgrade auf Premium, um verifizierte Bewerber-Portfolios einzusehen."
+                              : "Upgrade to Premium to view validated applicant portfolios."}
                           </p>
                         </div>
                         <Link
@@ -610,32 +586,7 @@ export default function LandlordDashboard() {
                       </div>
                     )}
 
-                    <div className="flex justify-between items-center pt-4 border-t border-outline-variant">
-                      <div>
-                        <h4 className="text-label-sm font-bold text-primary flex items-center gap-1.5">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" className="text-[#25D366] flex-shrink-0">
-                            <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232"/>
-                          </svg>
-                          {t("whatsAppNotifications")}
-                        </h4>
-                        <p className="text-[10px] text-on-surface-variant leading-tight mt-0.5 ml-6">
-                          {isProTier ? (language === "de" ? "WhatsApp Updates aktiv" : "WhatsApp updates active") : `*${t("proTierOnly")}`}
-                        </p>
-                      </div>
-                      <button
-                        disabled={!isProTier}
-                        onClick={toggleWhatsApp}
-                        className={`w-11 h-5.5 rounded-full transition-all relative flex items-center p-0.5 cursor-pointer ${
-                          !isProTier ? "opacity-35 cursor-not-allowed" : ""
-                        } ${whatsAppActive ? "bg-primary" : "bg-outline-variant"}`}
-                      >
-                        <div
-                          className={`w-4.5 h-4.5 bg-white rounded-full shadow transition-all transform ${
-                            whatsAppActive ? "translate-x-5" : "translate-x-0"
-                          }`}
-                        />
-                      </button>
-                    </div>
+
                   </div>
                 </div>
 
@@ -768,8 +719,8 @@ export default function LandlordDashboard() {
                   </h2>
                   <p className="text-body-md text-on-surface-variant mt-1 leading-relaxed">
                     {language === "de"
-                      ? "Verwalten Sie eingehende Anfragen von Studenten. Prüfen Sie die per KI berechneten Übereinstimmungswerte und verifizierten Unterlagen."
-                      : "Manage incoming requests from applicants. Check verification parameters, documents, and secure AI matching scores."}
+                      ? "Verwalten Sie eingehende Anfragen von Studenten. Prüfen Sie die verifizierten Unterlagen."
+                      : "Manage incoming requests from applicants. Check verification parameters and documents."}
                   </p>
                 </div>
 
@@ -813,27 +764,6 @@ export default function LandlordDashboard() {
                           </div>
 
                           <div className="flex gap-4 items-center flex-wrap ml-auto md:ml-0">
-                            {isProTier ? (
-                              <div className="bg-primary-fixed/20 px-4 py-2.5 rounded-xl border border-primary/20 text-center">
-                                <p className="text-[10px] text-primary font-bold uppercase tracking-wider">
-                                  {t("tenantMatchScore")}
-                                </p>
-                                <p className="text-[20px] font-bold text-primary leading-tight mt-0.5">
-                                  {aiScoreObj ? `${aiScoreObj.overall_score}%` : "TBD"}
-                                </p>
-                              </div>
-                            ) : (
-                              <div className="bg-surface-container-high px-4 py-2.5 rounded-xl border border-outline-variant text-center">
-                                <p className="text-[10px] text-outline-variant font-bold uppercase tracking-wider">
-                                  {t("tenantMatchScore")}
-                                </p>
-                                <p className="text-[14px] font-bold text-[#f07d00] leading-tight mt-1.5 flex items-center gap-1 justify-center">
-                                  <span className="material-symbols-outlined text-[14px]">lock</span>
-                                  Premium
-                                </p>
-                              </div>
-                            )}
-
                             <Link
                               href={`/buchen/${b.id}`}
                               className="bg-primary text-on-primary px-5 py-3 rounded-xl text-[13px] font-bold hover:opacity-90 active:scale-95 transition-all shadow-sm cursor-pointer text-center"
@@ -921,5 +851,17 @@ export default function LandlordDashboard() {
       </div>
       <Footer />
     </>
+  );
+}
+
+export default function LandlordDashboard() {
+  return (
+    <Suspense fallback={
+      <div className="flex-grow flex items-center justify-center min-h-[600px] bg-surface-dim">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
+      </div>
+    }>
+      <LandlordDashboardContent />
+    </Suspense>
   );
 }

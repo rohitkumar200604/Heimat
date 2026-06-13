@@ -138,14 +138,25 @@ export default function Navbar() {
                       <span>{t("dashboard")}</span>
                     </Link>
 
-                    <Link
-                      href={`${getDashboardUrl()}?tab=profile`}
-                      onClick={() => setDropdownOpen(false)}
-                      className="px-4 py-2.5 text-[14px] text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors flex items-center gap-2"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">account_circle</span>
-                      <span>{language === "de" ? "Profil anzeigen" : "View Profile"}</span>
-                    </Link>
+                    {profile.role === "tenant" ? (
+                      <Link
+                        href={`${getDashboardUrl()}?tab=favorites`}
+                        onClick={() => setDropdownOpen(false)}
+                        className="px-4 py-2.5 text-[14px] text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors flex items-center gap-2"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">favorite</span>
+                        <span>{language === "de" ? "Favoriten" : "Favorites"}</span>
+                      </Link>
+                    ) : (
+                      <Link
+                        href={`${getDashboardUrl()}?tab=properties`}
+                        onClick={() => setDropdownOpen(false)}
+                        className="px-4 py-2.5 text-[14px] text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors flex items-center gap-2"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">home_work</span>
+                        <span>{language === "de" ? "Meine Immobilien" : "My Properties"}</span>
+                      </Link>
+                    )}
 
                     <Link
                       href={`${getDashboardUrl()}?tab=bookings`}
@@ -153,7 +164,11 @@ export default function Navbar() {
                       className="px-4 py-2.5 text-[14px] text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors flex items-center gap-2"
                     >
                       <span className="material-symbols-outlined text-[18px]">calendar_month</span>
-                      <span>{language === "de" ? "Meine Buchungen" : "My Bookings"}</span>
+                      <span>
+                        {profile.role === "landlord"
+                          ? (language === "de" ? "Buchungsanfragen" : "Booking Requests")
+                          : (language === "de" ? "Meine Buchungen" : "My Bookings")}
+                      </span>
                     </Link>
 
                     <hr className="border-outline-variant/40 my-1" />
@@ -307,17 +322,28 @@ export default function Navbar() {
                 >
                   {t("dashboard")}
                 </Link>
-                <Link
-                  href={`${getDashboardUrl()}?tab=profile`}
-                  className="block px-4 py-3 rounded-xl text-[14px] font-medium text-on-surface-variant hover:bg-surface-container-low"
-                >
-                  {language === "de" ? "Profil anzeigen" : "View Profile"}
-                </Link>
+                {profile.role === "tenant" ? (
+                  <Link
+                    href={`${getDashboardUrl()}?tab=favorites`}
+                    className="block px-4 py-3 rounded-xl text-[14px] font-medium text-on-surface-variant hover:bg-surface-container-low"
+                  >
+                    {language === "de" ? "Favoriten" : "Favorites"}
+                  </Link>
+                ) : (
+                  <Link
+                    href={`${getDashboardUrl()}?tab=properties`}
+                    className="block px-4 py-3 rounded-xl text-[14px] font-medium text-on-surface-variant hover:bg-surface-container-low"
+                  >
+                    {language === "de" ? "Meine Immobilien" : "My Properties"}
+                  </Link>
+                )}
                 <Link
                   href={`${getDashboardUrl()}?tab=bookings`}
                   className="block px-4 py-3 rounded-xl text-[14px] font-medium text-on-surface-variant hover:bg-surface-container-low"
                 >
-                  {language === "de" ? "Meine Buchungen" : "My Bookings"}
+                  {profile.role === "landlord"
+                    ? (language === "de" ? "Buchungsanfragen" : "Booking Requests")
+                    : (language === "de" ? "Meine Buchungen" : "My Bookings")}
                 </Link>
                 <button
                   onClick={signOut}
