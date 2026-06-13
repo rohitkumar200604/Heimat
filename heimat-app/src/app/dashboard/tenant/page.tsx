@@ -37,6 +37,9 @@ export default function TenantDashboard() {
     monthly_income: "",
   });
 
+  // WhatsApp notification toggle
+  const [whatsappEnabled, setWhatsappEnabled] = useState(false);
+
   // Action feedback states
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -116,6 +119,7 @@ export default function TenantDashboard() {
       // Suppress single row not found errors to let signup trigger catch up
       if (!tpErr && tpData) {
         setTenantProfile(tpData);
+        setWhatsappEnabled(tpData.whatsapp_enabled ?? false);
         setProfileForm({
           full_name: profile?.full_name || "",
           phone: profile?.phone || "",
@@ -145,6 +149,28 @@ export default function TenantDashboard() {
   useEffect(() => {
     fetchTenantData();
   }, [user, profile]);
+
+  const toggleWhatsApp = async () => {
+    if (!user || !isPremium) return;
+    const next = !whatsappEnabled;
+    setWhatsappEnabled(next); // optimistic update
+    try {
+      const { error } = await supabase
+        .from("tenant_profiles")
+        .upsert(
+          { user_id: user.id, whatsapp_enabled: next },
+          { onConflict: "user_id" }
+        );
+      if (error) {
+        // Roll back on failure
+        setWhatsappEnabled(!next);
+        console.error("Error toggling WhatsApp:", error);
+      }
+    } catch (err) {
+      setWhatsappEnabled(!next);
+      console.error("Error toggling WhatsApp:", err);
+    }
+  };
 
   const fetchFavorites = async () => {
     setLoadingFavorites(true);
@@ -270,6 +296,32 @@ export default function TenantDashboard() {
       fetchFavorites();
     }
   }, [activeTab]);
+
+  const cancelPremium = async () => {
+    if (!user || !isPremium) return;
+    const confirmed = window.confirm(
+      language === "de"
+        ? "Möchten Sie Ihr Premium-Abonnement wirklich kündigen? Ihre Premium-Vorteile werden sofort deaktiviert."
+        : "Are you sure you want to cancel your Premium subscription? Your premium benefits will be deactivated immediately."
+    );
+    if (!confirmed) return;
+    try {
+      // 1. Clear the localStorage cache so AuthContext re-evaluates
+      localStorage.removeItem(`heimat_sub_${user.id}`);
+
+      // 2. Mark all active subscriptions as canceled in the DB (enum: 'canceled')
+      await supabase
+        .from("subscriptions")
+        .update({ status: "canceled", cancel_at_period_end: true })
+        .eq("user_id", user.id)
+        .eq("status", "active");
+
+      // 3. Refresh AuthContext so isPremium recomputes to false
+      await refreshProfile();
+    } catch (err) {
+      console.error("Error cancelling premium:", err);
+    }
+  };
 
   const handleRunProfileAnalyzer = async () => {
     if (!isPremium) {
@@ -700,6 +752,13 @@ export default function TenantDashboard() {
                       </div>
                     );
                   })()}
+
+                  <button
+                    onClick={cancelPremium}
+                    className="w-full border border-outline-variant text-on-surface-variant py-1.5 rounded-lg text-[10px] font-bold hover:bg-surface-container-low hover:text-error hover:border-error/40 active:scale-95 transition-all text-center cursor-pointer mt-1"
+                  >
+                    {language === "de" ? "Abo kündigen" : "Cancel Subscription"}
+                  </button>
                 </div>
               )}
             </div>
@@ -846,44 +905,53 @@ export default function TenantDashboard() {
                       </Link>
                     </div>
                   ) : (
-                    <div className="bg-gradient-to-br from-[#f07d00]/5 to-transparent rounded-xl border-2 border-[#f07d00] p-4 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 bg-[#f07d00] text-white text-[8px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-bl">
-                        Active
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-[#f07d00] text-[20px]">workspace_premium</span>
-                        <span className="text-[16px] font-black text-primary">Heimat Premium ({subscription?.plan === "1month" ? "1 Monat" : subscription?.plan === "3months" ? "3 Monate" : "12 Monate"})</span>
+                    <div className="space-y-3">
+                      <div className="bg-gradient-to-br from-[#f07d00]/5 to-transparent rounded-xl border-2 border-[#f07d00] p-4 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 bg-[#f07d00] text-white text-[8px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-bl">
+                          Active
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-[#f07d00] text-[20px]">workspace_premium</span>
+                          <span className="text-[16px] font-black text-primary">Heimat Premium ({subscription?.plan === "1month" ? "1 Monat" : subscription?.plan === "3months" ? "3 Monate" : "12 Monate"})</span>
+                        </div>
+
+                        {(() => {
+                          const sub = subscription;
+                          if (!sub) return null;
+                          const start = new Date(sub.startDate).getTime();
+                          const end = new Date(sub.endDate).getTime();
+                          const total = end - start;
+                          const elapsed = Date.now() - start;
+                          const percentage = Math.max(0, Math.min(100, (elapsed / total) * 100));
+                          const daysRemaining = Math.max(0, Math.ceil((end - Date.now()) / (1000 * 60 * 60 * 24)));
+                          
+                          return (
+                            <div className="mt-4 space-y-2">
+                              <div className="flex justify-between text-[11px] text-on-surface-variant font-semibold">
+                                <span>{language === "de" ? "Gültigkeit" : "Validity"}</span>
+                                <span>{daysRemaining} {language === "de" ? "Tage verbleibend" : "days left"}</span>
+                              </div>
+                              <div className="w-full h-2.5 bg-surface-container-high rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-[#f07d00] rounded-full transition-all duration-500" 
+                                  style={{ width: `${percentage}%` }}
+                                />
+                              </div>
+                              <div className="text-[11px] text-on-surface-variant/80 font-medium italic mt-1 text-right">
+                                {language === "de" ? "Ablaufdatum:" : "Expires on:"} {new Date(sub.endDate).toLocaleDateString(language === "de" ? "de-DE" : "en-US")}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
 
-                      {(() => {
-                        const sub = subscription;
-                        if (!sub) return null;
-                        const start = new Date(sub.startDate).getTime();
-                        const end = new Date(sub.endDate).getTime();
-                        const total = end - start;
-                        const elapsed = Date.now() - start;
-                        const percentage = Math.max(0, Math.min(100, (elapsed / total) * 100));
-                        const daysRemaining = Math.max(0, Math.ceil((end - Date.now()) / (1000 * 60 * 60 * 24)));
-                        
-                        return (
-                          <div className="mt-4 space-y-2">
-                            <div className="flex justify-between text-[11px] text-on-surface-variant font-semibold">
-                              <span>{language === "de" ? "Gültigkeit" : "Validity"}</span>
-                              <span>{daysRemaining} {language === "de" ? "Tage verbleibend" : "days left"}</span>
-                            </div>
-                            <div className="w-full h-2.5 bg-surface-container-high rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-[#f07d00] rounded-full transition-all duration-500" 
-                                style={{ width: `${percentage}%` }}
-                              />
-                            </div>
-                            <div className="text-[11px] text-on-surface-variant/80 font-medium italic mt-1 text-right">
-                              {language === "de" ? "Ablaufdatum:" : "Expires on:"} {new Date(sub.endDate).toLocaleDateString(language === "de" ? "de-DE" : "en-US")}
-                            </div>
-                          </div>
-                        );
-                      })()}
+                      <button
+                        onClick={cancelPremium}
+                        className="w-full border border-outline-variant text-on-surface-variant py-2.5 rounded-xl text-[12px] font-bold hover:bg-surface-container-low hover:text-error hover:border-error/40 active:scale-95 transition-all text-center cursor-pointer"
+                      >
+                        {language === "de" ? "Abonnement kündigen" : "Cancel Subscription"}
+                      </button>
                     </div>
                   )}
                 </div>
@@ -946,24 +1014,24 @@ export default function TenantDashboard() {
                             {language === "de" ? "WhatsApp Status-Updates" : "WhatsApp Status Updates"}
                           </h4>
                           <p className="text-[10px] text-on-surface-variant leading-tight mt-0.5 ml-6">
-                            {isPremium 
-                              ? (language === "de" ? "WhatsApp-Updates sind aktiv" : "WhatsApp updates are active") 
-                              : `*${language === "de" ? "Nur Premium-Mitglieder" : "Premium Members Only"}`}
+                            {!isPremium
+                              ? `*${language === "de" ? "Nur Premium-Mitglieder" : "Premium Members Only"}`
+                              : whatsappEnabled
+                                ? (language === "de" ? "WhatsApp-Updates sind aktiv" : "WhatsApp updates are active")
+                                : (language === "de" ? "WhatsApp-Updates sind deaktiviert" : "WhatsApp updates are off")}
                           </p>
                         </div>
                         <button
                           type="button"
                           disabled={!isPremium}
-                          onClick={() => {
-                            alert(language === "de" ? "WhatsApp-Status-Updates aktualisiert!" : "WhatsApp status updates updated!");
-                          }}
-                          className={`w-11 h-5.5 rounded-full transition-all relative flex items-center p-0.5 cursor-pointer ${
-                            !isPremium ? "opacity-35 cursor-not-allowed" : ""
-                          } ${isPremium ? "bg-primary" : "bg-outline-variant"}`}
+                          onClick={toggleWhatsApp}
+                          className={`w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 ${
+                            !isPremium ? "opacity-35 cursor-not-allowed" : "cursor-pointer"
+                          } ${whatsappEnabled ? "bg-primary" : "bg-outline-variant"}`}
                         >
                           <div
-                            className={`w-4.5 h-4.5 bg-white rounded-full shadow transition-all transform ${
-                              isPremium ? "translate-x-5" : "translate-x-0"
+                            className={`w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                              whatsappEnabled ? "translate-x-5" : "translate-x-0"
                             }`}
                           />
                         </button>
