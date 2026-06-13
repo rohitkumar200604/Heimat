@@ -22,6 +22,7 @@ export default function InserierenPage() {
   const mapRef = useRef<HTMLDivElement>(null);
   const googleMapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
+  const placeAutocompleteRef = useRef<HTMLDivElement>(null);
 
   const [step1, setStep1] = useState({ typ: "apartment", strasse: "", plz: "", stadt: "" });
   const [step2, setStep2] = useState({ kaltmiete: "", nebenkosten: "", heizkosten: "", flaeche: "", zimmer: "", etage: "" });
@@ -55,20 +56,32 @@ export default function InserierenPage() {
     }
   }, [user, profile]);
 
-  // ── Load Google Maps + Places Autocomplete ──────────────────────
+  // ── Load Google Maps + Places (modern async pattern) ──────────────
   useEffect(() => {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
     if (!apiKey || typeof window === "undefined") return;
-    if ((window as any).google?.maps) {
+
+    // If already loaded, init directly
+    if ((window as any).google?.maps?.places?.PlaceAutocompleteElement) {
       initAutocomplete();
       return;
     }
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => initAutocomplete();
-    document.head.appendChild(script);
+
+    // Use the recommended async callback loading pattern
+    const callbackName = "__heimatMapsInit";
+    (window as any)[callbackName] = () => {
+      initAutocomplete();
+      delete (window as any)[callbackName];
+    };
+
+    if (!document.querySelector(`script[data-maps-key="${apiKey}"]`)) {
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&loading=async&callback=${callbackName}&v=weekly`;
+      script.async = true;
+      script.defer = true;
+      script.dataset.mapsKey = apiKey;
+      document.head.appendChild(script);
+    }
   }, []);
 
   // Ref handler for map interaction to avoid hook lifecycle issues
@@ -135,45 +148,63 @@ export default function InserierenPage() {
     }
   }, [step]);
 
+  // Re-init PlaceAutocompleteElement when navigating back to step 1 if Maps already loaded
+  useEffect(() => {
+    if (step !== 1) return;
+    if (!(window as any).google?.maps?.places?.PlaceAutocompleteElement) return;
+    initAutocomplete();
+  }, [step]);
+
   const initAutocomplete = () => {
-    const input = document.getElementById("step1-strasse") as HTMLInputElement;
-    if (!input || !(window as any).google?.maps?.places) return;
-    const ac = new (window as any).google.maps.places.Autocomplete(input, {
+    const container = placeAutocompleteRef.current;
+    if (!container || !(window as any).google?.maps?.places) return;
+    // Prevent duplicate initialization
+    if (autocompleteRef.current) return;
+
+    // Use the modern PlaceAutocompleteElement (recommended over deprecated Autocomplete)
+    const pac = new (window as any).google.maps.places.PlaceAutocompleteElement({
       types: ["address"],
       componentRestrictions: { country: "de" },
-      fields: ["address_components", "geometry", "formatted_address"],
     });
-    autocompleteRef.current = ac;
-    ac.addListener("place_changed", () => {
-      const place = ac.getPlace();
-      if (!place.geometry) return;
-      const comps = place.address_components || [];
-      const get = (type: string) => comps.find((c: any) => c.types.includes(type))?.long_name || "";
+    pac.id = "place-autocomplete-element";
+    // Style the web component to fit the form
+    pac.style.cssText = "width:100%;display:block;";
+    container.appendChild(pac);
+    autocompleteRef.current = pac;
+
+    pac.addEventListener("gmp-placeselect", async (event: any) => {
+      const place = event.place;
+      // Fetch address components and geometry
+      await place.fetchFields({ fields: ["addressComponents", "location", "formattedAddress"] });
+      const comps = place.addressComponents || [];
+      const get = (type: string) => comps.find((c: any) => c.types.includes(type))?.longText || "";
       const street = `${get("route")} ${get("street_number")}`.trim();
       const plz = get("postal_code");
       const stadt = get("locality") || get("administrative_area_level_1");
       setStep1(prev => ({ ...prev, strasse: street || prev.strasse, plz: plz || prev.plz, stadt: stadt || prev.stadt }));
-      const lat = place.geometry.location.lat();
-      const lng = place.geometry.location.lng();
-      setCoords({ lat, lng });
-      // Update map
-      if (googleMapRef.current) {
-        googleMapRef.current.setCenter({ lat, lng });
-        googleMapRef.current.setZoom(16);
-        if (markerRef.current) {
-          markerRef.current.setPosition({ lat, lng });
-        } else {
-          const marker = new (window as any).google.maps.Marker({
-            position: { lat, lng },
-            map: googleMapRef.current,
-            draggable: true,
-          });
-          markerRef.current = marker;
-          marker.addListener("dragend", (e: any) => {
-            if (e.latLng) {
-              handleMapClickOrDragRef.current?.(e.latLng.lat(), e.latLng.lng());
-            }
-          });
+      const lat = place.location?.lat() ?? null;
+      const lng = place.location?.lng() ?? null;
+      if (lat !== null && lng !== null) {
+        setCoords({ lat, lng });
+        // Update map
+        if (googleMapRef.current) {
+          googleMapRef.current.setCenter({ lat, lng });
+          googleMapRef.current.setZoom(16);
+          if (markerRef.current) {
+            markerRef.current.setPosition({ lat, lng });
+          } else {
+            const marker = new (window as any).google.maps.Marker({
+              position: { lat, lng },
+              map: googleMapRef.current,
+              draggable: true,
+            });
+            markerRef.current = marker;
+            marker.addListener("dragend", (e: any) => {
+              if (e.latLng) {
+                handleMapClickOrDragRef.current?.(e.latLng.lat(), e.latLng.lng());
+              }
+            });
+          }
         }
       }
     });
@@ -472,14 +503,25 @@ export default function InserierenPage() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-label-md text-on-surface font-medium">{t("streetNumber")}</label>
-                    <input
-                      id="step1-strasse"
-                      type="text"
-                      placeholder="Beispielstraße 12"
-                      value={step1.strasse}
-                      onChange={(e) => setStep1({ ...step1, strasse: e.target.value })}
-                      className="w-full h-14 bg-surface border border-outline-variant rounded-lg px-4 focus:ring-2 focus:ring-primary focus:border-primary outline-none text-[16px]"
+                    {/* PlaceAutocompleteElement container — the web component is injected here by initAutocomplete */}
+                    <div
+                      ref={placeAutocompleteRef}
+                      id="place-autocomplete-container"
+                      className="w-full [&>*]:w-full [&_gmp-placeautocomplete]:w-full"
                     />
+                    {/* Manual override input (visible only if PlaceAutocomplete not injected yet) */}
+                    {!autocompleteRef.current && (
+                      <input
+                        id="step1-strasse"
+                        type="text"
+                        placeholder="Beispielstraße 12"
+                        value={step1.strasse}
+                        onChange={(e) => setStep1({ ...step1, strasse: e.target.value })}
+                        className="w-full h-14 bg-surface border border-outline-variant rounded-lg px-4 focus:ring-2 focus:ring-primary focus:border-primary outline-none text-[16px]"
+                      />
+                    )}
+                    {/* Hidden input keeps the state value accessible after selection */}
+                    <input type="hidden" id="step1-strasse" value={step1.strasse} readOnly />
                   </div>
                   <div className="space-y-2">
                     <label className="text-label-md text-on-surface font-medium">{t("zipCode")}</label>
