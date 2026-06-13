@@ -27,8 +27,130 @@ const GALLERY_FALLBACK = [
   },
 ];
 
+const SUBCATEGORY_RATINGS: Record<string, Record<string, number>> = {
+  "berlin-studio": { cleanliness: 4.8, accuracy: 4.9, communication: 5.0, location: 4.7, checkIn: 4.9, value: 4.8 },
+  "munich-expat": { cleanliness: 4.9, accuracy: 4.8, communication: 4.7, location: 5.0, checkIn: 4.8, value: 4.6 },
+  "hamburg-loft": { cleanliness: 5.0, accuracy: 4.9, communication: 4.9, location: 4.8, checkIn: 4.9, value: 4.7 },
+  "berlin-wg": { cleanliness: 4.5, accuracy: 4.6, communication: 4.8, location: 4.9, checkIn: 4.7, value: 4.9 },
+  "mock-apply-87a": { cleanliness: 4.8, accuracy: 4.8, communication: 4.9, location: 4.8, checkIn: 4.9, value: 4.7 }
+};
 
-
+const MOCK_REVIEWS: Record<string, Array<{
+  id: string;
+  author: string;
+  avatar: string;
+  rating: number;
+  date: { de: string; en: string };
+  text: { de: string; en: string };
+  stayLength: { de: string; en: string };
+}>> = {
+  "berlin-studio": [
+    {
+      id: "3",
+      author: "Sarah Lehmann",
+      avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80",
+      rating: 5,
+      date: { de: "Mai 2026", en: "May 2026" },
+      text: {
+        de: "Die Wohnung ist super zentral und perfekt ausgestattet. Markus war ein toller Gastgeber, der Check-in lief absolut reibungslos. Kann ich nur empfehlen!",
+        en: "The apartment is super central and perfectly equipped. Markus was a great host, check-in went absolutely smoothly. Highly recommended!"
+      },
+      stayLength: { de: "6 Monate gewohnt", en: "Stayed 6 months" }
+    },
+    {
+      id: "2",
+      author: "David Kovacs",
+      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80",
+      rating: 4,
+      date: { de: "Februar 2026", en: "February 2026" },
+      text: {
+        de: "Sehr schönes Studio, unschlagbare Lage direkt am Alexanderplatz. Manchmal war es nachts etwas lauter wegen der Straßenbahn, aber sonst perfekt.",
+        en: "Very nice studio, unbeatable location right next to Alexanderplatz. Sometimes it was a bit loud at night because of the tram, but otherwise perfect."
+      },
+      stayLength: { de: "12 Monate gewohnt", en: "Stayed 12 months" }
+    },
+    {
+      id: "1",
+      author: "Elena Rostova",
+      avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80",
+      rating: 5,
+      date: { de: "November 2025", en: "November 2025" },
+      text: {
+        de: "Helle Wohnung mit moderner Einrichtung. Perfekt für Home Office geeignet, da das WLAN extrem schnell war. Komme gerne wieder!",
+        en: "Bright apartment with modern furnishings. Perfectly suited for home office as the WiFi was extremely fast. Would love to come back!"
+      },
+      stayLength: { de: "3 Monate gewohnt", en: "Stayed 3 months" }
+    }
+  ],
+  "munich-expat": [
+    {
+      id: "2",
+      author: "Charlotte Dubois",
+      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80",
+      rating: 5,
+      date: { de: "April 2026", en: "April 2026" },
+      text: {
+        de: "Wunderschöne Wohnung in München. Der Englische Garten ist direkt vor der Tür. Sabine war immer erreichbar und sehr hilfsbereit.",
+        en: "Beautiful apartment in Munich. The English Garden is right outside the door. Sabine was always reachable and very helpful."
+      },
+      stayLength: { de: "18 Monate gewohnt", en: "Stayed 18 months" }
+    },
+    {
+      id: "1",
+      author: "Thomas Miller",
+      avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80",
+      rating: 5,
+      date: { de: "Januar 2026", en: "January 2026" },
+      text: {
+        de: "Sehr geräumig und elegant eingerichtet. Die Küche ist voll ausgestattet, ideal zum Kochen. Die Kaution wurde sofort zurückgezahlt.",
+        en: "Very spacious and elegantly furnished. The kitchen is fully equipped, ideal for cooking. The deposit was returned immediately."
+      },
+      stayLength: { de: "12 Monate gewohnt", en: "Stayed 12 months" }
+    }
+  ],
+  "hamburg-loft": [
+    {
+      id: "1",
+      author: "Jan-Ole Petersen",
+      avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=150&q=80",
+      rating: 5,
+      date: { de: "März 2026", en: "March 2026" },
+      text: {
+        de: "Ein Traum von einem Loft! Der Blick auf die Speicherstadt ist atemberaubend. Die Ausstattung lässt keine Wünsche offen.",
+        en: "A dream of a loft! The view of the Speicherstadt is breathtaking. The equipment leaves nothing to be desired."
+      },
+      stayLength: { de: "8 Monate gewohnt", en: "Stayed 8 months" }
+    }
+  ],
+  "berlin-wg": [
+    {
+      id: "1",
+      author: "Maximilian Schulz",
+      avatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=150&q=80",
+      rating: 4,
+      date: { de: "April 2026", en: "April 2026" },
+      text: {
+        de: "Das Zimmer war sehr gemütlich. Nette Mitbewohner und super Lage zur Uni Dahlem. Perfekt für den Studienstart.",
+        en: "The room was very cozy. Nice flatmates and great location to the Dahlem university. Perfect for starting university."
+      },
+      stayLength: { de: "12 Monate gewohnt", en: "Stayed 12 months" }
+    }
+  ],
+  "mock-apply-87a": [
+    {
+      id: "1",
+      author: "Sophie Reinhardt",
+      avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80",
+      rating: 5,
+      date: { de: "Mai 2026", en: "May 2026" },
+      text: {
+        de: "Tolle Wohnung in Mitte. Sehr sauber, schön eingerichtet und der Park direkt vor der Tür. Perfekt für Pärchen.",
+        en: "Great apartment in Mitte. Very clean, nicely decorated and the park right outside the door. Perfect for couples."
+      },
+      stayLength: { de: "9 Monate gewohnt", en: "Stayed 9 months" }
+    }
+  ]
+};
 
 export default function ObjektDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -41,6 +163,16 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
   const [form, setForm] = useState({ name: "", email: "", tel: "", message: "" });
   const [submittingBooking, setSubmittingBooking] = useState(false);
   const [hasSearched, setHasSearched] = useState(true);
+
+  // Reviews States
+  const [reviewsList, setReviewsList] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("newest");
+  const [reviewFormOpen, setReviewFormOpen] = useState(false);
+  const [newRating, setNewRating] = useState(5);
+  const [newReviewText, setNewReviewText] = useState("");
+  const [newReviewAuthor, setNewReviewAuthor] = useState("");
+  const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -249,12 +381,94 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
     fetchPropertyDetails();
   }, [slug, language]);
 
+  // Load reviews when slug changes
+  useEffect(() => {
+    if (slug) {
+      const initialReviews = MOCK_REVIEWS[slug as keyof typeof MOCK_REVIEWS] || MOCK_REVIEWS["mock-apply-87a"];
+      setReviewsList(initialReviews);
+    }
+  }, [slug]);
+
+  const handleAddReview = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) {
+      (alert as any)(
+        language === "de" ? "Bitte melde dich zuerst an!" : "Please log in first!",
+        () => {
+          router.push(`/auth/login?redirect=/objekt/${slug}`);
+        }
+      );
+      return;
+    }
+    if (!newReviewText.trim()) return;
+
+    const authorName = (profile?.full_name) || (user?.email?.split("@")[0]) || "User";
+    
+    const newRev = {
+      id: Date.now().toString(),
+      author: authorName,
+      avatar: profile?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(authorName)}`,
+      rating: newRating,
+      date: {
+        de: language === "de" ? "Juni 2026" : "June 2026",
+        en: language === "de" ? "Juni 2026" : "June 2026"
+      },
+      text: {
+        de: newReviewText,
+        en: newReviewText
+      },
+      stayLength: {
+        de: language === "de" ? "Kürzlicher Aufenthalt" : "Recent Stay",
+        en: language === "de" ? "Kürzlicher Aufenthalt" : "Recent Stay"
+      },
+      isNew: true
+    };
+
+    setReviewsList([newRev, ...reviewsList]);
+    setNewReviewText("");
+    setNewRating(5);
+    setShowSuccess(true);
+    setTimeout(() => {
+      setShowSuccess(false);
+      setReviewFormOpen(false);
+    }, 2000);
+  };
+
+  const ratings = SUBCATEGORY_RATINGS[slug as keyof typeof SUBCATEGORY_RATINGS] || SUBCATEGORY_RATINGS["mock-apply-87a"];
+
+  const averageRating = reviewsList.length > 0 
+    ? (reviewsList.reduce((acc, r) => acc + r.rating, 0) / reviewsList.length).toFixed(1) 
+    : ((ratings.cleanliness + ratings.accuracy + ratings.communication + ratings.location + ratings.checkIn + ratings.value) / 6).toFixed(1);
+
+  const filteredAndSortedReviews = reviewsList
+    .filter((rev) => {
+      const textDe = rev.text.de.toLowerCase();
+      const textEn = rev.text.en.toLowerCase();
+      const author = rev.author.toLowerCase();
+      const query = searchQuery.toLowerCase();
+      return textDe.includes(query) || textEn.includes(query) || author.includes(query);
+    })
+    .sort((a, b) => {
+      if (sortBy === "highest") {
+        return b.rating - a.rating;
+      } else if (sortBy === "lowest") {
+        return a.rating - b.rating;
+      } else {
+        return Number(b.id) - Number(a.id);
+      }
+    });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Auth Guard — redirect silently without alert
     if (!user) {
-      router.push(`/auth/login?redirect=/objekt/${slug}`);
+      (alert as any)(
+        language === "de" ? "Bitte melde dich zuerst an!" : "Please log in first!",
+        () => {
+          router.push(`/auth/login?redirect=/objekt/${slug}`);
+        }
+      );
       return;
     }
 
@@ -530,9 +744,31 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
                     {t("bookBeforeArrivalSubtitle")}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 bg-[#e6f4ea] text-[#137333] px-4 py-2 rounded-full font-bold text-[13px] border border-[#137333]/10">
-                  <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>verified_user</span>
-                  {t("bbaEscrowProtection")}
+
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5 text-primary bg-primary/10 px-3.5 py-1.5 rounded-full font-bold">
+                    <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                    <span className="text-[16px]">{averageRating}</span>
+                  </div>
+                  {user ? (
+                    <button
+                      type="button"
+                      onClick={() => setReviewFormOpen(!reviewFormOpen)}
+                      className="bg-primary text-on-primary px-4 py-2.5 rounded-xl text-label-md font-bold hover:opacity-90 active:scale-98 transition-all flex items-center gap-1 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">add</span>
+                      {t("writeReview")}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/auth/login?redirect=/objekt/${slug}`)}
+                      className="bg-surface-container-high hover:bg-surface-container-highest text-primary border border-outline-variant px-4 py-2.5 rounded-xl text-label-md font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">login</span>
+                      {language === "de" ? "Anmelden für Bewertung" : "Log in to Review"}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -609,7 +845,7 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
               </div>
 
               {/* Money-Back Guarantee Card */}
-              <div className="bg-gradient-to-br from-primary/5 via-secondary/5 to-primary/10 border border-primary/15 rounded-xl p-5 md:p-6 flex flex-col md:flex-row items-start md:items-center gap-4">
+              <div className="bg-gradient-to-br from-primary/5 via-secondary/5 to-primary/10 border border-primary/15 rounded-xl p-5 md:p-6 flex flex-col md:flex-row items-start md:items-center gap-4 mb-8">
                 <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center flex-shrink-0">
                   <span className="material-symbols-outlined text-primary text-[32px]" style={{ fontVariationSettings: "'FILL' 1" }}>
                     workspace_premium
@@ -627,6 +863,153 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
                   </p>
                 </div>
               </div>
+
+              {/* Review Submission Form */}
+              {reviewFormOpen && (
+                <form
+                  onSubmit={handleAddReview}
+                  className="mb-8 p-6 rounded-xl border border-outline-variant bg-surface-container-low space-y-4 animate-in fade-in slide-in-from-top-4 duration-300"
+                >
+                  <h3 className="text-title-md font-bold text-on-surface flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[20px]">edit_note</span>
+                    {t("writeReview")}
+                  </h3>
+
+                  {showSuccess ? (
+                    <div className="bg-[#e6f4ea] border border-[#137333]/25 text-[#137333] p-4 rounded-lg flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[24px]">check_circle</span>
+                      <p className="text-body-md font-semibold">{t("reviewSuccess")}</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Star selection */}
+                      <div>
+                        <span className="block text-label-md text-on-surface-variant mb-1">
+                          {t("reviewPlaceholderText")}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                              key={star}
+                              type="button"
+                              onClick={() => setNewRating(star)}
+                              className="text-primary hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+                            >
+                              <span
+                                className="material-symbols-outlined text-[28px]"
+                                style={{ fontVariationSettings: star <= newRating ? "'FILL' 1" : "'FILL' 0" }}
+                              >
+                                star
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Review message text */}
+                      <div>
+                        <label htmlFor="new-review-text" className="block text-label-md text-on-surface-variant mb-1">
+                          {t("ratingPlaceholder")}
+                        </label>
+                        <textarea
+                          id="new-review-text"
+                          rows={4}
+                          placeholder={language === "de" ? "Teile uns deine Erfahrungen mit..." : "Share your experience with us..."}
+                          value={newReviewText}
+                          onChange={(e) => setNewReviewText(e.target.value)}
+                          className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 outline-none focus:ring-2 focus:ring-primary text-[15px] resize-none"
+                          required
+                        />
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-3 justify-end pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setReviewFormOpen(false)}
+                          className="px-4 py-2 rounded-xl text-label-md font-bold text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer"
+                        >
+                          {language === "de" ? "Abbrechen" : "Cancel"}
+                        </button>
+                        <button
+                          type="submit"
+                          className="bg-primary text-on-primary px-5 py-2.5 rounded-xl text-label-md font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">send</span>
+                          {t("submitReview")}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </form>
+              )}
+
+              {/* Reviews List */}
+              {filteredAndSortedReviews.length === 0 ? (
+                <div className="text-center py-12 px-4 border border-dashed border-outline-variant/60 rounded-xl bg-surface-container-low/40">
+                  <span className="material-symbols-outlined text-on-surface-variant/40 text-[48px] mb-2 block">
+                    rate_review
+                  </span>
+                  <p className="text-body-md text-on-surface-variant">
+                    {t("noReviewsYet")}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-row gap-6 pb-4 overflow-x-auto custom-scrollbar snap-x snap-mandatory scroll-smooth w-full">
+                  {filteredAndSortedReviews.map((rev) => (
+                    <div
+                      key={rev.id}
+                      className={`flex-shrink-0 w-[85vw] sm:w-[380px] md:w-[420px] snap-align-start p-5 rounded-xl border border-outline-variant bg-surface-container-low transition-all duration-300 hover:shadow-md ${
+                        rev.isNew ? "ring-2 ring-primary/30 bg-primary/5 border-primary/30" : ""
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-4 mb-4">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={rev.avatar}
+                            alt={rev.author}
+                            className="w-11 h-11 rounded-full object-cover bg-surface-variant flex-shrink-0"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(rev.author)}`;
+                            }}
+                          />
+                          <div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h4 className="font-bold text-[15px] text-on-surface leading-tight">
+                                {rev.author}
+                              </h4>
+                              <span className="flex items-center gap-0.5 bg-[#e6f4ea] text-[#137333] border border-[#137333]/10 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                                <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
+                                {t("verifiedGuest")}
+                              </span>
+                            </div>
+                            <p className="text-[12px] text-on-surface-variant/80 font-medium mt-0.5">
+                              {language === "de" ? rev.stayLength.de : rev.stayLength.en} · {language === "de" ? rev.date.de : rev.date.en}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Stars */}
+                        <div className="flex items-center gap-0.5 text-primary">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <span
+                              key={i}
+                              className="material-symbols-outlined text-[16px]"
+                              style={{ fontVariationSettings: i < rev.rating ? "'FILL' 1" : "'FILL' 0" }}
+                            >
+                              star
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <p className="text-body-md text-on-surface-variant leading-relaxed whitespace-pre-wrap">
+                        {language === "de" ? rev.text.de : rev.text.en}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

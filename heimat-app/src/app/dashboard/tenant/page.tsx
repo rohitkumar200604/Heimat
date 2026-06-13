@@ -10,7 +10,7 @@ import Link from "next/link";
 
 export default function TenantDashboard() {
   const router = useRouter();
-  const { user, profile, loading, refreshProfile } = useAuth();
+  const { user, profile, loading, refreshProfile, isPremium, subscription } = useAuth();
   const { t, language } = useLanguage();
   
   // Navigation State
@@ -272,6 +272,14 @@ export default function TenantDashboard() {
   }, [activeTab]);
 
   const handleRunProfileAnalyzer = async () => {
+    if (!isPremium) {
+      alert(
+        language === "de"
+          ? "AI Profile Analyzer ist ein Premium-Feature. Bitte erwerben Sie Premium, um Ihren Score zu berechnen."
+          : "AI Profile Analyzer is a Premium feature. Please purchase Premium to calculate your match score."
+      );
+      return;
+    }
     setErrorMsg("");
     setSuccessMsg("");
     setRunningAnalyzer(true);
@@ -560,21 +568,26 @@ export default function TenantDashboard() {
           </div>
           
           {/* Quick AI Trust Score Badge */}
-          {tenantProfile?.ai_score !== null && tenantProfile?.ai_score !== undefined && (
-            <div className="bg-gradient-to-r from-primary to-secondary p-0.5 rounded-2xl shadow-md self-start sm:self-auto">
-              <div className="bg-white px-5 py-2.5 rounded-[14px] flex items-center gap-3">
-                <span className="material-symbols-outlined text-primary text-[28px] animate-pulse">insights</span>
-                <div>
-                  <p className="text-[10px] text-on-surface-variant font-bold uppercase leading-none tracking-wider">
-                    AI Match Score
-                  </p>
+          <div className="bg-gradient-to-r from-primary to-secondary p-0.5 rounded-2xl shadow-md self-start sm:self-auto">
+            <div className="bg-white px-5 py-2.5 rounded-[14px] flex items-center gap-3">
+              <span className="material-symbols-outlined text-primary text-[28px] animate-pulse">insights</span>
+              <div>
+                <p className="text-[10px] text-on-surface-variant font-bold uppercase leading-none tracking-wider">
+                  AI Match Score
+                </p>
+                {isPremium ? (
                   <p className="text-[20px] font-bold text-primary leading-none mt-1">
-                    {tenantProfile.ai_score}/100
+                    {tenantProfile?.ai_score !== null && tenantProfile?.ai_score !== undefined ? `${tenantProfile.ai_score}/100` : "TBD"}
                   </p>
-                </div>
+                ) : (
+                  <p className="text-[13px] font-extrabold text-[#f07d00] leading-none mt-1 flex items-center gap-0.5">
+                    <span className="material-symbols-outlined text-[14px]">lock</span>
+                    Premium
+                  </p>
+                )}
               </div>
             </div>
-          )}
+          </div>
         </div>
 
         {/* Tabbed Layout - Left Sidebar, Right Content */}
@@ -629,6 +642,67 @@ export default function TenantDashboard() {
               <span className="material-symbols-outlined text-[20px]">favorite</span>
               <span>{language === "de" ? "Favoriten" : "Favourites"}</span>
             </button>
+
+            {/* Divider */}
+            <div className="border-t border-outline-variant/60 my-3" />
+            
+            {/* Membership Panel */}
+            <div className="p-3 bg-surface-container-low/40 rounded-xl border border-outline-variant/50 space-y-3">
+              <h4 className="text-[12px] font-bold text-primary flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[#f07d00] text-[18px]">card_membership</span>
+                <span>{language === "de" ? "Mitgliedschaft" : "Membership"}</span>
+              </h4>
+              
+              {!isPremium ? (
+                <div className="space-y-2">
+                  <div className="text-[11px] text-on-surface-variant leading-tight">
+                    {language === "de" ? "Kostenloser Tarif" : "Free Basic Plan"}
+                  </div>
+                  <Link
+                    href="/preise?plan=3months"
+                    className="w-full bg-[#f07d00] text-white py-2 rounded-lg font-bold text-[11px] hover:opacity-90 active:scale-95 transition-all text-center block"
+                  >
+                    {language === "de" ? "Jetzt upgraden" : "Upgrade Now"}
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="text-[12px] font-black text-primary flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[#f07d00] text-[16px]">workspace_premium</span>
+                     <span>Premium ({subscription?.plan === "1month" ? "1M" : subscription?.plan === "3months" ? "3M" : subscription?.plan === "12months" ? "12M" : "Pro"})</span>
+                  </div>
+                  
+                  {(() => {
+                    const sub = subscription;
+                    if (!sub) return null;
+                    const start = new Date(sub.startDate).getTime();
+                    const end = new Date(sub.endDate).getTime();
+                    const total = end - start;
+                    const elapsed = Date.now() - start;
+                    const percentage = Math.max(0, Math.min(100, (elapsed / total) * 100));
+                    const daysRemaining = Math.max(0, Math.ceil((end - Date.now()) / (1000 * 60 * 60 * 24)));
+                    
+                    return (
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex justify-between text-[9px] text-on-surface-variant font-bold">
+                          <span>{language === "de" ? "Gültigkeit" : "Validity"}</span>
+                          <span>{daysRemaining}d left</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-[#f07d00] rounded-full transition-all duration-500" 
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                        <div className="text-[9px] text-on-surface-variant/80 font-medium italic">
+                          {language === "de" ? "Bis:" : "Exp:"} {new Date(sub.endDate).toLocaleDateString(language === "de" ? "de-DE" : "en-US")}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
           </aside>
 
           {/* ── Main Tab Contents ─────────────────────────── */}
@@ -745,6 +819,75 @@ export default function TenantDashboard() {
                   </p>
                 </div>
 
+                {/* Membership Status Panel */}
+                <div className="border border-outline-variant/60 rounded-2xl p-5 bg-surface-container-low/40">
+                  <h3 className="text-label-md font-bold text-primary flex items-center gap-2 mb-4">
+                    <span className="material-symbols-outlined text-[#f07d00]">card_membership</span>
+                    {language === "de" ? "Abonnement & Mitgliedschaft" : "Membership Plan Details"}
+                  </h3>
+                  
+                  {!isPremium ? (
+                    <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                      <div>
+                        <span className="bg-surface-container-high border border-outline-variant text-[11px] text-on-surface-variant font-bold uppercase tracking-wider px-3 py-1 rounded-full">
+                          {language === "de" ? "Kostenloser Tarif" : "Free Basic Plan"}
+                        </span>
+                        <p className="text-[13px] text-on-surface-variant mt-2 max-w-xl">
+                          {language === "de"
+                            ? "Upgrade auf Premium, um verifizierte Bewerbungsportfolios, automatisierte WhatsApp-Updates und volle AI-Match-Scores zu erhalten."
+                            : "Upgrade to Premium to unlock verified application portfolios, automated WhatsApp alerts, and detailed AI suitability matching."}
+                        </p>
+                      </div>
+                      <Link
+                        href="/preise?plan=3months"
+                        className="bg-[#f07d00] text-white px-6 py-2.5 rounded-xl font-bold text-[13px] hover:opacity-90 active:scale-95 transition-all shadow-md shadow-[#f07d00]/25 text-center flex-shrink-0"
+                      >
+                        {language === "de" ? "Jetzt upgraden" : "Upgrade Now"}
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="bg-gradient-to-br from-[#f07d00]/5 to-transparent rounded-xl border-2 border-[#f07d00] p-4 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 bg-[#f07d00] text-white text-[8px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-bl">
+                        Active
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[#f07d00] text-[20px]">workspace_premium</span>
+                        <span className="text-[16px] font-black text-primary">Heimat Premium ({subscription?.plan === "1month" ? "1 Monat" : subscription?.plan === "3months" ? "3 Monate" : "12 Monate"})</span>
+                      </div>
+
+                      {(() => {
+                        const sub = subscription;
+                        if (!sub) return null;
+                        const start = new Date(sub.startDate).getTime();
+                        const end = new Date(sub.endDate).getTime();
+                        const total = end - start;
+                        const elapsed = Date.now() - start;
+                        const percentage = Math.max(0, Math.min(100, (elapsed / total) * 100));
+                        const daysRemaining = Math.max(0, Math.ceil((end - Date.now()) / (1000 * 60 * 60 * 24)));
+                        
+                        return (
+                          <div className="mt-4 space-y-2">
+                            <div className="flex justify-between text-[11px] text-on-surface-variant font-semibold">
+                              <span>{language === "de" ? "Gültigkeit" : "Validity"}</span>
+                              <span>{daysRemaining} {language === "de" ? "Tage verbleibend" : "days left"}</span>
+                            </div>
+                            <div className="w-full h-2.5 bg-surface-container-high rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-[#f07d00] rounded-full transition-all duration-500" 
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                            <div className="text-[11px] text-on-surface-variant/80 font-medium italic mt-1 text-right">
+                              {language === "de" ? "Ablaufdatum:" : "Expires on:"} {new Date(sub.endDate).toLocaleDateString(language === "de" ? "de-DE" : "en-US")}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+
                 {errorMsg && (
                   <div className="p-4 text-[14px] text-error bg-error-container/30 border border-error/20 rounded-xl flex items-center gap-2">
                     <span className="material-symbols-outlined text-[20px]">warning</span>
@@ -792,6 +935,36 @@ export default function TenantDashboard() {
                           onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
                           className="w-full h-11 px-4 bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-[15px]"
                         />
+                      </div>
+
+                      <div className="col-span-1 md:col-span-2 flex justify-between items-center p-4 bg-surface-container-low rounded-xl border border-outline-variant/60 mt-2">
+                        <div>
+                          <h4 className="text-label-sm font-bold text-primary flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-[#f07d00] text-[18px]">whatsapp</span>
+                            {language === "de" ? "WhatsApp Status-Updates" : "WhatsApp Status Updates"}
+                          </h4>
+                          <p className="text-[10px] text-on-surface-variant leading-tight mt-0.5">
+                            {isPremium 
+                              ? (language === "de" ? "WhatsApp-Updates sind aktiv" : "WhatsApp updates are active") 
+                              : `*${language === "de" ? "Nur Premium-Mitglieder" : "Premium Members Only"}`}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={!isPremium}
+                          onClick={() => {
+                            alert(language === "de" ? "WhatsApp-Status-Updates aktualisiert!" : "WhatsApp status updates updated!");
+                          }}
+                          className={`w-11 h-5.5 rounded-full transition-all relative flex items-center p-0.5 cursor-pointer ${
+                            !isPremium ? "opacity-35 cursor-not-allowed" : ""
+                          } ${isPremium ? "bg-primary" : "bg-outline-variant"}`}
+                        >
+                          <div
+                            className={`w-4.5 h-4.5 bg-white rounded-full shadow transition-all transform ${
+                              isPremium ? "translate-x-5" : "translate-x-0"
+                            }`}
+                          />
+                        </button>
                       </div>
 
                       <div className="space-y-1">
@@ -1065,6 +1238,38 @@ export default function TenantDashboard() {
                       ? "Laden Sie Ihre erforderlichen Nachweise hoch. Ein verifiziertes Profil beschleunigt den Zusageprozess bei Vermietern erheblich."
                       : "Upload your required verification papers. A fully verified profile gives you priority access and immediate landlord approvals."}
                   </p>
+                </div>
+
+                {/* Verified Bewerberportfolio Status Card */}
+                <div className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${
+                  isPremium 
+                    ? "border-primary bg-primary-fixed/10 text-primary" 
+                    : "border-outline-variant bg-surface-container-low text-on-surface-variant"
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <span className={`material-symbols-outlined text-[28px] ${isPremium ? "text-primary" : "text-outline-variant"}`}>
+                      {isPremium ? "verified" : "verified_user"}
+                    </span>
+                    <div>
+                      <h4 className="font-bold text-label-md">
+                        {language === "de" ? "Verifiziertes Bewerberportfolio" : "Verified Applicant Portfolio"}
+                      </h4>
+                      <p className="text-[11px] text-on-surface-variant mt-0.5">
+                        {isPremium 
+                          ? (language === "de" ? "Dein verifiziertes Portfolio ist für Vermieter vollständig sichtbar und hervorgehoben." : "Your verified portfolio is fully visible and highlighted to landlords.")
+                          : (language === "de" ? "Dein verifiziertes Portfolio wird erst nach einem Upgrade auf Premium für Vermieter sichtbar sein." : "Your verified portfolio will only be visible to landlords after upgrading to Premium.")
+                        }
+                      </p>
+                    </div>
+                  </div>
+                  {!isPremium && (
+                    <Link
+                      href="/preise?plan=3months"
+                      className="bg-[#f07d00] text-white px-4 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 active:scale-95 transition-all shadow-sm whitespace-nowrap"
+                    >
+                      {language === "de" ? "Jetzt freischalten" : "Unlock Now"}
+                    </Link>
+                  )}
                 </div>
 
                 {/* Success / Error feedback */}

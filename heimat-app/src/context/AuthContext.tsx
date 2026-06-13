@@ -14,6 +14,14 @@ export interface Profile {
   created_at: string;
 }
 
+export interface SubscriptionDetails {
+  plan: "1month" | "3months" | "12months";
+  status: string;
+  startDate: string;
+  endDate: string;
+  cancelAtPeriodEnd: boolean;
+}
+
 interface AuthContextProps {
   user: User | null;
   session: Session | null;
@@ -22,6 +30,9 @@ interface AuthContextProps {
   role: "tenant" | "landlord" | null;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  isPremium: boolean;
+  subscription: SubscriptionDetails | null;
+  upgradeUser: (plan: "1month" | "3months" | "12months") => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -30,10 +41,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [subscription, setSubscription] = useState<SubscriptionDetails | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const fetchSubscription = async (userId: string) => {
+    // Check localStorage first for rapid local development updates & mock mode
+    const localSub = localStorage.getItem(`heimat_sub_${userId}`);
+    if (localSub) {
+      try {
+        const parsed = JSON.parse(localSub);
+        // Expiry check
+        if (new Date(parsed.endDate).getTime() > Date.now()) {
+          setSubscription(parsed);
+          return;
+        } else {
+          localStorage.removeItem(`heimat_sub_${userId}`);
+        }
+      } catch (e) {
+        console.error("Failed to parse local sub:", e);
+      }
+    }
+
+    // Attempt to query Supabase if configured
+    try {
+      if (isSupabaseConfigured()) {
+        const { data, error } = await supabase
+          .from("subscriptions")
+          .select("*")
+          .eq("user_id", userId)
+          .eq("status", "active")
+          .order("current_period_end", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (data && !error) {
+          setSubscription({
+            plan: "3months", // Default fallback if not detailed
+            status: data.status,
+            startDate: data.current_period_start,
+            endDate: data.current_period_end,
+            cancelAtPeriodEnd: data.cancel_at_period_end,
+          });
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("Could not fetch subscription from DB:", err);
+    }
+    setSubscription(null);
+  };
 
   const fetchProfile = async (userId: string) => {
     try {
+      await fetchSubscription(userId);
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
@@ -58,6 +118,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const upgradeUser = async (plan: "1month" | "3months" | "12months") => {
+    if (!user) return;
+
+    // Calculate dates
+    const start = new Date();
+    const end = new Date();
+    if (plan === "1month") end.setMonth(end.getMonth() + 1);
+    else if (plan === "3months") end.setMonth(end.getMonth() + 3);
+    else if (plan === "12months") end.setFullYear(end.getFullYear() + 1);
+
+    const subDetails: SubscriptionDetails = {
+      plan,
+      status: "active",
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      cancelAtPeriodEnd: false,
+    };
+
+    // 1. Cache to localStorage keyed by user ID
+    localStorage.setItem(`heimat_sub_${user.id}`, JSON.stringify(subDetails));
+    setSubscription(subDetails);
+
+    // 2. Persist to database if configured
+    try {
+      if (isSupabaseConfigured()) {
+        await supabase.from("subscriptions").insert({
+          user_id: user.id,
+          stripe_subscription_id: `sub_mock_${Date.now()}`,
+          plan: "pro", // match subscription_plan enum from 001_schema.sql
+          status: "active",
+          current_period_start: start.toISOString(),
+          current_period_end: end.toISOString(),
+          cancel_at_period_end: false,
+        });
+
+        // If landlord, sync the role subscription_tier column
+        if (profile?.role === "landlord") {
+          await supabase
+            .from("landlord_profiles")
+            .update({ subscription_tier: "pro" })
+            .eq("user_id", user.id);
+        }
+      }
+    } catch (dbErr) {
+      console.warn("DB subscription upgrade write bypassed (dev/mock environment):", dbErr);
+    }
+  };
+
   useEffect(() => {
     // Skip Supabase auth if not configured (dev mode without real env vars)
     if (!isSupabaseConfigured()) {
@@ -70,9 +178,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const { data: { session: initialSession } } = await supabase.auth.getSession();
         setSession(initialSession);
-        setUser(initialSession?.user ?? null);
-        if (initialSession?.user) {
-          await fetchProfile(initialSession.user.id);
+        const currentUser = initialSession?.user ?? null;
+        setUser(currentUser);
+        if (currentUser) {
+          await fetchProfile(currentUser.id);
         }
       } catch (err) {
         console.error("Error getting initial session:", err);
@@ -83,7 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     getInitialSession();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       setSession(newSession);
       const newUser = newSession?.user ?? null;
       setUser(newUser);
@@ -92,12 +201,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await fetchProfile(newUser.id);
       } else {
         setProfile(null);
+        setSubscription(null);
       }
       setLoading(false);
     });
 
     return () => {
-      subscription.unsubscribe();
+      authSub.unsubscribe();
     };
   }, []);
 
@@ -108,6 +218,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setSession(null);
       setProfile(null);
+      setSubscription(null);
     } catch (err) {
       console.error("Error during signout:", err);
     } finally {
@@ -116,9 +227,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const role = profile?.role ?? null;
+  const isPremium = subscription !== null && subscription.status === "active";
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, loading, role, signOut, refreshProfile }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        profile,
+        loading,
+        role,
+        signOut,
+        refreshProfile,
+        isPremium,
+        subscription,
+        upgradeUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

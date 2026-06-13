@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 export default function BookingDetailPage({ params }: { params: Promise<{ bookingId: string }> }) {
   const { bookingId } = use(params);
   const { t, language } = useLanguage();
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading, isPremium } = useAuth();
   const router = useRouter();
 
   const [booking, setBooking] = useState<any>(null);
@@ -578,7 +578,31 @@ export default function BookingDetailPage({ params }: { params: Promise<{ bookin
 
             {/* 2. Landlord Review & AI Matching Card */}
             {isLandlord && booking?.status !== "pending" && (
-              <div className="bg-white border border-outline-variant p-6 md:p-8 rounded-3xl shadow-sm space-y-6">
+              <div className="bg-white border border-outline-variant p-6 md:p-8 rounded-3xl shadow-sm space-y-6 relative overflow-hidden">
+                {/* Gated Lock Screen for Free Users */}
+                {!isPremium && (
+                  <div className="absolute inset-0 bg-white/70 backdrop-blur-md z-10 flex flex-col items-center justify-center p-6 text-center space-y-4">
+                    <div className="w-14 h-14 bg-[#f07d00]/10 rounded-full flex items-center justify-center text-[#f07d00]">
+                      <span className="material-symbols-outlined text-[32px]">lock</span>
+                    </div>
+                    <div className="max-w-md space-y-2">
+                      <h3 className="text-headline-md font-extrabold text-primary">
+                        {language === "de" ? "AI Eignungsanalyse freischalten" : "Unlock AI Suitability Analysis"}
+                      </h3>
+                      <p className="text-body-sm text-on-surface-variant leading-relaxed">
+                        {language === "de"
+                          ? "Upgrade auf Premium, um den detaillierten Match-Score, Risiko-Flags und die automatische Begründung für diese Bewerbung freizuschalten."
+                          : "Upgrade to Premium to unlock the detailed match score, risk flags, and automated background analysis for this application."}
+                      </p>
+                    </div>
+                    <Link
+                      href="/preise?plan=3months"
+                      className="bg-[#f07d00] text-white px-6 py-2.5 rounded-full font-bold text-label-md hover:opacity-90 active:scale-95 transition-all shadow-md shadow-[#f07d00]/25"
+                    >
+                      {language === "de" ? "Jetzt freischalten" : "Upgrade Now"}
+                    </Link>
+                  </div>
+                )}
                 <div className="flex justify-between items-center flex-wrap gap-4 border-b border-outline-variant pb-4">
                   <h2 className="text-headline-sm font-bold text-primary flex items-center gap-3">
                     <span className="material-symbols-outlined text-[28px]">troubleshoot</span>

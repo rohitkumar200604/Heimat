@@ -213,7 +213,15 @@ export const translations = {
     pricingSubtitle: "Einfache, transparente Preisgestaltung für alle Nutzer.",
     freeTier: "Kostenlos",
     proTier: "Pro",
-    earlyAccess: "Early Access (Mieter)"
+    earlyAccess: "Early Access (Mieter)",
+    billing1Month: "1 Monat*",
+    billing3Months: "3 Monate",
+    billing12Months: "12 Monate",
+    topSellers: "Beliebt",
+    perMonth: "/ Monat",
+    continueToPayment: "Weiter zur Zahlung",
+    pricingDisclaimer: "*ohne validiertes Bewerberportfolio",
+    stepReview: "Schritt 1/2",
   },
   en: {
     // Navbar & Footer
@@ -429,7 +437,15 @@ export const translations = {
     pricingSubtitle: "Simple, transparent pricing plans for everyone.",
     freeTier: "Free",
     proTier: "Pro",
-    earlyAccess: "Early Access (Tenant)"
+    earlyAccess: "Early Access (Tenant)",
+    billing1Month: "1 month*",
+    billing3Months: "3 months",
+    billing12Months: "12 months",
+    topSellers: "Top sellers",
+    perMonth: "/per month",
+    continueToPayment: "Continue to payment",
+    pricingDisclaimer: "*without a validated application portfolio",
+    stepReview: "Step 1/2",
   },
 };
 export type Language = "de" | "en";

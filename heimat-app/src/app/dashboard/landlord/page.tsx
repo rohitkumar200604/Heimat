@@ -10,7 +10,7 @@ import Link from "next/link";
 
 export default function LandlordDashboard() {
   const router = useRouter();
-  const { user, profile, loading, refreshProfile } = useAuth();
+  const { user, profile, loading, refreshProfile, isPremium, subscription } = useAuth();
   const { t, language } = useLanguage();
   
   // Navigation State
@@ -85,6 +85,10 @@ export default function LandlordDashboard() {
             email,
             tenant_profiles (
               monthly_income
+            ),
+            subscriptions (
+              status,
+              plan
             )
           ),
           properties (
@@ -98,7 +102,19 @@ export default function LandlordDashboard() {
         .eq("landlord_id", user.id);
       
       if (bookingsErr) throw bookingsErr;
-      setBookingRequests(bookingsData || []);
+
+      // Sort bookings: Premium tenant applications at the top
+      const sortedBookings = (bookingsData || []).sort((a, b) => {
+        const aTenant = (Array.isArray(a.tenant) ? a.tenant[0] : a.tenant) as any;
+        const bTenant = (Array.isArray(b.tenant) ? b.tenant[0] : b.tenant) as any;
+        const aIsPremium = aTenant?.subscriptions?.some((s: any) => s.status === 'active') || false;
+        const bIsPremium = bTenant?.subscriptions?.some((s: any) => s.status === 'active') || false;
+        if (aIsPremium && !bIsPremium) return -1;
+        if (!aIsPremium && bIsPremium) return 1;
+        return 0;
+      });
+
+      setBookingRequests(sortedBookings);
 
       // 3. Fetch properties owned by landlord
       if (lpData) {
@@ -216,7 +232,7 @@ export default function LandlordDashboard() {
     );
   }
 
-  const isProTier = landlordProfile?.subscription_tier === "pro";
+  const isProTier = landlordProfile?.subscription_tier === "pro" || isPremium;
   const whatsAppActive = isProTier && landlordProfile?.whatsapp_enabled;
 
   return (
@@ -294,6 +310,72 @@ export default function LandlordDashboard() {
               <span className="material-symbols-outlined text-[20px]">home_work</span>
               <span>{language === "de" ? "Meine Immobilien" : "My Properties"}</span>
             </button>
+
+            {/* Divider */}
+            <div className="border-t border-outline-variant/60 my-3" />
+            
+            {/* Membership Panel */}
+            <div className="p-3 bg-surface-container-low/40 rounded-xl border border-outline-variant/50 space-y-3">
+              <h4 className="text-[12px] font-bold text-primary flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[#f07d00] text-[18px]">card_membership</span>
+                <span>{language === "de" ? "Mitgliedschaft" : "Membership"}</span>
+              </h4>
+              
+              {!isProTier ? (
+                <div className="space-y-2">
+                  <div className="text-[11px] text-on-surface-variant leading-tight">
+                    {language === "de" ? "Kostenloser Tarif" : "Free Basic Plan"}
+                  </div>
+                  <Link
+                    href="/preise?plan=3months"
+                    className="w-full bg-[#f07d00] text-white py-2 rounded-lg font-bold text-[11px] hover:opacity-90 active:scale-95 transition-all text-center block"
+                  >
+                    {language === "de" ? "Jetzt upgraden" : "Upgrade Now"}
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="text-[12px] font-black text-primary flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[#f07d00] text-[16px]">workspace_premium</span>
+                    <span>Premium ({subscription?.plan === "1month" ? "1M" : subscription?.plan === "3months" ? "3M" : subscription?.plan === "12months" ? "12M" : "Pro"})</span>
+                  </div>
+                  
+                  {subscription ? (
+                    (() => {
+                      const sub = subscription;
+                      const start = new Date(sub.startDate).getTime();
+                      const end = new Date(sub.endDate).getTime();
+                      const total = end - start;
+                      const elapsed = Date.now() - start;
+                      const percentage = Math.max(0, Math.min(100, (elapsed / total) * 100));
+                      const daysRemaining = Math.max(0, Math.ceil((end - Date.now()) / (1000 * 60 * 60 * 24)));
+                      
+                      return (
+                        <div className="space-y-1.5 pt-1">
+                          <div className="flex justify-between text-[9px] text-on-surface-variant font-bold">
+                            <span>{language === "de" ? "Gültigkeit" : "Validity"}</span>
+                            <span>{daysRemaining}d left</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-[#f07d00] rounded-full transition-all duration-500" 
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                          <div className="text-[9px] text-on-surface-variant/80 font-medium italic">
+                            {language === "de" ? "Bis:" : "Exp:"} {new Date(sub.endDate).toLocaleDateString(language === "de" ? "de-DE" : "en-US")}
+                          </div>
+                        </div>
+                      );
+                    })()
+                  ) : (
+                    <div className="text-[10px] text-on-surface-variant/80 font-medium italic pt-1">
+                      {language === "de" ? "Lebenslanger Pro-Zugang" : "Lifetime Pro Access"}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </aside>
 
           {/* ── Main Tab Contents ─────────────────────────── */}
@@ -364,20 +446,35 @@ export default function LandlordDashboard() {
                     ) : (
                       <div className="space-y-3">
                         {bookingRequests.slice(0, 3).map((b) => {
-                          const tenant = b.tenant;
+                          const tenant = (Array.isArray(b.tenant) ? b.tenant[0] : b.tenant) as any;
                           const score = b.ai_tenant_scores && b.ai_tenant_scores[0];
+                          const tenantIsPremium = tenant?.subscriptions?.some((s: any) => s.status === 'active') || false;
                           return (
                             <div key={b.id} className="p-4 border border-outline-variant rounded-xl flex justify-between items-center gap-4 flex-wrap sm:flex-nowrap hover:shadow-sm transition-all bg-surface-container-low">
                               <div>
-                                <h4 className="text-label-md font-bold text-primary">{tenant?.full_name || "Mieter"}</h4>
+                                <h4 className="text-label-md font-bold text-primary flex items-center gap-1.5">
+                                  {tenant?.full_name || "Mieter"}
+                                  {tenantIsPremium && (
+                                    <span className="material-symbols-outlined text-[#f07d00] text-[18px] select-none" title="Premium Bewerber">
+                                      star
+                                    </span>
+                                  )}
+                                </h4>
                                 <p className="text-[12px] text-on-surface-variant mt-0.5">
                                   {language === "de" ? "Objekt: " : "Property: "} <strong className="text-primary">{b.properties?.title}</strong>
                                 </p>
                               </div>
                               <div className="flex items-center gap-3 ml-auto sm:ml-0">
-                                <span className="bg-primary/10 border border-primary/20 text-primary px-3 py-1 rounded-full text-[11px] font-bold">
-                                  AI Match: {score ? `${score.overall_score}%` : "TBD"}
-                                </span>
+                                {isProTier ? (
+                                  <span className="bg-primary/10 border border-primary/20 text-primary px-3 py-1 rounded-full text-[11px] font-bold">
+                                    AI Match: {score ? `${score.overall_score}%` : "TBD"}
+                                  </span>
+                                ) : (
+                                  <span className="bg-surface-container-high border border-outline-variant text-outline-variant px-3 py-1 rounded-full text-[11px] font-bold flex items-center gap-1">
+                                    <span className="material-symbols-outlined text-[12px]">lock</span>
+                                    AI Match
+                                  </span>
+                                )}
                                 <Link 
                                   href={`/buchen/${b.id}`} 
                                   className="bg-primary text-on-primary px-4 py-1.5 rounded-lg text-[12px] font-bold hover:opacity-90 active:scale-95 transition-all shadow-sm"
@@ -394,22 +491,80 @@ export default function LandlordDashboard() {
 
                   {/* Right Column: Subscription settings quick panel - 4 Cols */}
                   <div className="lg:col-span-4 bg-white border border-outline-variant p-6 rounded-2xl shadow-sm space-y-6">
-                    <h3 className="text-headline-md font-bold text-primary">
-                      {language === "de" ? "Tarif-Verwaltung" : "Plan Settings"}
+                    <h3 className="text-headline-md font-bold text-primary flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[#f07d00]">card_membership</span>
+                      {language === "de" ? "Mitgliedschaft" : "Membership Plan"}
                     </h3>
                     
-                    <div className="p-4 bg-surface-container-low rounded-xl border border-outline-variant/60 flex items-center justify-between">
-                      <div>
-                        <p className="text-[10px] text-on-surface-variant uppercase font-bold tracking-wider">Plan</p>
-                        <p className="text-[16px] font-bold text-primary capitalize">{landlordProfile?.subscription_tier || "Free"}</p>
+                    {!isProTier ? (
+                      <div className="space-y-4">
+                        <div className="p-4 bg-surface-container-low rounded-xl border border-outline-variant/60">
+                          <span className="text-[10px] text-on-surface-variant uppercase font-bold tracking-wider block">Plan</span>
+                          <span className="text-[18px] font-black text-primary block mt-1">{language === "de" ? "Kostenlose Basis" : "Free Basic"}</span>
+                          <p className="text-[12px] text-on-surface-variant mt-2 leading-relaxed">
+                            {language === "de" 
+                              ? "Upgrade auf Premium, um verifizierte Bewerber-Portfolios einzusehen, AI-Eignungsscores freizuschalten und WhatsApp-Updates zu aktivieren."
+                              : "Upgrade to Premium to view validated applicant portfolios, unlock AI suitability scores, and enable automated WhatsApp notifications."}
+                          </p>
+                        </div>
+                        <Link
+                          href="/preise?plan=3months"
+                          className="w-full bg-[#f07d00] text-white py-3 rounded-xl font-bold text-label-md hover:opacity-90 active:scale-98 transition-all shadow-md shadow-[#f07d00]/20 text-center block cursor-pointer"
+                        >
+                          {language === "de" ? "Jetzt upgraden" : "Upgrade Now"}
+                        </Link>
                       </div>
-                      <button
-                        onClick={toggleSubscription}
-                        className="bg-primary text-on-primary px-3.5 py-1.5 rounded-lg text-[11px] font-bold hover:opacity-90 active:scale-95 transition-all shadow cursor-pointer"
-                      >
-                        {isProTier ? (language === "de" ? "Downgrade" : "Downgrade") : (language === "de" ? "Upgrade" : "Upgrade")}
-                      </button>
-                    </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="p-4 bg-gradient-to-br from-[#f07d00]/5 to-transparent rounded-xl border-2 border-[#f07d00] relative overflow-hidden">
+                          <div className="absolute top-0 right-0 bg-[#f07d00] text-white text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-bl">
+                            Active
+                          </div>
+                          <span className="text-[10px] text-[#f07d00] uppercase font-bold tracking-wider block">Plan</span>
+                          <span className="text-[18px] font-black text-primary flex items-center gap-1.5 mt-1">
+                            <span className="material-symbols-outlined text-[#f07d00] text-[20px]">workspace_premium</span>
+                            Heimat Premium
+                          </span>
+                          
+                          {/* Progress/Validity Bar */}
+                          {(() => {
+                            const sub = subscription;
+                            if (!sub) return null;
+                            const start = new Date(sub.startDate).getTime();
+                            const end = new Date(sub.endDate).getTime();
+                            const total = end - start;
+                            const elapsed = Date.now() - start;
+                            const percentage = Math.max(0, Math.min(100, (elapsed / total) * 100));
+                            const daysRemaining = Math.max(0, Math.ceil((end - Date.now()) / (1000 * 60 * 60 * 24)));
+                            
+                            return (
+                              <div className="mt-4 space-y-2">
+                                <div className="flex justify-between text-[11px] text-on-surface-variant font-semibold">
+                                  <span>{language === "de" ? "Gültigkeit" : "Validity"}</span>
+                                  <span>{daysRemaining} {language === "de" ? "Tage verbleibend" : "days left"}</span>
+                                </div>
+                                <div className="w-full h-2.5 bg-surface-container-high rounded-full overflow-hidden">
+                                  <div 
+                                    className="h-full bg-[#f07d00] rounded-full transition-all duration-500" 
+                                    style={{ width: `${percentage}%` }}
+                                  />
+                                </div>
+                                <div className="text-[11px] text-on-surface-variant/80 font-medium italic mt-1 text-right">
+                                  {language === "de" ? "Ablaufdatum:" : "Expires on:"} {new Date(sub.endDate).toLocaleDateString(language === "de" ? "de-DE" : "en-US")}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                        
+                        <button
+                          onClick={toggleSubscription}
+                          className="w-full border border-outline-variant text-on-surface-variant py-2.5 rounded-xl text-[12px] font-bold hover:bg-surface-container-low active:scale-98 transition-all text-center block cursor-pointer"
+                        >
+                          {language === "de" ? "Abonnement beenden / downgraden" : "Cancel / Downgrade Subscription"}
+                        </button>
+                      </div>
+                    )}
 
                     <div className="flex justify-between items-center pt-4 border-t border-outline-variant">
                       <div>
@@ -578,10 +733,13 @@ export default function LandlordDashboard() {
                 ) : (
                   <div className="space-y-4">
                     {bookingRequests.map((b) => {
-                      const tenantProfile = b.tenant;
-                      const tenantDetails = tenantProfile?.tenant_profiles;
+                      const tenantProfile = (Array.isArray(b.tenant) ? b.tenant[0] : b.tenant) as any;
+                      const tenantDetails = Array.isArray(tenantProfile?.tenant_profiles)
+                        ? tenantProfile.tenant_profiles[0]
+                        : tenantProfile?.tenant_profiles;
                       const propertyDetails = b.properties;
                       const aiScoreObj = b.ai_tenant_scores && b.ai_tenant_scores[0];
+                      const tenantIsPremium = tenantProfile?.subscriptions?.some((s: any) => s.status === 'active') || false;
 
                       return (
                         <div
@@ -589,7 +747,14 @@ export default function LandlordDashboard() {
                           className="p-5 border border-outline-variant rounded-2xl hover:shadow-md transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-surface-container-low"
                         >
                           <div>
-                            <h4 className="text-headline-md font-bold text-primary">{tenantProfile?.full_name || "Bewerber"}</h4>
+                            <h4 className="text-headline-md font-bold text-primary flex items-center gap-1.5">
+                              {tenantProfile?.full_name || "Bewerber"}
+                              {tenantIsPremium && (
+                                <span className="material-symbols-outlined text-[#f07d00] text-[20px] select-none" title="Premium Bewerber">
+                                  star
+                                </span>
+                              )}
+                            </h4>
                             <p className="text-body-sm text-on-surface-variant mt-1">
                               {language === "de" ? "Wohnung: " : "Property: "} <strong className="text-primary">{propertyDetails?.title || "Property"}</strong>
                             </p>
@@ -599,14 +764,26 @@ export default function LandlordDashboard() {
                           </div>
 
                           <div className="flex gap-4 items-center flex-wrap ml-auto md:ml-0">
-                            <div className="bg-primary-fixed/20 px-4 py-2.5 rounded-xl border border-primary/20 text-center">
-                              <p className="text-[10px] text-primary font-bold uppercase tracking-wider">
-                                {t("tenantMatchScore")}
-                              </p>
-                              <p className="text-[20px] font-bold text-primary leading-tight mt-0.5">
-                                {aiScoreObj ? `${aiScoreObj.overall_score}%` : "TBD"}
-                              </p>
-                            </div>
+                            {isProTier ? (
+                              <div className="bg-primary-fixed/20 px-4 py-2.5 rounded-xl border border-primary/20 text-center">
+                                <p className="text-[10px] text-primary font-bold uppercase tracking-wider">
+                                  {t("tenantMatchScore")}
+                                </p>
+                                <p className="text-[20px] font-bold text-primary leading-tight mt-0.5">
+                                  {aiScoreObj ? `${aiScoreObj.overall_score}%` : "TBD"}
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="bg-surface-container-high px-4 py-2.5 rounded-xl border border-outline-variant text-center">
+                                <p className="text-[10px] text-outline-variant font-bold uppercase tracking-wider">
+                                  {t("tenantMatchScore")}
+                                </p>
+                                <p className="text-[14px] font-bold text-[#f07d00] leading-tight mt-1.5 flex items-center gap-1 justify-center">
+                                  <span className="material-symbols-outlined text-[14px]">lock</span>
+                                  Premium
+                                </p>
+                              </div>
+                            )}
 
                             <Link
                               href={`/buchen/${b.id}`}

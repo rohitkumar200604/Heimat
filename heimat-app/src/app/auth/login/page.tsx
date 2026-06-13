@@ -1,15 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/supabase/client";
 import Link from "next/link";
 import Footer from "@/components/layout/Footer";
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get("redirect");
   const { t, language } = useLanguage();
   const { profile, loading } = useAuth();
   
@@ -22,13 +24,17 @@ export default function LoginPage() {
   useEffect(() => {
     if (profile) {
       if (!profile.role) {
-        router.push("/auth/select-role");
+        const selectRoleUrl = redirectUrl 
+          ? `/auth/select-role?redirect=${encodeURIComponent(redirectUrl)}`
+          : "/auth/select-role";
+        router.push(selectRoleUrl);
       } else {
-        const url = profile.role === "landlord" ? "/dashboard/landlord" : "/dashboard/tenant";
-        router.push(url);
+        const defaultUrl = profile.role === "landlord" ? "/dashboard/landlord" : "/dashboard/tenant";
+        const destination = redirectUrl || defaultUrl;
+        router.push(destination);
       }
     }
-  }, [profile, router]);
+  }, [profile, router, redirectUrl]);
 
   // Self-healing: Detect Google OAuth hash redirect landing on login page and route to Auth Callback
   useEffect(() => {
@@ -61,10 +67,14 @@ export default function LoginPage() {
 
       if (profileData) {
         if (!profileData.role) {
-          router.push("/auth/select-role");
+          const selectRoleUrl = redirectUrl 
+            ? `/auth/select-role?redirect=${encodeURIComponent(redirectUrl)}`
+            : "/auth/select-role";
+          router.push(selectRoleUrl);
         } else {
-          const url = profileData.role === "landlord" ? "/dashboard/landlord" : "/dashboard/tenant";
-          router.push(url);
+          const defaultUrl = profileData.role === "landlord" ? "/dashboard/landlord" : "/dashboard/tenant";
+          const destination = redirectUrl || defaultUrl;
+          router.push(destination);
         }
       }
     } catch (err: any) {
@@ -89,6 +99,10 @@ export default function LoginPage() {
       setErrorMsg(err.message || "An error occurred during Google sign-in");
     }
   };
+
+  const registerLink = redirectUrl 
+    ? `/auth/register?redirect=${encodeURIComponent(redirectUrl)}`
+    : "/auth/register";
 
   return (
     <>
@@ -203,7 +217,7 @@ export default function LoginPage() {
 
           <div className="mt-8 text-center text-body-md">
             <Link
-              href="/auth/register"
+              href={registerLink}
               className="text-primary font-bold hover:underline"
             >
               {t("dontHaveAccount")}
@@ -213,5 +227,17 @@ export default function LoginPage() {
       </div>
       <Footer />
     </>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex-grow flex items-center justify-center min-h-[600px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
+      </div>
+    }>
+      <LoginPageContent />
+    </Suspense>
   );
 }

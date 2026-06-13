@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/supabase/client";
 import Footer from "@/components/layout/Footer";
 
-export default function SelectRolePage() {
+function SelectRolePageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get("redirect");
   const { user, profile, loading, refreshProfile } = useAuth();
   const { language } = useLanguage();
 
@@ -21,13 +23,17 @@ export default function SelectRolePage() {
   useEffect(() => {
     if (!loading) {
       if (!user) {
-        router.push("/auth/login");
+        const loginUrl = redirectUrl 
+          ? `/auth/login?redirect=${encodeURIComponent(redirectUrl)}`
+          : "/auth/login";
+        router.push(loginUrl);
       } else if (profile && profile.role) {
-        const url = profile.role === "landlord" ? "/dashboard/landlord" : "/dashboard/tenant";
-        router.push(url);
+        const defaultUrl = profile.role === "landlord" ? "/dashboard/landlord" : "/dashboard/tenant";
+        const destination = redirectUrl || defaultUrl;
+        router.push(destination);
       }
     }
-  }, [user, profile, loading, router]);
+  }, [user, profile, loading, router, redirectUrl]);
 
   const handleRoleSelectionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,8 +85,9 @@ export default function SelectRolePage() {
 
       // Redirect role specifically after a short pause
       setTimeout(() => {
-        const url = selectedRole === "landlord" ? "/dashboard/landlord" : "/dashboard/tenant";
-        router.push(url);
+        const defaultUrl = selectedRole === "landlord" ? "/dashboard/landlord" : "/dashboard/tenant";
+        const destination = redirectUrl || defaultUrl;
+        router.push(destination);
       }, 1500);
 
     } catch (err: any) {
@@ -203,5 +210,17 @@ export default function SelectRolePage() {
       </div>
       <Footer />
     </>
+  );
+}
+
+export default function SelectRolePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex-grow flex items-center justify-center min-h-[600px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
+      </div>
+    }>
+      <SelectRolePageContent />
+    </Suspense>
   );
 }
