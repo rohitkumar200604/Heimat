@@ -61,12 +61,12 @@ function RegisterPageContent() {
         );
       }
 
-      setSuccessMsg(
-        language === "de"
-          ? "Registrierung erfolgreich abgeschlossen!"
-          : "Registration successfully completed!"
-      );
-      
+      const successAlertMsg = language === "de"
+        ? "Registrierung erfolgreich abgeschlossen! Bitte überprüfen Sie Ihre E-Mails."
+        : "Registration successfully completed! Please check your email.";
+
+      alert(successAlertMsg);
+      setSuccessMsg(successAlertMsg);
       setIsRegistered(true);
 
     } catch (err: any) {
