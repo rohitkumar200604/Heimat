@@ -397,7 +397,6 @@ export default function HomePage() {
                   { text: language === "de" ? "Unbegrenzt Immobilien durchsuchen" : "Browse unlimited properties", check: true },
                   { text: language === "de" ? "Standard-Bewerberliste für Vermieter" : "Standard applicant list for landlords", check: true },
                   { text: language === "de" ? "Direkter Chat mit Vermietern" : "Direct chat with landlords", check: true },
-                  { text: language === "de" ? "WhatsApp Status-Updates" : "WhatsApp status updates", check: false },
                   { text: language === "de" ? "Verifiziertes Bewerberportfolio" : "Validated application portfolio", check: false },
                 ].map(({ text, check }, i) => (
                   <li key={i} className={`flex items-center gap-3 ${!check ? "text-outline-variant/60 line-through" : ""}`}>
@@ -431,8 +430,8 @@ export default function HomePage() {
                 </h3>
                 <p className="text-[14px] text-on-surface-variant mt-2">
                   {language === "de"
-                    ? "Maximale Suchgeschwindigkeit mit bevorzugten Bewerbungen & WhatsApp Updates."
-                    : "Maximum search speed with priority applications & WhatsApp updates."}
+                    ? "Maximale Suchgeschwindigkeit mit bevorzugten Bewerbungen."
+                    : "Maximum search speed with priority applications."}
                 </p>
               </div>
 
@@ -476,8 +475,6 @@ export default function HomePage() {
                   {[
                     { label: language === "de" ? "Verifiziertes Bewerberportfolio" : "Validated applicant portfolio" },
                     { label: language === "de" ? "Priorisierte Bewerber-Anfragen" : "Priority applicant requests" },
-                    { label: language === "de" ? "Automatische WhatsApp Updates" : "Automated WhatsApp updates" },
-                    { label: language === "de" ? "AI Eignungs-Score (98% Match)" : "AI matching score (98% match)" },
                     { label: language === "de" ? "Unbegrenzte Chat-Vorgänge" : "Unlimited chat sessions" },
                     { label: language === "de" ? "Escrow-Treuhandgarantie" : "Secure escrow guarantee" }
                   ].map(({ label }, i) => (
