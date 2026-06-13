@@ -235,8 +235,20 @@ export default function BookingDetailPage({ params }: { params: Promise<{ bookin
       const aiData = await aiRes.json();
       if (!aiData.success) throw new Error(aiData.error || "AI Screening failed");
 
-      alert(language === "de" ? "Dokumente erfolgreich zur Überprüfung eingereicht!" : "Documents successfully submitted for review!");
-      await loadBookingData();
+      if (bookingId === "mock-apply-87a" || bookingId.startsWith("mock")) {
+        setBooking((prev: any) => ({ ...prev, status: "approved" }));
+        setAiScore({
+          overall_score: 95,
+          income_score: 98,
+          employment_score: 95,
+          doc_score: 95,
+          stay_length_score: 90,
+          reasoning: "Mock screening analysis: High match suitability.",
+          flags: []
+        });
+      } else {
+        await loadBookingData();
+      }
     } catch (err: any) {
       console.error("Error submitting for review:", err);
       alert(language === "de" ? `Fehler beim Einreichen: ${err.message}` : `Submission error: ${err.message}`);
@@ -249,13 +261,17 @@ export default function BookingDetailPage({ params }: { params: Promise<{ bookin
     if (!booking) return;
     setUpdatingStatus(newStatus);
     try {
-      const { error } = await supabase
-        .from("bookings")
-        .update({ status: newStatus })
-        .eq("id", booking.id);
-      if (error) throw error;
+      if (bookingId === "mock-apply-87a" || bookingId.startsWith("mock")) {
+        setBooking((prev: any) => ({ ...prev, status: newStatus }));
+      } else {
+        const { error } = await supabase
+          .from("bookings")
+          .update({ status: newStatus })
+          .eq("id", booking.id);
+        if (error) throw error;
+        await loadBookingData();
+      }
       alert(language === "de" ? `Buchungsstatus aktualisiert auf: ${newStatus}` : `Booking status updated to: ${newStatus}`);
-      await loadBookingData();
     } catch (err: any) {
       console.error("Error updating booking status:", err);
       alert(`Error: ${err.message}`);
@@ -279,18 +295,22 @@ export default function BookingDetailPage({ params }: { params: Promise<{ bookin
       });
       const data = await res.json();
 
-      const { error } = await supabase
-        .from("bookings")
-        .update({ 
-          status: "deposit_paid",
-          stripe_payment_intent_id: data.clientSecret || "pi_mock_123"
-        })
-        .eq("id", booking.id);
-      
-      if (error) throw error;
+      if (bookingId === "mock-apply-87a" || bookingId.startsWith("mock")) {
+        setBooking((prev: any) => ({ ...prev, status: "deposit_paid" }));
+      } else {
+        const { error } = await supabase
+          .from("bookings")
+          .update({ 
+            status: "deposit_paid",
+            stripe_payment_intent_id: data.clientSecret || "pi_mock_123"
+          })
+          .eq("id", booking.id);
+        
+        if (error) throw error;
+        await loadBookingData();
+      }
 
       alert(language === "de" ? "Zahlung erfolgreich! Mietkaution wird treuhänderisch verwaltet." : "Payment successful! The deposit is now safely escrowed.");
-      await loadBookingData();
     } catch (err: any) {
       console.error("Error processing payment:", err);
       alert(`Payment Error: ${err.message}`);
