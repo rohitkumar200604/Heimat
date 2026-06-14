@@ -760,11 +760,11 @@ function SuchePageContent() {
                   className="group bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden hover:shadow-xl transition-all duration-300"
                 >
                   <Link href={`/objekt/${l.id}`}>
-                    <div className="relative h-56 overflow-hidden bg-surface-dim">
+                    <div className="relative h-56 overflow-hidden bg-surface-container flex items-center justify-center">
                       <img
                         src={getPrimaryPhoto(l)}
                         alt={l.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
                         loading="lazy"
                       />
                       {/* Furnished badge */}

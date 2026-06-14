@@ -908,11 +908,11 @@ function TenantDashboardContent() {
                           key={l.id}
                           className="group bg-white rounded-xl border border-outline-variant overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col justify-between"
                         >
-                          <div className="relative h-44 overflow-hidden bg-surface-dim">
+                          <div className="relative h-44 overflow-hidden bg-surface-container flex items-center justify-center">
                             <img
                               src={primaryPhoto}
                               alt={l.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
                               loading="lazy"
                             />
                             <button
