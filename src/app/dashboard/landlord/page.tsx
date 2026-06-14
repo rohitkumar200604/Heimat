@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase, isSupabaseConfigured } from "@/utils/supabase/client";
 import Footer from "@/components/layout/Footer";
 import Link from "next/link";
+import { getDisplayPhoto } from "@/utils/get-display-photo";
 
 function promiseTimeout<T>(promise: any, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -1179,7 +1180,7 @@ function LandlordDashboardContent() {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {favoriteListings.map((l) => {
-                      const primaryPhoto = l.property_photos?.find((p: any) => p.is_primary)?.cdn_url || l.property_photos?.[0]?.cdn_url || "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80";
+                      const primaryPhoto = getDisplayPhoto(l.property_photos?.find((p: any) => p.is_primary)?.cdn_url || l.property_photos?.[0]?.cdn_url || "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80");
                       const totalRent = Math.round(parseFloat(l.rent_cold) + parseFloat(l.rent_utilities || 0) + parseFloat(l.rent_heating || 0));
 
                       return (

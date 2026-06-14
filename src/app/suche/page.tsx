@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
 import { supabase } from "@/utils/supabase/client";
 import Footer from "@/components/layout/Footer";
+import { getDisplayPhoto } from "@/utils/get-display-photo";
 
 // ── Reusable dropdown wrapper ──────────────────────────────────────────────
 function Dropdown({
@@ -404,7 +405,7 @@ function SuchePageContent() {
   const getPrimaryPhoto = (l: any) => {
     if (l.property_photos?.length > 0) {
       const p = l.property_photos.find((ph: any) => ph.is_primary);
-      return p ? p.cdn_url : l.property_photos[0].cdn_url;
+      return getDisplayPhoto(p ? p.cdn_url : l.property_photos[0].cdn_url);
     }
     return "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80";
   };

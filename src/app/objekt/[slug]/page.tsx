@@ -7,6 +7,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/supabase/client";
 import Footer from "@/components/layout/Footer";
+import { getDisplayPhoto } from "@/utils/get-display-photo";
 
 const GALLERY_FALLBACK = [
   {
@@ -136,20 +137,7 @@ const MOCK_REVIEWS: Record<string, Array<{
       stayLength: { de: "12 Monate gewohnt", en: "Stayed 12 months" }
     }
   ],
-  "mock-apply-87a": [
-    {
-      id: "1",
-      author: "Sophie Reinhardt",
-      avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80",
-      rating: 5,
-      date: { de: "Mai 2026", en: "May 2026" },
-      text: {
-        de: "Tolle Wohnung in Mitte. Sehr sauber, schön eingerichtet und der Park direkt vor der Tür. Perfekt für Pärchen.",
-        en: "Great apartment in Mitte. Very clean, nicely decorated and the park right outside the door. Perfect for couples."
-      },
-      stayLength: { de: "9 Monate gewohnt", en: "Stayed 9 months" }
-    }
-  ]
+  "mock-apply-87a": []
 };
 
 export default function ObjektDetailPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -578,7 +566,7 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
   }
 
   const photos = property.property_photos && property.property_photos.length > 0
-    ? property.property_photos.map((p: any) => p.cdn_url)
+    ? property.property_photos.map((p: any) => getDisplayPhoto(p.cdn_url))
     : GALLERY_FALLBACK.map(g => g.src);
 
   const amenitiesList = property.amenities || [];
@@ -825,32 +813,6 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
                     {t("bookBeforeArrivalSubtitle")}
                   </p>
                 </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5 text-primary bg-primary/10 px-3.5 py-1.5 rounded-full font-bold">
-                    <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                    <span className="text-[16px]">{averageRating}</span>
-                  </div>
-                  {user ? (
-                    <button
-                      type="button"
-                      onClick={() => setReviewFormOpen(!reviewFormOpen)}
-                      className="bg-primary text-on-primary px-4 py-2.5 rounded-xl text-label-md font-bold hover:opacity-90 active:scale-98 transition-all flex items-center gap-1 cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">add</span>
-                      {t("writeReview")}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => router.push(`/auth/login?redirect=/objekt/${slug}`)}
-                      className="bg-surface-container-high hover:bg-surface-container-highest text-primary border border-outline-variant px-4 py-2.5 rounded-xl text-label-md font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">login</span>
-                      {language === "de" ? "Anmelden für Bewertung" : "Log in to Review"}
-                    </button>
-                  )}
-                </div>
               </div>
 
               {/* 3-Step Process */}
@@ -903,7 +865,7 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
               </div>
 
               {/* Trust Badges Row */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
                   { icon: "lock", label: t("bbaSecurePayment"), fill: true },
                   { icon: "verified", label: t("bbaVerifiedLandlord"), fill: true },
@@ -924,24 +886,46 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
                   </div>
                 ))}
               </div>
+            </div>
 
-              {/* Money-Back Guarantee Card */}
-              <div className="bg-gradient-to-br from-primary/5 via-secondary/5 to-primary/10 border border-primary/15 rounded-xl p-5 md:p-6 flex flex-col md:flex-row items-start md:items-center gap-4 mb-8">
-                <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center flex-shrink-0">
-                  <span className="material-symbols-outlined text-primary text-[32px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                    workspace_premium
-                  </span>
-                </div>
-                <div className="flex-grow">
-                  <h3 className="text-[16px] font-bold text-primary mb-1 flex items-center gap-2">
-                    {t("bbaGuarantee")}
-                    <span className="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                      {language === "de" ? "Garantiert" : "Guaranteed"}
-                    </span>
-                  </h3>
-                  <p className="text-[13px] text-on-surface-variant leading-relaxed">
-                    {t("bbaGuaranteeDesc")}
+            {/* Guest Reviews Section */}
+            <div className="mb-12 border border-outline-variant/40 rounded-2xl p-6 md:p-8 bg-surface-container-lowest shadow-sm">
+              {/* Header */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                <div>
+                  <h2 className="text-headline-md text-on-surface flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary text-[28px]">rate_review</span>
+                    {t("reviewsTitle")}
+                  </h2>
+                  <p className="text-on-surface-variant text-[14px] mt-1 font-medium max-w-lg">
+                    {language === "de" ? "Was bisherige Gäste über diesen Aufenthalt sagen." : "What previous guests say about this stay."}
                   </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5 text-primary bg-primary/10 px-3.5 py-1.5 rounded-full font-bold">
+                    <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                    <span className="text-[16px]">{averageRating}</span>
+                  </div>
+                  {user ? (
+                    <button
+                      type="button"
+                      onClick={() => setReviewFormOpen(!reviewFormOpen)}
+                      className="bg-primary text-on-primary px-4 py-2.5 rounded-xl text-label-md font-bold hover:opacity-90 active:scale-98 transition-all flex items-center gap-1 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">add</span>
+                      {t("writeReview")}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/auth/login?redirect=/objekt/${slug}`)}
+                      className="bg-surface-container-high hover:bg-surface-container-highest text-primary border border-outline-variant px-4 py-2.5 rounded-xl text-label-md font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">login</span>
+                      {language === "de" ? "Anmelden für Bewertung" : "Log in to Review"}
+                    </button>
+                  )}
                 </div>
               </div>
 

@@ -167,3 +167,88 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
+
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const key = searchParams.get("key");
+    if (!key) {
+      return NextResponse.json({ error: "Missing key" }, { status: 400 });
+    }
+
+    const bucket = process.env.GCS_BUCKET_NAME;
+    const accessKeyId = process.env.GCS_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.GCS_SECRET_ACCESS_KEY;
+
+    // Dev mock fallback if not configured
+    if (!bucket || !accessKeyId || !secretAccessKey) {
+      return NextResponse.redirect(
+        "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?auto=format&fit=crop&w=800&q=80"
+      );
+    }
+
+    const host = "storage.googleapis.com";
+    const region = "auto";
+    const { datestamp, amzdate } = getDateStrings();
+
+    const credentialScope = `${datestamp}/${region}/s3/aws4_request`;
+    const credential = `${accessKeyId}/${credentialScope}`;
+
+    const queryParams = new URLSearchParams([
+      ["X-Amz-Algorithm", "AWS4-HMAC-SHA256"],
+      ["X-Amz-Credential", credential],
+      ["X-Amz-Date", amzdate],
+      ["X-Amz-Expires", "900"],
+      ["X-Amz-SignedHeaders", "host"],
+    ]).toString();
+
+    const encodedKey = key
+      .split("/")
+      .map((s) => encodeURIComponent(s))
+      .join("/");
+    const canonicalUri = `/${bucket}/${encodedKey}`;
+
+    const canonicalRequest = [
+      "GET",
+      canonicalUri,
+      queryParams,
+      `host:${host}\n`,
+      "host",
+      "UNSIGNED-PAYLOAD",
+    ].join("\n");
+
+    const stringToSign = [
+      "AWS4-HMAC-SHA256",
+      amzdate,
+      credentialScope,
+      await sha256hex(canonicalRequest),
+    ].join("\n");
+
+    const kDate = await hmac(enc.encode(`AWS4${secretAccessKey}`), datestamp);
+    const kRegion = await hmac(kDate, region);
+    const kService = await hmac(kRegion, "s3");
+    const kSigning = await hmac(kService, "aws4_request");
+    const signature = toHex(await hmac(kSigning, stringToSign));
+
+    const downloadUrl = `https://${host}/${bucket}/${key}?${queryParams}&X-Amz-Signature=${signature}`;
+
+    const gcsRes = await fetch(downloadUrl);
+    if (!gcsRes.ok) {
+      console.error("Failed to fetch photo from GCS:", gcsRes.status, await gcsRes.text());
+      return NextResponse.json({ error: "Failed to fetch from storage" }, { status: gcsRes.status });
+    }
+
+    const contentType = gcsRes.headers.get("content-type") || "image/jpeg";
+    const blob = await gcsRes.blob();
+
+    return new Response(blob, {
+      headers: {
+        "Content-Type": contentType,
+        "Cache-Control": "public, max-age=31536000, immutable",
+      },
+    });
+  } catch (error: any) {
+    console.error("Proxy photo error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
