@@ -9,8 +9,12 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     let mounted = true;
+    let redirectStarted = false;
 
     const handleRedirect = async (user: any) => {
+      if (redirectStarted) return;
+      redirectStarted = true;
+
       try {
         // Fetch user profile to determine their role and redirect
         let { data: profile, error } = await supabase
@@ -39,7 +43,17 @@ export default function AuthCallbackPage() {
           if (!insertError && newProfile) {
             profile = newProfile;
           } else {
-            console.error("Failed to dynamically create profile:", insertError);
+            console.warn("Insert failed, trying to select profile again:", insertError);
+            const { data: retryProfile, error: retryError } = await supabase
+              .from("profiles")
+              .select("role")
+              .eq("id", user.id)
+              .single();
+            if (!retryError && retryProfile) {
+              profile = retryProfile;
+            } else {
+              console.error("Failed to fetch profile on retry:", retryError);
+            }
           }
         }
 
@@ -54,7 +68,9 @@ export default function AuthCallbackPage() {
         }
       } catch (err) {
         console.error("Error during auth callback routing:", err);
-        if (mounted) router.push("/");
+        if (mounted) {
+          window.location.href = "/";
+        }
       }
     };
 
@@ -80,7 +96,7 @@ export default function AuthCallbackPage() {
     const safetyTimer = setTimeout(() => {
       if (mounted) {
         console.warn("OAuth callback timeout. Redirecting to home page.");
-        router.push("/");
+        window.location.href = "/";
       }
     }, 5000);
 
@@ -92,10 +108,15 @@ export default function AuthCallbackPage() {
   }, [router]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center space-y-4">
-        <div className="animate-spin rounded-full h-10 w-10 border-4 border-primary border-t-transparent mx-auto" />
-        <p className="text-on-surface-variant font-medium text-body-md">
+    <div className="flex min-h-screen items-center justify-center bg-[#f8f9ff]">
+      <div className="text-center space-y-6">
+        {/* Premium Navy Blue & Light Blue Dual-Ring Spinner */}
+        <div className="relative w-16 h-16 flex items-center justify-center mx-auto">
+          <div className="absolute inset-0 rounded-full border-[3px] border-[#002046]/15 border-t-[#002046] animate-spin" />
+          <div className="absolute w-10 h-10 rounded-full border-[3px] border-[#aec7f7]/20 border-b-[#aec7f7] animate-spin [animation-direction:reverse] [animation-duration:1s]" />
+          <div className="absolute w-12 h-12 bg-[#002046]/5 rounded-full blur-md animate-pulse" />
+        </div>
+        <p className="text-on-surface-variant font-bold text-label-md uppercase tracking-wider animate-pulse">
           Anmeldung wird abgeschlossen...
         </p>
       </div>

@@ -245,10 +245,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }}
     >
       {loading ? (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background">
-          <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-300">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#f07d00] border-t-transparent" />
-            <p className="text-[14px] text-primary font-bold uppercase tracking-widest animate-pulse font-sans">Heimstadt</p>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#f8f9ff]">
+          <div className="flex flex-col items-center gap-6 animate-in fade-in zoom-in duration-500">
+            {/* Premium Navy Blue & Light Blue Dual-Ring Spinner */}
+            <div className="relative w-16 h-16 flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full border-[3px] border-[#002046]/15 border-t-[#002046] animate-spin" />
+              <div className="absolute w-10 h-10 rounded-full border-[3px] border-[#aec7f7]/20 border-b-[#aec7f7] animate-spin [animation-direction:reverse] [animation-duration:1s]" />
+              <div className="absolute w-12 h-12 bg-[#002046]/5 rounded-full blur-md animate-pulse" />
+            </div>
+            <div className="text-center space-y-1.5">
+              <p className="text-[15px] text-[#002046] font-extrabold uppercase tracking-[0.25em] animate-pulse font-sans">
+                Heimstadt
+              </p>
+              <p className="text-[9px] text-[#002046]/60 uppercase tracking-[0.3em] font-bold font-sans">
+                Exklusive Wohnungen
+              </p>
+            </div>
           </div>
         </div>
       ) : (

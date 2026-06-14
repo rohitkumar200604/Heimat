@@ -368,7 +368,7 @@ export default function HomePage() {
             {language === "de" ? "Flexible Tarife" : "Flexible Plans"}
           </span>
           <h2 className="text-headline-lg-mobile md:text-headline-lg text-primary">
-            {language === "de" ? "Finde deine neue Heimat schneller" : "Find Your New Home Faster"}
+            {language === "de" ? "Finde deine neue Heimstadt schneller" : "Find Your New Home Faster"}
           </h2>
           <p className="text-body-md text-on-surface-variant">
             {language === "de"

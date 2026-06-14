@@ -178,8 +178,22 @@ export default function PropertyChatPage({ params }: { params: Promise<{ slug: s
   // Render Loader if Auth or Property Details are Loading
   if (authLoading || (loadingProperty && isPremium)) {
     return (
-      <div className="flex-grow flex items-center justify-center min-h-[600px] bg-surface-container-lowest">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
+      <div className="flex-grow flex flex-col items-center justify-center min-h-[600px] bg-[#f8f9ff]">
+        <div className="flex flex-col items-center gap-6 animate-in fade-in zoom-in duration-500">
+          <div className="relative w-16 h-16 flex items-center justify-center">
+            <div className="absolute inset-0 rounded-full border-[3px] border-[#002046]/15 border-t-[#002046] animate-spin" />
+            <div className="absolute w-10 h-10 rounded-full border-[3px] border-[#aec7f7]/20 border-b-[#aec7f7] animate-spin [animation-direction:reverse] [animation-duration:1s]" />
+            <div className="absolute w-12 h-12 bg-[#002046]/5 rounded-full blur-md animate-pulse" />
+          </div>
+          <div className="text-center space-y-1.5">
+            <p className="text-[15px] text-[#002046] font-extrabold uppercase tracking-[0.25em] animate-pulse font-sans">
+              Heimstadt
+            </p>
+            <p className="text-[9px] text-[#002046]/60 uppercase tracking-[0.3em] font-bold font-sans">
+              Exklusive Wohnungen
+            </p>
+          </div>
+        </div>
       </div>
     );
   }

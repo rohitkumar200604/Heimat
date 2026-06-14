@@ -53,11 +53,16 @@ function SelectRolePageContent() {
     try {
       if (!user) throw new Error("No authenticated session found");
 
-      // 1. Update Core Profile role
+      // 1. Upsert Core Profile role to ensure the profile exists and has the selected role set
+      const fullName = user.user_metadata?.full_name || user.user_metadata?.name || "";
       const { error: profileErr } = await supabase
         .from("profiles")
-        .update({ role: selectedRole })
-        .eq("id", user.id);
+        .upsert({
+          id: user.id,
+          email: user.email,
+          full_name: fullName,
+          role: selectedRole
+        }, { onConflict: "id" });
       
       if (profileErr) throw profileErr;
 
@@ -99,8 +104,13 @@ function SelectRolePageContent() {
 
   if (loading) {
     return (
-      <div className="flex-grow flex items-center justify-center min-h-[600px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
+      <div className="flex-grow flex items-center justify-center min-h-[600px] bg-[#f8f9ff]">
+        {/* Premium Navy Blue & Light Blue Dual-Ring Spinner */}
+        <div className="relative w-16 h-16 flex items-center justify-center">
+          <div className="absolute inset-0 rounded-full border-[3px] border-[#002046]/15 border-t-[#002046] animate-spin" />
+          <div className="absolute w-10 h-10 rounded-full border-[3px] border-[#aec7f7]/20 border-b-[#aec7f7] animate-spin [animation-direction:reverse] [animation-duration:1s]" />
+          <div className="absolute w-12 h-12 bg-[#002046]/5 rounded-full blur-md animate-pulse" />
+        </div>
       </div>
     );
   }
@@ -216,8 +226,13 @@ function SelectRolePageContent() {
 export default function SelectRolePage() {
   return (
     <Suspense fallback={
-      <div className="flex-grow flex items-center justify-center min-h-[600px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
+      <div className="flex-grow flex items-center justify-center min-h-[600px] bg-[#f8f9ff]">
+        {/* Premium Navy Blue & Light Blue Dual-Ring Spinner */}
+        <div className="relative w-16 h-16 flex items-center justify-center">
+          <div className="absolute inset-0 rounded-full border-[3px] border-[#002046]/15 border-t-[#002046] animate-spin" />
+          <div className="absolute w-10 h-10 rounded-full border-[3px] border-[#aec7f7]/20 border-b-[#aec7f7] animate-spin [animation-direction:reverse] [animation-duration:1s]" />
+          <div className="absolute w-12 h-12 bg-[#002046]/5 rounded-full blur-md animate-pulse" />
+        </div>
       </div>
     }>
       <SelectRolePageContent />

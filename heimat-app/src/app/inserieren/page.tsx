@@ -10,7 +10,7 @@ import Footer from "@/components/layout/Footer";
 export default function InserierenPage() {
   const router = useRouter();
   const { t, language } = useLanguage();
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, signOut } = useAuth();
   
   const [landlordId, setLandlordId] = useState<string | null>(null);
   const [step, setStep] = useState(1);
@@ -31,14 +31,7 @@ export default function InserierenPage() {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [geocoding, setGeocoding] = useState(false);
 
-  // Route protection
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push("/auth/login?redirect=/inserieren");
-    } else if (!loading && profile && profile.role !== "landlord") {
-      router.push("/dashboard/tenant");
-    }
-  }, [user, profile, loading, router]);
+
 
   // Fetch landlord profile ID
   useEffect(() => {
@@ -422,9 +415,168 @@ export default function InserierenPage() {
 
   if (loading) {
     return (
-      <div className="flex-grow flex items-center justify-center min-h-[600px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
+      <div className="flex-grow flex flex-col items-center justify-center min-h-[600px] bg-[#f8f9ff]">
+        <div className="flex flex-col items-center gap-6 animate-in fade-in zoom-in duration-500">
+          <div className="relative w-16 h-16 flex items-center justify-center">
+            <div className="absolute inset-0 rounded-full border-[3px] border-[#002046]/15 border-t-[#002046] animate-spin" />
+            <div className="absolute w-10 h-10 rounded-full border-[3px] border-[#aec7f7]/20 border-b-[#aec7f7] animate-spin [animation-direction:reverse] [animation-duration:1s]" />
+            <div className="absolute w-12 h-12 bg-[#002046]/5 rounded-full blur-md animate-pulse" />
+          </div>
+          <div className="text-center space-y-1.5">
+            <p className="text-[15px] text-[#002046] font-extrabold uppercase tracking-[0.25em] animate-pulse font-sans">
+              Heimstadt
+            </p>
+            <p className="text-[9px] text-[#002046]/60 uppercase tracking-[0.3em] font-bold font-sans">
+              Exklusive Wohnungen
+            </p>
+          </div>
+        </div>
       </div>
+    );
+  }
+
+  if (!loading && (!user || (profile && profile.role !== "landlord"))) {
+    const isNotLoggedIn = !user;
+    return (
+      <>
+        <div className="flex-grow flex items-center justify-center min-h-[600px] px-5 py-12 bg-[#f8f9ff]">
+          <div className="max-w-md w-full bg-white/90 backdrop-blur-md border border-outline-variant rounded-3xl p-8 md:p-10 shadow-xl text-center space-y-6 animate-in fade-in zoom-in duration-300">
+            {/* Lock/Warning Icon */}
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-primary">
+              <span className="material-symbols-outlined text-[36px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                {isNotLoggedIn ? "lock" : "gavel"}
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              <h1 className="text-headline-md font-bold text-primary">
+                {isNotLoggedIn
+                  ? (language === "de" ? "Anmeldung erforderlich" : "Authentication Required")
+                  : (language === "de" ? "Vermieter-Bereich" : "Landlords Only")}
+              </h1>
+              <p className="text-body-md text-on-surface-variant leading-relaxed">
+                {isNotLoggedIn
+                  ? (language === "de"
+                      ? "Bitte melden Sie sich als Vermieter an, um ein Objekt auf Heimstadt zu inserieren."
+                      : "Please log in or register as a landlord to list your property on Heimstadt.")
+                  : (language === "de"
+                      ? "Dieses Formular ist ausschließlich für Vermieter bestimmt. Sie sind aktuell als Mieter angemeldet."
+                      : "This page is strictly reserved for landlords. You are currently logged in as a Tenant.")}
+              </p>
+            </div>
+
+            {/* Explanatory Box */}
+            <div className="p-4 bg-surface-container-low rounded-2xl border border-outline-variant/60 text-left space-y-3">
+              <h4 className="text-label-sm text-primary font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[#f07d00] text-[18px]">info</span>
+                <span>{language === "de" ? "Was möchten Sie tun?" : "What would you like to do?"}</span>
+              </h4>
+              <ul className="text-[13px] text-on-surface-variant space-y-2">
+                {isNotLoggedIn ? (
+                  <>
+                    <li className="flex items-start gap-2">
+                      <span className="material-symbols-outlined text-primary text-[16px] mt-0.5">check_circle</span>
+                      <span>
+                        {language === "de"
+                          ? "Melden Sie sich an, um den Entwurf oder Ihre Veröffentlichungen fortzusetzen."
+                          : "Log in to continue editing draft publications or manage your listings."}
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="material-symbols-outlined text-primary text-[16px] mt-0.5">check_circle</span>
+                      <span>
+                        {language === "de"
+                          ? "Wenn Sie kein Konto haben, registrieren Sie sich kostenlos als Vermieter."
+                          : "If you don't have an account, register as a landlord for free."}
+                      </span>
+                    </li>
+                  </>
+                ) : (
+                  <>
+                    <li className="flex items-start gap-2">
+                      <span className="material-symbols-outlined text-primary text-[16px] mt-0.5">check_circle</span>
+                      <span>
+                        {language === "de"
+                          ? "Wenn Sie ein Objekt vermieten wollen, melden Sie sich ab und erstellen Sie ein Vermieter-Konto."
+                          : "If you want to list a property, please log out and register a Landlord account."}
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="material-symbols-outlined text-primary text-[16px] mt-0.5">check_circle</span>
+                      <span>
+                        {language === "de"
+                          ? "Wenn Sie eine Wohnung mieten wollen, können Sie unsere Suche nutzen."
+                          : "If you are looking to rent, you can continue searching for properties."}
+                      </span>
+                    </li>
+                  </>
+                )}
+              </ul>
+            </div>
+
+            {/* Action Buttons */}
+            {isNotLoggedIn ? (
+              <div className="flex flex-col gap-3 pt-2">
+                <button
+                  onClick={() => router.push("/auth/login?role=landlord&redirect=/inserieren")}
+                  className="w-full bg-primary text-on-primary py-3.5 rounded-xl text-label-md font-bold hover:opacity-90 active:scale-95 transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[20px]">login</span>
+                  {language === "de" ? "Als Vermieter anmelden" : "Log In as Landlord"}
+                </button>
+
+                <button
+                  onClick={() => router.push("/auth/register?role=landlord&redirect=/inserieren")}
+                  className="w-full bg-surface-container-high text-primary py-3.5 rounded-xl text-label-md font-bold hover:opacity-90 active:scale-95 transition-all border border-outline-variant flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[20px]">person_add</span>
+                  {language === "de" ? "Als Vermieter registrieren" : "Register as Landlord"}
+                </button>
+
+                <button
+                  onClick={() => router.push("/suche")}
+                  className="w-full border border-outline-variant text-on-surface-variant py-3 rounded-xl text-label-md font-bold hover:bg-surface-container-low active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[20px]">search</span>
+                  {language === "de" ? "Wohnungen suchen" : "Search Properties"}
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3 pt-2">
+                <button
+                  onClick={() => router.push("/dashboard/tenant")}
+                  className="w-full bg-primary text-on-primary py-3.5 rounded-xl text-label-md font-bold hover:opacity-90 active:scale-95 transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[20px]">space_dashboard</span>
+                  {language === "de" ? "Zum Mieter-Dashboard" : "Go to Tenant Dashboard"}
+                </button>
+                
+                <button
+                  onClick={() => router.push("/suche")}
+                  className="w-full border border-outline-variant text-on-surface-variant py-3 rounded-xl text-label-md font-bold hover:bg-surface-container-low active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[20px]">search</span>
+                  {language === "de" ? "Wohnungen suchen" : "Search Properties"}
+                </button>
+
+                <div className="border-t border-outline-variant/60 my-2 pt-4">
+                  <button
+                    onClick={async () => {
+                      await signOut();
+                      router.push("/auth/login?role=landlord");
+                    }}
+                    className="text-primary hover:underline text-[13px] font-bold flex items-center justify-center gap-1 mx-auto cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">logout</span>
+                    {language === "de" ? "Konto wechseln / Abmelden" : "Switch Account / Log Out"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        <Footer />
+      </>
     );
   }
 
@@ -582,7 +734,11 @@ export default function InserierenPage() {
                   )}
                   {geocoding && (
                     <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-3 border-primary border-t-transparent" />
+                      <div className="relative w-12 h-12 flex items-center justify-center">
+                        <div className="absolute inset-0 rounded-full border-[3px] border-[#002046]/15 border-t-[#002046] animate-spin" />
+                        <div className="absolute w-8 h-8 rounded-full border-[3px] border-[#aec7f7]/20 border-b-[#aec7f7] animate-spin [animation-direction:reverse] [animation-duration:1s]" />
+                        <div className="absolute w-10 h-10 bg-[#002046]/5 rounded-full blur-md animate-pulse" />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -662,7 +818,11 @@ export default function InserierenPage() {
                   />
                   {uploading ? (
                     <div className="py-6 flex flex-col items-center gap-3">
-                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
+                      <div className="relative w-16 h-16 flex items-center justify-center">
+                        <div className="absolute inset-0 rounded-full border-[3px] border-[#002046]/15 border-t-[#002046] animate-spin" />
+                        <div className="absolute w-10 h-10 rounded-full border-[3px] border-[#aec7f7]/20 border-b-[#aec7f7] animate-spin [animation-direction:reverse] [animation-duration:1s]" />
+                        <div className="absolute w-12 h-12 bg-[#002046]/5 rounded-full blur-md animate-pulse" />
+                      </div>
                       <p className="text-body-md text-primary font-bold">
                         {language === "de" ? "Bilder werden hochgeladen..." : "Uploading images..."}
                       </p>
