@@ -154,7 +154,6 @@ function SuchePageContent() {
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(!!stadtParam.trim());
   const [view, setView] = useState<"grid" | "list">("grid");
-  const [showMap, setShowMap] = useState(true);
 
   // ── Filter state ──────────────────────────────────────────────────────
   const [searchInput, setSearchInput] = useState(stadtParam);
@@ -621,16 +620,6 @@ function SuchePageContent() {
             <span className="material-symbols-outlined text-[17px]">search</span>
             <span className="hidden md:block">{language === "de" ? "Suchen" : "Search"}</span>
           </button>
-
-          {/* Mobile map toggle */}
-          <button
-            id="toggle-map"
-            onClick={() => setShowMap(!showMap)}
-            className="md:hidden flex items-center gap-1.5 px-3 py-2 bg-surface-container rounded-lg border border-outline-variant text-label-sm font-medium cursor-pointer flex-shrink-0"
-            title={showMap ? "Hide map" : "Show map"}
-          >
-            <span className="material-symbols-outlined text-[17px]">{showMap ? "map" : "list"}</span>
-          </button>
         </div>
       </section>
 
@@ -638,7 +627,7 @@ function SuchePageContent() {
       {/* ── Split View ─────────────────────────────────────────────────── */}
       <div className="flex flex-grow overflow-hidden">
         {/* Map */}
-        <aside className={`${showMap ? "block" : "hidden"} md:block w-full md:w-[40%] relative bg-surface-dim flex-shrink-0 border-r border-outline-variant`}>
+        <aside className="hidden md:block w-full md:w-[40%] relative bg-surface-dim flex-shrink-0 border-r border-outline-variant">
           <div className="absolute inset-0 w-full h-full">
             <iframe
               title="Google Maps"
@@ -656,7 +645,7 @@ function SuchePageContent() {
         </aside>
 
         {/* Listings */}
-        <section className={`${showMap ? "hidden md:block" : "block"} w-full md:w-[60%] overflow-y-auto custom-scrollbar bg-background px-5 md:px-[48px] py-8`}>
+        <section className="w-full md:w-[60%] overflow-y-auto custom-scrollbar bg-background px-5 md:px-[48px] py-8">
           <div className="flex justify-between items-end mb-8 flex-wrap gap-4">
             <div>
               <h1 className="text-headline-lg-mobile md:text-headline-lg text-primary">
