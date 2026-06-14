@@ -514,8 +514,14 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
       router.push(`/buchen/${data.id}`);
     } catch (err: any) {
       console.error("Error creating booking:", err);
-      // Fallback mock redirect in dev mode if tables fail
-      router.push(`/buchen/mock-apply-87a`);
+      setSubmittingBooking(false);
+      // Show a clear error rather than silently navigating to a mock/wrong listing
+      alert(
+        language === "de"
+          ? `Buchungsanfrage fehlgeschlagen: ${err?.message || "Unbekannter Fehler. Bitte versuche es erneut."}`
+          : `Booking request failed: ${err?.message || "Unknown error. Please try again."}`
+      );
+      return;
     } finally {
       setSubmittingBooking(false);
     }
@@ -1322,7 +1328,6 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
                   className="w-16 h-16 rounded-full object-cover border-2 border-surface flex-shrink-0 bg-surface-variant"
                 />
                 <div>
-                  <p className="text-label-md text-on-surface-variant">{t("provider")}</p>
                   <p className="font-bold text-on-surface">{property.landlord_profiles?.profiles?.full_name || "Markus Weber"}</p>
                   <div className="flex items-center gap-1 text-secondary">
                     <span
