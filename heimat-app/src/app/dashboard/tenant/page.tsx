@@ -8,6 +8,24 @@ import { supabase, isSupabaseConfigured } from "@/utils/supabase/client";
 import Footer from "@/components/layout/Footer";
 import Link from "next/link";
 
+function promiseTimeout<T>(promise: any, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error("Database query timed out"));
+    }, ms);
+
+    Promise.resolve(promise)
+      .then((res) => {
+        clearTimeout(timer);
+        resolve(res);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
+
 function TenantDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -106,35 +124,41 @@ function TenantDashboardContent() {
 
     try {
       // 1. Fetch verification documents
-      const { data: docData, error: docErr } = await supabase
-        .from("verification_documents")
-        .select("*")
-        .eq("user_id", user.id);
+      const { data: docData, error: docErr } = await promiseTimeout(
+        supabase
+          .from("verification_documents")
+          .select("*")
+          .eq("user_id", user.id),
+        3000
+      ) as any;
       if (docErr) throw docErr;
       setDocs(docData || []);
 
       // 2. Fetch active booking
-      const { data: bookingData, error: bookingErr } = await supabase
-        .from("bookings")
-        .select(`
-          id,
-          status,
-          move_in_date,
-          move_out_date,
-          rent_total,
-          properties (
+      const { data: bookingData, error: bookingErr } = await promiseTimeout(
+        supabase
+          .from("bookings")
+          .select(`
             id,
-            title,
-            street,
-            city,
-            zip,
-            size_sqm,
-            rent_cold
-          )
-        `)
-        .eq("tenant_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1);
+            status,
+            move_in_date,
+            move_out_date,
+            rent_total,
+            properties (
+              id,
+              title,
+              street,
+              city,
+              zip,
+              size_sqm,
+              rent_cold
+            )
+          `)
+          .eq("tenant_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1),
+        3000
+      ) as any;
 
       if (bookingErr) throw bookingErr;
       if (bookingData && bookingData.length > 0) {
@@ -142,11 +166,14 @@ function TenantDashboardContent() {
         setActiveBooking(currentBooking);
 
         // Fetch AI Match score details for the active booking
-        const { data: scoreDetails } = await supabase
-          .from("ai_tenant_scores")
-          .select("*")
-          .eq("booking_id", currentBooking.id)
-          .maybeSingle();
+        const { data: scoreDetails } = await promiseTimeout(
+          supabase
+            .from("ai_tenant_scores")
+            .select("*")
+            .eq("booking_id", currentBooking.id)
+            .maybeSingle(),
+          3000
+        ) as any;
 
         setAiScore(scoreDetails);
       } else {
@@ -155,11 +182,14 @@ function TenantDashboardContent() {
       }
 
       // 3. Fetch custom tenant_profiles
-      const { data: tpData, error: tpErr } = await supabase
-        .from("tenant_profiles")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
+      const { data: tpData, error: tpErr } = await promiseTimeout(
+        supabase
+          .from("tenant_profiles")
+          .select("*")
+          .eq("user_id", user.id)
+          .single(),
+        3000
+      ) as any;
       
       // Suppress single row not found errors to let signup trigger catch up
       if (!tpErr && tpData) {
@@ -696,28 +726,6 @@ function TenantDashboardContent() {
             <h1 className="text-display-lg-mobile md:text-headline-lg font-bold text-primary">
               {t("welcome")} {profile?.full_name || ""}!
             </h1>
-          </div>
-          
-          {/* Quick AI Trust Score Badge */}
-          <div className="bg-gradient-to-r from-primary to-secondary p-0.5 rounded-2xl shadow-md self-start sm:self-auto">
-            <div className="bg-white px-5 py-2.5 rounded-[14px] flex items-center gap-3">
-              <span className="material-symbols-outlined text-primary text-[28px] animate-pulse">insights</span>
-              <div>
-                <p className="text-[10px] text-on-surface-variant font-bold uppercase leading-none tracking-wider">
-                  AI Match Score
-                </p>
-                {isPremium ? (
-                  <p className="text-[20px] font-bold text-primary leading-none mt-1">
-                    {tenantProfile?.ai_score !== null && tenantProfile?.ai_score !== undefined ? `${tenantProfile.ai_score}/100` : "TBD"}
-                  </p>
-                ) : (
-                  <p className="text-[13px] font-extrabold text-[#f07d00] leading-none mt-1 flex items-center gap-0.5">
-                    <span className="material-symbols-outlined text-[14px]">lock</span>
-                    Premium
-                  </p>
-                )}
-              </div>
-            </div>
           </div>
         </div>
 

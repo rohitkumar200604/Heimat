@@ -121,6 +121,24 @@ const getSearchCities = (query: string): string[] => {
   return [query.trim()];
 };
 
+function promiseTimeout<T>(promise: any, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error("Database query timed out"));
+    }, ms);
+
+    Promise.resolve(promise)
+      .then((res) => {
+        clearTimeout(timer);
+        resolve(res);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
+
 function SuchePageContent() {
   const { t, language } = useLanguage();
   const searchParams = useSearchParams();
@@ -362,7 +380,7 @@ function SuchePageContent() {
         else if (sort === "size_desc") query = query.order("size_sqm", { ascending: false });
         else if (sort === "rooms_asc") query = query.order("rooms", { ascending: true });
 
-        const { data, error } = await query;
+        const { data, error } = await promiseTimeout(query, 3000) as any;
         if (error) throw error;
         if (data && data.length > 0) setListings(data);
         else { console.log("No active DB properties, using mock data."); applyInMemoryFilters(); }
@@ -629,8 +647,8 @@ function SuchePageContent() {
               loading="lazy"
               allowFullScreen
               src={`https://maps.google.com/maps?q=${encodeURIComponent(
-                searchInput || stadtParam ? `${searchInput || stadtParam}, Germany` : "Germany"
-              )}&t=&z=${(searchInput || stadtParam) ? 12 : 9}&ie=UTF8&iwloc=&output=embed`}
+                stadtParam ? `${stadtParam}, Germany` : "Germany"
+              )}&t=&z=${stadtParam ? 12 : 9}&ie=UTF8&iwloc=&output=embed`}
               className="w-full h-full grayscale-[15%] contrast-[105%] opacity-90 transition-opacity duration-300"
             />
           </div>

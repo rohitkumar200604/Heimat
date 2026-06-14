@@ -8,6 +8,24 @@ import { supabase, isSupabaseConfigured } from "@/utils/supabase/client";
 import Footer from "@/components/layout/Footer";
 import Link from "next/link";
 
+function promiseTimeout<T>(promise: any, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error("Database query timed out"));
+    }, ms);
+
+    Promise.resolve(promise)
+      .then((res) => {
+        clearTimeout(timer);
+        resolve(res);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
+
 function LandlordDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -121,11 +139,14 @@ function LandlordDashboardContent() {
 
     try {
       // 1. Fetch landlord profile details
-      const { data: lpData, error: lpErr } = await supabase
-        .from("landlord_profiles")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
+      const { data: lpData, error: lpErr } = await promiseTimeout(
+        supabase
+          .from("landlord_profiles")
+          .select("*")
+          .eq("user_id", user.id)
+          .single(),
+        3000
+      ) as any;
       
       if (!lpErr && lpData) {
         setLandlordProfile(lpData);
@@ -161,40 +182,43 @@ function LandlordDashboardContent() {
       }
 
       // 2. Fetch booking requests for properties owned by landlord
-      const { data: bookingsData, error: bookingsErr } = await supabase
-        .from("bookings")
-        .select(`
-          id,
-          status,
-          move_in_date,
-          rent_total,
-          tenant_id,
-          tenant:profiles!tenant_id (
+      const { data: bookingsData, error: bookingsErr } = await promiseTimeout(
+        supabase
+          .from("bookings")
+          .select(`
             id,
-            full_name,
-            email,
-            tenant_profiles (
-              monthly_income
+            status,
+            move_in_date,
+            rent_total,
+            tenant_id,
+            tenant:profiles!tenant_id (
+              id,
+              full_name,
+              email,
+              tenant_profiles (
+                monthly_income
+              ),
+              subscriptions (
+                status,
+                plan
+              )
             ),
-            subscriptions (
-              status,
-              plan
+            properties (
+              id,
+              title
+            ),
+            ai_tenant_scores (
+              overall_score
             )
-          ),
-          properties (
-            id,
-            title
-          ),
-          ai_tenant_scores (
-            overall_score
-          )
-        `)
-        .eq("landlord_id", user.id);
+          `)
+          .eq("landlord_id", user.id),
+        3000
+      ) as any;
       
       if (bookingsErr) throw bookingsErr;
 
       // Sort bookings: Premium tenant applications at the top
-      const sortedBookings = (bookingsData || []).sort((a, b) => {
+      const sortedBookings = (bookingsData || []).sort((a: any, b: any) => {
         const aTenant = (Array.isArray(a.tenant) ? a.tenant[0] : a.tenant) as any;
         const bTenant = (Array.isArray(b.tenant) ? b.tenant[0] : b.tenant) as any;
         const aIsPremium = aTenant?.subscriptions?.some((s: any) => s.status === 'active') || false;
@@ -208,10 +232,13 @@ function LandlordDashboardContent() {
 
       // 3. Fetch properties owned by landlord
       if (lpData) {
-        const { data: propData, error: propErr } = await supabase
-          .from("properties")
-          .select("*")
-          .eq("landlord_id", lpData.id);
+        const { data: propData, error: propErr } = await promiseTimeout(
+          supabase
+            .from("properties")
+            .select("*")
+            .eq("landlord_id", lpData.id),
+          3000
+        ) as any;
         
         if (!propErr) {
           setPropertiesList(propData || []);

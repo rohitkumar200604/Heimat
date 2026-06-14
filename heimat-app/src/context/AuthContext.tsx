@@ -37,6 +37,24 @@ interface AuthContextProps {
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
+function promiseTimeout<T>(promise: any, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error("Database query timed out"));
+    }, ms);
+
+    Promise.resolve(promise)
+      .then((res) => {
+        clearTimeout(timer);
+        resolve(res);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -65,14 +83,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Attempt to query Supabase if configured
     try {
       if (isSupabaseConfigured()) {
-        const { data, error } = await supabase
-          .from("subscriptions")
-          .select("*")
-          .eq("user_id", userId)
-          .eq("status", "active")
-          .order("current_period_end", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        const { data, error } = await promiseTimeout(
+          supabase
+            .from("subscriptions")
+            .select("*")
+            .eq("user_id", userId)
+            .eq("status", "active")
+            .order("current_period_end", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          3000
+        ) as any;
 
         if (data && !error) {
           setSubscription({
@@ -94,11 +115,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchProfile = async (userId: string) => {
     try {
       await fetchSubscription(userId);
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
+      const { data, error } = await promiseTimeout(
+        supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", userId)
+          .single(),
+        3000
+      ) as any;
       
       if (error) {
         console.warn("Could not fetch user profile:", error.message);
