@@ -183,6 +183,9 @@ export const translations = {
     // Dashboards
     dashboard: "Dashboard",
     logout: "Abmelden",
+    myProfile: "Mein Profil",
+    myBookings: "Meine Buchungen",
+    favourites: "Favoriten",
     welcome: "Willkommen zurück,",
     landlordDashTitle: "Vermieter-Dashboard",
     tenantDashTitle: "Mieter-Dashboard",
@@ -407,6 +410,9 @@ export const translations = {
     // Dashboards
     dashboard: "Dashboard",
     logout: "Log Out",
+    myProfile: "My Profile",
+    myBookings: "My Bookings",
+    favourites: "Favourites",
     welcome: "Welcome back,",
     landlordDashTitle: "Landlord Dashboard",
     tenantDashTitle: "Tenant Dashboard",

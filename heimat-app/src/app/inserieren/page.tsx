@@ -17,6 +17,7 @@ export default function InserierenPage() {
   const [amenities, setAmenities] = useState<string[]>([]);
   const [uploadedPhotos, setUploadedPhotos] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [mapsLoaded, setMapsLoaded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<any>(null);
   const mapRef = useRef<HTMLDivElement>(null);
@@ -63,6 +64,7 @@ export default function InserierenPage() {
 
     // If already loaded, init directly
     if ((window as any).google?.maps?.places?.PlaceAutocompleteElement) {
+      setMapsLoaded(true);
       initAutocomplete();
       return;
     }
@@ -70,6 +72,7 @@ export default function InserierenPage() {
     // Use the recommended async callback loading pattern
     const callbackName = "__heimatMapsInit";
     (window as any)[callbackName] = () => {
+      setMapsLoaded(true);
       initAutocomplete();
       delete (window as any)[callbackName];
     };
@@ -112,7 +115,13 @@ export default function InserierenPage() {
 
   // Init map once the map div mounts (step 1)
   useEffect(() => {
-    if (step !== 1) return;
+    if (step !== 1) {
+      // Clear refs when moving away from step 1 so they reinitialize on mount
+      googleMapRef.current = null;
+      markerRef.current = null;
+      autocompleteRef.current = null;
+      return;
+    }
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
     if (!apiKey || !(window as any).google?.maps) return;
     if (!mapRef.current || googleMapRef.current) return;
@@ -146,20 +155,24 @@ export default function InserierenPage() {
         }
       });
     }
-  }, [step]);
+  }, [step, mapsLoaded]);
 
   // Re-init PlaceAutocompleteElement when navigating back to step 1 if Maps already loaded
   useEffect(() => {
     if (step !== 1) return;
     if (!(window as any).google?.maps?.places?.PlaceAutocompleteElement) return;
     initAutocomplete();
-  }, [step]);
+  }, [step, mapsLoaded]);
 
   const initAutocomplete = () => {
     const container = placeAutocompleteRef.current;
     if (!container || !(window as any).google?.maps?.places) return;
-    // Prevent duplicate initialization
-    if (autocompleteRef.current) return;
+    
+    // Prevent duplicate initialization in the current container DOM
+    if (container.querySelector("#place-autocomplete-element")) return;
+
+    // Clear any previous elements in the container just in case
+    container.innerHTML = "";
 
     // Use the modern PlaceAutocompleteElement (recommended over deprecated Autocomplete)
     const pac = new (window as any).google.maps.places.PlaceAutocompleteElement({

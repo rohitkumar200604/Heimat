@@ -35,7 +35,7 @@ function PreisePageContent() {
           ? "Bitte logge dich zuerst ein, um ein Premium-Abonnement abzuschließen."
           : "Please log in first to purchase a Premium membership.",
         () => {
-          router.push(`/auth/login?redirect=/preise?plan=${selectedDuration}`);
+          router.push(`/auth/login?redirect=${encodeURIComponent(`/preise?plan=${selectedDuration}`)}`);
         }
       );
       return;
@@ -46,20 +46,22 @@ function PreisePageContent() {
       await upgradeUser(selectedDuration);
       setTimeout(() => {
         setIsSubmitting(false);
-        alert(
+        (alert as any)(
           language === "de"
             ? `Zahlung erfolgreich! Du bist jetzt Premium-Mitglied (${
                 selectedDuration === "1month" ? "1 Monat" : selectedDuration === "3months" ? "3 Monate" : "12 Monate"
               }).`
             : `Payment successful! You are now a Premium member (${
                 selectedDuration === "1month" ? "1 month" : selectedDuration === "3months" ? "3 months" : "12 months"
-              }).`
+              }).`,
+          () => {
+            if (profile?.role === "landlord") {
+              router.push("/dashboard/landlord");
+            } else {
+              router.push("/dashboard/tenant");
+            }
+          }
         );
-        if (profile?.role === "landlord") {
-          router.push("/dashboard/landlord");
-        } else {
-          router.push("/dashboard/tenant");
-        }
       }, 1500);
     } catch (err) {
       setIsSubmitting(false);

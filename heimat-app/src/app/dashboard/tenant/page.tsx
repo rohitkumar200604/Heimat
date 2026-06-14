@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase, isSupabaseConfigured } from "@/utils/supabase/client";
 import Footer from "@/components/layout/Footer";
 import Link from "next/link";
 
-export default function TenantDashboard() {
+function TenantDashboardContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, profile, loading, refreshProfile, isPremium, subscription } = useAuth();
   const { t, language } = useLanguage();
   
@@ -58,23 +59,51 @@ export default function TenantDashboard() {
 
   // Read active tab from URL query params
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const tabParam = params.get("tab");
-      if (
-        tabParam === "profile" ||
-        tabParam === "bookings" ||
-        tabParam === "documents" ||
-        tabParam === "favorites"
-      ) {
-        setActiveTab(tabParam as any);
-      }
+    const tabParam = searchParams.get("tab");
+    if (
+      tabParam === "profile" ||
+      tabParam === "bookings" ||
+      tabParam === "documents" ||
+      tabParam === "favorites"
+    ) {
+      setActiveTab(tabParam as any);
     }
-  }, []);
+  }, [searchParams]);
 
   // Fetch initial dashboard and profile data
   const fetchTenantData = async () => {
     if (!user) return;
+    setLoadingDashboard(true);
+
+    if (!isSupabaseConfigured()) {
+      // Mock mode: set mock data immediately
+      setDocs([]);
+      setActiveBooking(null);
+      setAiScore(null);
+      setTenantProfile({
+        user_id: user.id,
+        nationality: "German",
+        university: "TU Berlin",
+        employment_status: "student",
+        monthly_income: 950,
+        whatsapp_enabled: localStorage.getItem(`heimat_mock_whatsapp_${user.id}`) === "true",
+        ai_score: 85
+      });
+      setProfileForm({
+        full_name: profile?.full_name || "Jane Doe",
+        phone: profile?.phone || "+49 176 123456",
+        nationality: "German",
+        university: "TU Berlin",
+        enrollment_date: "2023-10-01",
+        graduation_date: "2026-09-30",
+        employment_status: "student",
+        monthly_income: "950",
+      });
+      setWhatsappEnabled(localStorage.getItem(`heimat_mock_whatsapp_${user.id}`) === "true");
+      setLoadingDashboard(false);
+      return;
+    }
+
     try {
       // 1. Fetch verification documents
       const { data: docData, error: docErr } = await supabase
@@ -1496,3 +1525,16 @@ export default function TenantDashboard() {
     </>
   );
 }
+
+export default function TenantDashboard() {
+  return (
+    <Suspense fallback={
+      <div className="flex-grow flex items-center justify-center min-h-[600px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
+      </div>
+    }>
+      <TenantDashboardContent />
+    </Suspense>
+  );
+}
+

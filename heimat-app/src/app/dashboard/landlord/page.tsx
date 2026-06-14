@@ -15,7 +15,11 @@ function LandlordDashboardContent() {
   const { t, language } = useLanguage();
   
   // Navigation State
-  const [activeTab, setActiveTab] = useState<"overview" | "profile" | "bookings" | "properties">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "profile" | "bookings" | "properties" | "favorites">("overview");
+
+  // Favorites States
+  const [favoriteListings, setFavoriteListings] = useState<any[]>([]);
+  const [loadingFavorites, setLoadingFavorites] = useState(false);
 
   // Database Data States
   const [landlordProfile, setLandlordProfile] = useState<any>(null);
@@ -52,7 +56,8 @@ function LandlordDashboardContent() {
       tabParam === "overview" ||
       tabParam === "profile" ||
       tabParam === "bookings" ||
-      tabParam === "properties"
+      tabParam === "properties" ||
+      tabParam === "favorites"
     ) {
       setActiveTab(tabParam as any);
     } else {
@@ -62,6 +67,58 @@ function LandlordDashboardContent() {
 
   const fetchLandlordData = async () => {
     if (!user) return;
+    setLoadingDashboard(true);
+
+    if (!isSupabaseConfigured()) {
+      const localWhatsapp = localStorage.getItem(`heimat_mock_landlord_whatsapp_${user.id}`) === "true";
+      setLandlordProfile({
+        id: "mock-landlord-id",
+        user_id: user.id,
+        subscription_tier: isPremium ? "pro" : "free",
+        whatsapp_enabled: localWhatsapp,
+        stripe_account_id: "acct_mock123",
+        iban_last4: "1234",
+      });
+      setProfileForm({
+        full_name: profile?.full_name || "Mock Landlord",
+        phone: profile?.phone || "+49 176 123456",
+        stripe_account_id: "acct_mock123",
+        iban_last4: "1234",
+      });
+      setBookingRequests([
+        {
+          id: "mock-booking-1",
+          status: "pending",
+          move_in_date: "2026-09-01",
+          rent_total: 850,
+          tenant_id: "mock-tenant-id",
+          tenant: {
+            id: "mock-tenant-id",
+            full_name: "Mock Tenant",
+            email: "tenant@mock.com",
+            tenant_profiles: { monthly_income: 1200 },
+            subscriptions: [{ status: "active", plan: "3months" }]
+          },
+          properties: { id: "berlin-studio", title: "Bright Studio Apartment near Alexanderplatz" },
+          ai_tenant_scores: [{ overall_score: 92 }]
+        }
+      ]);
+      setPropertiesList([
+        {
+          id: "berlin-studio",
+          title: language === "de" ? "Helles Studio-Apartment nahe Alexanderplatz" : "Bright Studio Apartment near Alexanderplatz",
+          city: "Berlin", street: "Karl-Liebknecht-Str. 12", zip: "10178",
+          rooms: 1, size_sqm: 38, rent_cold: 720, rent_utilities: 80, rent_heating: 70,
+          pets_allowed: true, furnished: false,
+          amenities: ["balcony", "kitchen"],
+          status: "active",
+          property_type: "Apartment"
+        }
+      ]);
+      setLoadingDashboard(false);
+      return;
+    }
+
     try {
       // 1. Fetch landlord profile details
       const { data: lpData, error: lpErr } = await supabase
@@ -308,6 +365,131 @@ function LandlordDashboardContent() {
     }
   };
 
+  const fetchFavorites = async () => {
+    setLoadingFavorites(true);
+    const saved = localStorage.getItem("heimat_favorites");
+    if (!saved) {
+      setFavoriteListings([]);
+      setLoadingFavorites(false);
+      return;
+    }
+    try {
+      const favIds = JSON.parse(saved) as string[];
+      if (favIds.length === 0) {
+        setFavoriteListings([]);
+        setLoadingFavorites(false);
+        return;
+      }
+
+      // Check if Supabase is configured
+      const isConfigured =
+        process.env.NEXT_PUBLIC_SUPABASE_URL &&
+        process.env.NEXT_PUBLIC_SUPABASE_URL !== "https://mock-project.supabase.co" &&
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY !== "mock-anon-key";
+
+      let dbListings: any[] = [];
+      if (isConfigured) {
+        const { data, error } = await supabase
+          .from("properties")
+          .select(`*, property_photos(cdn_url,is_primary)`)
+          .in("id", favIds);
+        if (!error && data) {
+          dbListings = data;
+        }
+      }
+
+      // Fallback/Mock listings if we don't have db listings
+      const mockListings: any[] = [
+        {
+          id: "berlin-studio",
+          title: language === "de" ? "Helles Studio-Apartment nahe Alexanderplatz" : "Bright Studio Apartment near Alexanderplatz",
+          city: "Berlin", street: "Karl-Liebknecht-Str. 12", zip: "10178",
+          rooms: 1, size_sqm: 38, rent_cold: 720, rent_utilities: 80, rent_heating: 70,
+          pets_allowed: true, furnished: false,
+          amenities: ["balcony", "kitchen"],
+          status: "active",
+          property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80", is_primary: true }]
+        },
+        {
+          id: "munich-expat",
+          title: language === "de" ? "Premium 3-Zimmer-Wohnung am Englischen Garten" : "Premium 3-Room Apartment at Englischen Garten",
+          city: "München", street: "Königinstraße 44", zip: "80539",
+          rooms: 3, size_sqm: 82, rent_cold: 1650, rent_utilities: 150, rent_heating: 110,
+          pets_allowed: false, furnished: true,
+          amenities: ["kitchen", "parking"],
+          status: "active",
+          property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80", is_primary: true }]
+        },
+        {
+          id: "hamburg-loft",
+          title: language === "de" ? "Stilvolles Loft in der Speicherstadt" : "Stylish Loft in Speicherstadt",
+          city: "Hamburg", street: "Am Sandtorkai 10", zip: "20457",
+          rooms: 2, size_sqm: 65, rent_cold: 1120, rent_utilities: 110, rent_heating: 90,
+          pets_allowed: true, furnished: true,
+          amenities: ["balcony", "kitchen", "garden"],
+          status: "active",
+          property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80", is_primary: true }]
+        },
+        {
+          id: "berlin-wg",
+          title: language === "de" ? "Gemütliches Zimmer in Studenten-WG" : "Cozy Room in Student Shared Apartment",
+          city: "Berlin", street: "Königin-Luise-Str. 15", zip: "14195",
+          rooms: 1, size_sqm: 20, rent_cold: 450, rent_utilities: 60, rent_heating: 40,
+          pets_allowed: true, furnished: false,
+          amenities: ["kitchen"],
+          status: "active",
+          property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=800&q=80", is_primary: true }]
+        },
+        {
+          id: "cologne-studio",
+          title: language === "de" ? "Modernes Studio im Herzen Kölns" : "Modern Studio in Cologne City Centre",
+          city: "Köln", street: "Schildergasse 8", zip: "50667",
+          rooms: 1, size_sqm: 32, rent_cold: 680, rent_utilities: 75, rent_heating: 55,
+          pets_allowed: false, furnished: true,
+          amenities: ["kitchen", "wheelchair"],
+          status: "active",
+          property_photos: [{ cdn_url: "https://images.unsplash.com/photo-1512918728675-ed5a9ecdebfd?auto=format&fit=crop&w=800&q=80", is_primary: true }]
+        },
+      ];
+
+      // Merge / filter
+      const combined = [...dbListings];
+      favIds.forEach((id) => {
+        if (!combined.some((l) => l.id === id)) {
+          const mockItem = mockListings.find((m) => m.id === id);
+          if (mockItem) combined.push(mockItem);
+        }
+      });
+
+      setFavoriteListings(combined);
+    } catch (e) {
+      console.error("Failed to load favorite details", e);
+    } finally {
+      setLoadingFavorites(false);
+    }
+  };
+
+  const handleRemoveFavorite = (id: string) => {
+    const saved = localStorage.getItem("heimat_favorites");
+    if (saved) {
+      try {
+        const favIds = JSON.parse(saved) as string[];
+        const next = favIds.filter((x) => x !== id);
+        localStorage.setItem("heimat_favorites", JSON.stringify(next));
+        setFavoriteListings((prev) => prev.filter((l) => l.id !== id));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "favorites") {
+      fetchFavorites();
+    }
+  }, [activeTab]);
+
   if (loading || loadingDashboard) {
     return (
       <div className="flex-grow flex items-center justify-center min-h-[600px]">
@@ -392,6 +574,18 @@ function LandlordDashboardContent() {
             >
               <span className="material-symbols-outlined text-[20px]">home_work</span>
               <span>{language === "de" ? "Meine Immobilien" : "My Properties"}</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("favorites")}
+              className={`flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-left text-label-md font-bold transition-all ${
+                activeTab === "favorites"
+                  ? "bg-primary text-on-primary shadow-md"
+                  : "text-on-surface-variant hover:bg-surface-container-low hover:text-primary"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[20px]">favorite</span>
+              <span>{language === "de" ? "Favoriten" : "Favourites"}</span>
             </button>
 
             {/* Divider */}
@@ -894,6 +1088,103 @@ function LandlordDashboardContent() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 5. Tab: Favourites */}
+            {activeTab === "favorites" && (
+              <div className="bg-white border border-outline-variant p-6 md:p-8 rounded-2xl shadow-sm space-y-6">
+                <div>
+                  <h2 className="text-headline-md font-bold text-primary flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[28px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span>
+                    {language === "de" ? "Favoriten" : "Favourites"}
+                  </h2>
+                  <p className="text-body-md text-on-surface-variant mt-1 leading-relaxed">
+                    {language === "de"
+                      ? "Hier finden Sie alle Ihre gemerkten Unterkünfte. Verwalten Sie Ihre Favoriten und starten Sie direkt Ihre Bewerbungen."
+                      : "Here you can find all your saved properties. Manage your favorites and apply to them directly."}
+                  </p>
+                </div>
+
+                {loadingFavorites ? (
+                  <div className="flex justify-center items-center py-16">
+                    <div className="animate-spin rounded-full h-10 w-10 border-4 border-primary border-t-transparent" />
+                  </div>
+                ) : favoriteListings.length === 0 ? (
+                  <div className="text-center py-16 text-on-surface-variant border-2 border-dashed border-outline-variant/55 rounded-2xl bg-surface-container-low/30 space-y-4">
+                    <span className="material-symbols-outlined text-[48px] text-outline-variant">favorite_border</span>
+                    <p className="text-body-md">
+                      {language === "de" ? "Keine Favoriten gespeichert." : "No saved favorites yet."}
+                    </p>
+                    <button
+                      onClick={() => router.push("/suche")}
+                      className="bg-primary text-on-primary px-5 py-2.5 rounded-xl text-label-sm font-bold hover:opacity-90 active:scale-95 transition-all shadow cursor-pointer inline-flex items-center gap-1.5"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">search</span>
+                      {language === "de" ? "Wohnungen suchen" : "Search Properties"}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {favoriteListings.map((l) => {
+                      const primaryPhoto = l.property_photos?.find((p: any) => p.is_primary)?.cdn_url || l.property_photos?.[0]?.cdn_url || "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80";
+                      const totalRent = Math.round(parseFloat(l.rent_cold) + parseFloat(l.rent_utilities || 0) + parseFloat(l.rent_heating || 0));
+
+                      return (
+                        <div
+                          key={l.id}
+                          className="group bg-white rounded-xl border border-outline-variant overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col justify-between"
+                        >
+                          <div className="relative h-44 overflow-hidden bg-surface-dim">
+                            <img
+                              src={primaryPhoto}
+                              alt={l.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              loading="lazy"
+                            />
+                            <button
+                              onClick={() => handleRemoveFavorite(l.id)}
+                              className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm p-1.5 rounded-full hover:bg-white transition-colors cursor-pointer text-red-500 hover:text-red-700 shadow-sm"
+                              title={language === "de" ? "Entfernen" : "Remove"}
+                            >
+                              <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span>
+                            </button>
+                          </div>
+                          <div className="p-5 flex-grow flex flex-col justify-between">
+                            <div>
+                              <h3 className="text-[16px] font-bold text-primary leading-snug line-clamp-1 mb-1">{l.title}</h3>
+                              <p className="text-[12px] text-on-surface-variant line-clamp-1 mb-4">📍 {l.street}, {l.zip} {l.city}</p>
+                              
+                              <div className="grid grid-cols-3 gap-2 mb-4 border-t border-b border-outline-variant/40 py-2.5">
+                                <div className="text-center">
+                                  <span className="block text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">{language === "de" ? "Warm" : "Warm Rent"}</span>
+                                  <span className="text-[14px] font-bold text-primary">{totalRent || 870} €</span>
+                                </div>
+                                <div className="text-center border-l border-r border-outline-variant/30">
+                                  <span className="block text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">{language === "de" ? "Fläche" : "Area"}</span>
+                                  <span className="text-[14px] font-semibold text-primary">{l.size_sqm} m²</span>
+                                </div>
+                                <div className="text-center">
+                                  <span className="block text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">{language === "de" ? "Zimmer" : "Rooms"}</span>
+                                  <span className="text-[14px] font-semibold text-primary">{l.rooms}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Link
+                                href={`/objekt/${l.id}`}
+                                className="flex-1 text-center bg-primary text-on-primary py-2 rounded-lg text-[12px] font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer shadow-sm"
+                              >
+                                {language === "de" ? "Details ansehen" : "View Details"}
+                              </Link>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

@@ -244,7 +244,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         upgradeUser,
       }}
     >
-      {children}
+      {loading ? (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background">
+          <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-300">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#f07d00] border-t-transparent" />
+            <p className="text-[14px] text-primary font-bold uppercase tracking-widest animate-pulse font-sans">Heimstadt</p>
+          </div>
+        </div>
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   );
 };
