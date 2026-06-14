@@ -13,8 +13,13 @@ function RegisterPageContent() {
   const redirectUrl = searchParams.get("redirect");
   const { t, language } = useLanguage();
   
-  const [form, setForm] = useState({ name: "", email: "", tel: "", password: "" });
-  
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+  const [loadingSubmit, setLoadingSubmit] = useState(false);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+
   // Self-healing: Detect Google OAuth hash redirect landing on register page and route to Auth Callback
   useEffect(() => {
     if (typeof window !== "undefined" && window.location.hash) {
@@ -24,16 +29,33 @@ function RegisterPageContent() {
     }
   }, [router]);
 
-  const [isRegistered, setIsRegistered] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [successMsg, setSuccessMsg] = useState("");
-  const [loadingSubmit, setLoadingSubmit] = useState(false);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
     setSuccessMsg("");
     setLoadingSubmit(true);
+
+    // Frontend validations
+    if (!form.name.trim()) {
+      setErrorMsg(language === "de" ? "Bitte geben Sie Ihren vollständigen Namen ein." : "Please enter your full name.");
+      setLoadingSubmit(false);
+      return;
+    }
+    if (!form.email.trim() || !form.email.includes("@")) {
+      setErrorMsg(language === "de" ? "Bitte geben Sie eine gültige E-Mail-Adresse ein." : "Please enter a valid email address.");
+      setLoadingSubmit(false);
+      return;
+    }
+
+    if (form.password.length < 6) {
+      setErrorMsg(
+        language === "de"
+          ? "Das Passwort muss mindestens 6 Zeichen lang sein."
+          : "Password must be at least 6 characters long."
+      );
+      setLoadingSubmit(false);
+      return;
+    }
 
     try {
       // 1. Sign up the user via Supabase Auth with registration metadata
@@ -43,7 +65,7 @@ function RegisterPageContent() {
         options: {
           data: {
             full_name: form.name,
-            phone: form.tel,
+            phone: "",
             role: null, // role is null initially so they can choose it on select-role!
           },
           emailRedirectTo: `${window.location.origin}/auth/callback`,
@@ -61,44 +83,62 @@ function RegisterPageContent() {
         );
       }
 
-      const successAlertMsg = language === "de"
-        ? "Registrierung erfolgreich abgeschlossen! Bitte prüfen Sie Ihre E-Mails und klicken Sie auf den Bestätigungslink."
-        : "Registration successfully completed! Please check your email and click on the confirmation link.";
-
-      alert(successAlertMsg);
-      setSuccessMsg(successAlertMsg);
-      setIsRegistered(true);
+      // Show custom popup modal instead of browser alert
+      setShowVerificationModal(true);
 
     } catch (err: any) {
       const errMsg = err.message || "";
-      const isAlreadyRegistered = 
-        errMsg.toLowerCase().includes("already registered") || 
-        errMsg.toLowerCase().includes("already exists") ||
-        errMsg.toLowerCase().includes("email_taken") ||
-        errMsg.toLowerCase().includes("email taken");
+      const errCode = err.code || "";
 
-      if (isAlreadyRegistered) {
-        const successAlertMsg = language === "de"
-          ? "Registrierung erfolgreich abgeschlossen! Bitte prüfen Sie Ihre E-Mails und klicken Sie auf den Bestätigungslink."
-          : "Registration successfully completed! Please check your email and click on the confirmation link.";
-
-        alert(successAlertMsg);
-        setSuccessMsg(successAlertMsg);
-        setIsRegistered(true);
-        return;
-      }
-
-      if (errMsg.toLowerCase().includes("rate limit") || errMsg.toLowerCase().includes("once every 60 seconds")) {
+      if (errCode === "weak_password" || errMsg.toLowerCase().includes("password")) {
         setErrorMsg(
           language === "de"
-            ? "E-Mail-Limit überschritten. Da der kostenlose Standard-E-Mail-Server verwendet wird, wurde das Limit für diese Stunde erreicht. Bitte versuchen Sie es in einer Stunde erneut oder melden Sie sich bequem über Google an!"
-            : "Email rate limit exceeded. Because the default free email provider is being used, the hourly limit has been reached. Please try again in an hour, or sign in instantly with Google!"
+            ? "Das Passwort ist zu schwach. Es muss mindestens 6 Zeichen lang sein."
+            : "The password is too weak. It must be at least 6 characters long."
+        );
+      } else if (errCode === "email_taken" || errMsg.toLowerCase().includes("already registered") || errMsg.toLowerCase().includes("already exists")) {
+        setErrorMsg(
+          language === "de"
+            ? "Diese E-Mail-Adresse wird bereits verwendet. Bitte melden Sie sich an oder nutzen Sie eine andere E-Mail."
+            : "This email address is already in use. Please log in or use a different email."
+        );
+      } else if (errCode === "invalid_email" || errMsg.toLowerCase().includes("email")) {
+        setErrorMsg(
+          language === "de"
+            ? "Bitte geben Sie eine gültige E-Mail-Adresse ein."
+            : "Please enter a valid email address."
+        );
+      } else if (errMsg.toLowerCase().includes("rate limit") || errMsg.toLowerCase().includes("once every 60 seconds") || errCode === "over_email_send_rate_limit") {
+        setErrorMsg(
+          language === "de"
+            ? "Registrierungs-Limit erreicht. Bitte versuchen Sie es in Kürze erneut oder nutzen Sie die Google-Anmeldung."
+            : "Signup rate limit exceeded. Please try again in a few minutes, or use Google Sign-in."
         );
       } else {
-        setErrorMsg(err.message || "An error occurred");
+        setErrorMsg(
+          language === "de"
+            ? `Registrierung fehlgeschlagen: ${errMsg}`
+            : `Registration failed: ${errMsg}`
+        );
       }
     } finally {
       setLoadingSubmit(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setErrorMsg("");
+    setSuccessMsg("");
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      setErrorMsg(err.message || "An error occurred during Google sign-in");
     }
   };
 
@@ -219,20 +259,6 @@ function RegisterPageContent() {
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="block text-label-md text-on-surface font-semibold">
-                  {t("phoneLabel")}
-                </label>
-                <input
-                  id="reg-tel"
-                  type="tel"
-                  required
-                  placeholder="+49 176 1234567"
-                  value={form.tel}
-                  onChange={(e) => setForm({ ...form, tel: e.target.value })}
-                  className="w-full h-12 px-4 bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-[16px]"
-                />
-              </div>
 
               <div className="space-y-1">
                 <label className="block text-label-md text-on-surface font-semibold">
@@ -263,6 +289,38 @@ function RegisterPageContent() {
             </button>
           </form>
 
+          {/* Social Logins */}
+          <div className="mt-8 pt-6 border-t border-outline-variant">
+            <p className="text-center text-[12px] text-on-surface-variant font-semibold mb-4 uppercase tracking-wider">
+              {language === "de" ? "Oder fortfahren mit" : "Or continue with"}
+            </p>
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              className="w-full flex items-center justify-center gap-3 h-12 border border-outline-variant rounded-xl hover:bg-surface-container-low transition-colors cursor-pointer text-label-md font-semibold"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path
+                  fill="#EA4335"
+                  d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.67 1.57 15.02 1 12 1 7.24 1 3.21 3.73 1.24 7.72l3.87 3a7.16 7.16 0 0 1 6.89-5.68z"
+                />
+                <path
+                  fill="#4285F4"
+                  d="M23.49 12.27c0-.81-.07-1.59-.2-2.36H12v4.51h6.46a5.5 5.5 0 0 1-2.4 3.6l3.73 2.9c2.18-2 3.7-5.07 3.7-8.65z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.11 14.78a7.12 7.12 0 0 1 0-4.56L1.24 7.22a11.96 11.96 0 0 0 0 9.56l3.87-3z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c3.24 0 5.97-1.07 7.96-2.9l-3.73-2.9a7.12 7.12 0 0 1-10.9-4.42l-3.87 3A11.96 11.96 0 0 0 12 23z"
+                />
+              </svg>
+              <span>{language === "de" ? "Mit Google fortfahren" : "Continue with Google"}</span>
+            </button>
+          </div>
+
           <div className="mt-8 text-center text-body-md">
             <Link
               href={loginLink}
@@ -273,6 +331,38 @@ function RegisterPageContent() {
           </div>
         </div>
       </div>
+
+      {/* Verification instructions modal */}
+      {showVerificationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#002046]/40 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
+          <div className="w-full max-w-md bg-white border border-outline-variant p-8 rounded-3xl shadow-2xl text-center transform scale-100 transition-all duration-300">
+            <div className="w-16 h-16 bg-[#f07d00]/10 border border-[#f07d00]/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <span className="material-symbols-outlined text-[36px] text-[#f07d00]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                mark_email_unread
+              </span>
+            </div>
+            <h2 className="text-headline-md font-bold text-primary mb-3">
+              {language === "de" ? "Aktivierung erforderlich!" : "Activation Required!"}
+            </h2>
+            <p className="text-on-surface-variant text-[14px] leading-relaxed mb-6">
+              {language === "de"
+                ? "Um nach der Registrierung auf Ihr Profil und Ihr Dashboard zugreifen zu können, müssen Sie Ihr Konto über den Aktivierungslink in der Bestätigungs-E-Mail verifizieren."
+                : "In order to access your profile and dashboard after registering, you must first verify your account using the activation link sent to the email provided."}
+            </p>
+            <button
+              onClick={() => {
+                setShowVerificationModal(false);
+                setIsRegistered(true);
+              }}
+              className="w-full h-12 bg-primary text-on-primary rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>{language === "de" ? "E-Mail-Posteingang prüfen" : "Check Email Inbox"}</span>
+              <span className="material-symbols-outlined text-[18px]">open_in_new</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       <Footer />
     </>
   );

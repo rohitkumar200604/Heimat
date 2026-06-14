@@ -100,6 +100,48 @@ function LoginPageContent() {
     }
   };
 
+  const handleForgotPassword = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!email.trim()) {
+      setErrorMsg(
+        language === "de"
+          ? "Bitte geben Sie zuerst Ihre E-Mail-Adresse in das E-Mail-Feld ein."
+          : "Please enter your email address in the email field first."
+      );
+      return;
+    }
+    setErrorMsg("");
+    setSuccessMsg("");
+    try {
+      const isConfigured =
+        process.env.NEXT_PUBLIC_SUPABASE_URL &&
+        process.env.NEXT_PUBLIC_SUPABASE_URL !== "https://mock-project.supabase.co";
+
+      if (!isConfigured) {
+        setSuccessMsg(
+          language === "de"
+            ? "Mock-Modus: E-Mail zur Passwort-Zurücksetzung gesendet!"
+            : "Mock Mode: Password reset email sent!"
+        );
+        return;
+      }
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      });
+
+      if (error) throw error;
+
+      setSuccessMsg(
+        language === "de"
+          ? "E-Mail zur Passwort-Zurücksetzung wurde gesendet!"
+          : "Password reset email has been sent!"
+      );
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to send password reset email.");
+    }
+  };
+
   const registerLink = redirectUrl 
     ? `/auth/register?redirect=${encodeURIComponent(redirectUrl)}`
     : "/auth/register";
@@ -152,12 +194,13 @@ function LoginPageContent() {
                 <label className="block text-label-md text-on-surface font-semibold">
                   {t("passwordLabel")}
                 </label>
-                <Link
-                  href="#"
-                  className="text-[12px] text-primary hover:underline font-semibold"
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="text-[12px] text-primary hover:underline font-semibold bg-transparent border-none p-0 cursor-pointer outline-none focus:outline-none"
                 >
                   {language === "de" ? "Passwort vergessen?" : "Forgot password?"}
-                </Link>
+                </button>
               </div>
               <input
                 id="login-password"
@@ -211,7 +254,7 @@ function LoginPageContent() {
                   d="M12 23c3.24 0 5.97-1.07 7.96-2.9l-3.73-2.9a7.12 7.12 0 0 1-10.9-4.42l-3.87 3A11.96 11.96 0 0 0 12 23z"
                 />
               </svg>
-              <span>Continue with Google</span>
+              <span>{language === "de" ? "Mit Google fortfahren" : "Continue with Google"}</span>
             </button>
           </div>
 

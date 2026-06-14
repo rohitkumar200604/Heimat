@@ -41,6 +41,7 @@ function TenantDashboardContent() {
   const [tenantProfile, setTenantProfile] = useState<any | null>(null);
   const [aiScore, setAiScore] = useState<any | null>(null);
   const [loadingDashboard, setLoadingDashboard] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [favoriteListings, setFavoriteListings] = useState<any[]>([]);
   const [loadingFavorites, setLoadingFavorites] = useState(false);
   const [whatsappEnabled, setWhatsappEnabled] = useState(false);
@@ -91,7 +92,9 @@ function TenantDashboardContent() {
   // Fetch initial dashboard and profile data
   const fetchTenantData = async () => {
     if (!user) return;
-    setLoadingDashboard(true);
+    if (!hasLoadedOnce) {
+      setLoadingDashboard(true);
+    }
 
     if (!isSupabaseConfigured()) {
       // Mock mode: set mock data immediately
@@ -119,6 +122,7 @@ function TenantDashboardContent() {
       });
       setWhatsappEnabled(localStorage.getItem(`heimat_mock_whatsapp_${user.id}`) === "true");
       setLoadingDashboard(false);
+      setHasLoadedOnce(true);
       return;
     }
 
@@ -222,6 +226,7 @@ function TenantDashboardContent() {
       console.error("Error loading tenant dashboard data:", err);
     } finally {
       setLoadingDashboard(false);
+      setHasLoadedOnce(true);
     }
   };
 

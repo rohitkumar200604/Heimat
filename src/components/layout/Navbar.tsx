@@ -12,7 +12,7 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const { language, setLanguage, t } = useLanguage();
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, isPremium } = useAuth();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50);
@@ -125,7 +125,18 @@ export default function Navbar() {
                   <div className="absolute right-0 mt-2 w-56 bg-white border border-outline-variant rounded-2xl shadow-xl py-2 z-[999] animate-[fadeIn_0.15s_ease-out] flex flex-col">
                     {/* User profile card */}
                     <div className="px-4 py-2 border-b border-outline-variant/40 mb-1">
-                      <p className="text-[14px] font-bold text-on-surface truncate">{profile.full_name}</p>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <p className="text-[14px] font-bold text-on-surface truncate">{profile.full_name}</p>
+                        {isPremium && (
+                          <span 
+                            className="material-symbols-outlined text-[16px] text-[#f07d00] flex-shrink-0" 
+                            title={language === "de" ? "Premium Verifiziert" : "Premium Verified"}
+                            style={{ fontVariationSettings: "'FILL' 1" }}
+                          >
+                            verified
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[11px] text-on-surface-variant capitalize truncate">{profile.role}</p>
                     </div>
 
@@ -296,7 +307,18 @@ export default function Navbar() {
                     {profile.full_name ? profile.full_name.charAt(0).toUpperCase() : "U"}
                   </div>
                   <div>
-                    <div className="text-[14px] font-bold text-on-surface">{profile.full_name}</div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="text-[14px] font-bold text-on-surface">{profile.full_name}</div>
+                      {isPremium && (
+                        <span 
+                          className="material-symbols-outlined text-[16px] text-[#f07d00] flex-shrink-0" 
+                          title={language === "de" ? "Premium Verifiziert" : "Premium Verified"}
+                          style={{ fontVariationSettings: "'FILL' 1" }}
+                        >
+                          verified
+                        </span>
+                      )}
+                    </div>
                     <div className="text-[11px] text-on-surface-variant capitalize">{profile.role}</div>
                   </div>
                 </div>

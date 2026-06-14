@@ -44,6 +44,7 @@ function LandlordDashboardContent() {
   const [bookingRequests, setBookingRequests] = useState<any[]>([]);
   const [propertiesList, setPropertiesList] = useState<any[]>([]);
   const [loadingDashboard, setLoadingDashboard] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   // Form State
   const [profileForm, setProfileForm] = useState({
@@ -85,7 +86,9 @@ function LandlordDashboardContent() {
 
   const fetchLandlordData = async () => {
     if (!user) return;
-    setLoadingDashboard(true);
+    if (!hasLoadedOnce) {
+      setLoadingDashboard(true);
+    }
 
     if (!isSupabaseConfigured()) {
       const localWhatsapp = localStorage.getItem(`heimat_mock_landlord_whatsapp_${user.id}`) === "true";
@@ -134,6 +137,7 @@ function LandlordDashboardContent() {
         }
       ]);
       setLoadingDashboard(false);
+      setHasLoadedOnce(true);
       return;
     }
 
@@ -248,6 +252,7 @@ function LandlordDashboardContent() {
       console.error("Error loading landlord dashboard:", err);
     } finally {
       setLoadingDashboard(false);
+      setHasLoadedOnce(true);
     }
   };
 
