@@ -334,31 +334,62 @@ function RegisterPageContent() {
 
       {/* Verification instructions modal */}
       {showVerificationModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#002046]/40 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-          <div className="w-full max-w-md bg-white border border-outline-variant p-8 rounded-3xl shadow-2xl text-center transform scale-100 transition-all duration-300">
-            <div className="w-16 h-16 bg-[#f07d00]/10 border border-[#f07d00]/20 rounded-full flex items-center justify-center mx-auto mb-6">
-              <span className="material-symbols-outlined text-[36px] text-[#f07d00]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                mark_email_unread
-              </span>
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto bg-[#002046]/50 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]"
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowVerificationModal(false); setIsRegistered(true); } }}
+        >
+          {/* Centering wrapper — uses min-h-full + flex so the card is centred vertically on large screens but top-anchored with padding on short ones */}
+          <div className="flex min-h-full items-center justify-center p-4 py-8">
+            <div className="w-full max-w-md bg-white border border-outline-variant p-6 sm:p-8 rounded-3xl shadow-2xl text-center">
+
+              {/* Icon */}
+              <div className="w-14 h-14 sm:w-16 sm:h-16 bg-[#f07d00]/10 border border-[#f07d00]/20 rounded-full flex items-center justify-center mx-auto mb-5">
+                <span
+                  className="material-symbols-outlined text-[28px] sm:text-[36px] text-[#f07d00]"
+                  style={{ fontVariationSettings: "'FILL' 1" }}
+                >
+                  mark_email_unread
+                </span>
+              </div>
+
+              {/* Title */}
+              <h2 className="text-[20px] sm:text-headline-md font-bold text-primary mb-3 leading-snug">
+                {language === "de" ? "Aktivierung erforderlich!" : "Activation Required!"}
+              </h2>
+
+              {/* Body text */}
+              <p className="text-on-surface-variant text-[13px] sm:text-[14px] leading-relaxed mb-4">
+                {language === "de"
+                  ? "Um nach der Registrierung auf Ihr Profil und Ihr Dashboard zugreifen zu können, müssen Sie Ihr Konto über den Aktivierungslink in der Bestätigungs-E-Mail verifizieren."
+                  : "In order to access your profile and dashboard after registering, you must first verify your account using the activation link sent to the email provided."}
+              </p>
+
+              {/* Email hint pill */}
+              <div className="flex items-center justify-center gap-2 bg-surface-container-low border border-outline-variant rounded-xl px-4 py-3 mb-6 text-[13px]">
+                <span className="material-symbols-outlined text-primary text-[16px]">mail</span>
+                <span className="text-on-surface font-semibold break-all">{form.email}</span>
+              </div>
+
+              {/* CTA */}
+              <button
+                onClick={() => {
+                  setShowVerificationModal(false);
+                  setIsRegistered(true);
+                }}
+                className="w-full h-12 bg-primary text-on-primary rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>{language === "de" ? "E-Mail-Posteingang prüfen" : "Check Email Inbox"}</span>
+                <span className="material-symbols-outlined text-[18px]">open_in_new</span>
+              </button>
+
+              {/* Dismiss link */}
+              <button
+                onClick={() => { setShowVerificationModal(false); setIsRegistered(true); }}
+                className="mt-4 text-[12px] text-on-surface-variant hover:text-primary transition-colors cursor-pointer underline underline-offset-2"
+              >
+                {language === "de" ? "Schließen" : "Dismiss"}
+              </button>
             </div>
-            <h2 className="text-headline-md font-bold text-primary mb-3">
-              {language === "de" ? "Aktivierung erforderlich!" : "Activation Required!"}
-            </h2>
-            <p className="text-on-surface-variant text-[14px] leading-relaxed mb-6">
-              {language === "de"
-                ? "Um nach der Registrierung auf Ihr Profil und Ihr Dashboard zugreifen zu können, müssen Sie Ihr Konto über den Aktivierungslink in der Bestätigungs-E-Mail verifizieren."
-                : "In order to access your profile and dashboard after registering, you must first verify your account using the activation link sent to the email provided."}
-            </p>
-            <button
-              onClick={() => {
-                setShowVerificationModal(false);
-                setIsRegistered(true);
-              }}
-              className="w-full h-12 bg-primary text-on-primary rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <span>{language === "de" ? "E-Mail-Posteingang prüfen" : "Check Email Inbox"}</span>
-              <span className="material-symbols-outlined text-[18px]">open_in_new</span>
-            </button>
           </div>
         </div>
       )}
