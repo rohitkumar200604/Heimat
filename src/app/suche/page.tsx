@@ -57,7 +57,7 @@ function Dropdown({
         )}
       </button>
       {open && (
-        <div className="absolute top-full left-0 mt-2 z-50 bg-white border border-outline-variant rounded-2xl shadow-2xl min-w-[320px] max-h-[80vh] overflow-y-auto overflow-x-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+        <div className="absolute top-full right-0 sm:left-0 sm:right-auto mt-2 z-50 bg-white border border-outline-variant rounded-2xl shadow-2xl w-[92vw] sm:min-w-[320px] sm:w-auto max-h-[80vh] overflow-y-auto overflow-x-hidden animate-in fade-in slide-in-from-top-2 duration-150">
           {children}
         </div>
       )}
@@ -417,209 +417,222 @@ function SuchePageContent() {
   return (
     <div className="flex flex-col w-full h-[calc(100vh-65px)]">
 
-      {/* ── Single-row Filter Toolbar ───────────────────────────────────── */}
+      {/* ── Filter Toolbar ─────────────────────────────────────────────────── */}
       <section className="bg-white border-b border-outline-variant px-4 md:px-8 py-3 z-40 sticky top-[65px] shadow-sm">
-        <div className="max-w-[1280px] mx-auto flex items-center gap-2 min-w-0">
+        <div className="max-w-[1280px] mx-auto flex flex-col gap-2">
 
-          {/* City search — takes remaining space */}
-          <div className="flex-1 min-w-0 relative">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px] pointer-events-none">
-              search
-            </span>
-            <input
-              id="suche-city-search"
-              type="text"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && applySearch()}
-              placeholder={language === "de" ? "Stadt oder Adresse suchen…" : "Search city or address…"}
-              className="w-full pl-9 pr-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-label-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-            />
-            {searchInput && (
+          {/* Row 1: City search — full width on all screens */}
+          <div className="flex items-center gap-2">
+            <div className="flex-1 min-w-0 relative">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px] pointer-events-none">
+                search
+              </span>
+              <input
+                id="suche-city-search"
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && applySearch()}
+                placeholder={language === "de" ? "Stadt oder Adresse suchen…" : "Search city or address…"}
+                className="w-full pl-9 pr-9 py-2.5 bg-surface-container-low border border-outline-variant rounded-xl text-label-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              />
+              {searchInput && (
+                <button
+                  onClick={() => { setSearchInput(""); router.push("/suche"); }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[16px]">close</span>
+                </button>
+              )}
+            </div>
+            {/* Search button — always visible next to input */}
+            <button
+              id="btn-suche-search"
+              onClick={applySearch}
+              disabled={searchInput.trim() === ""}
+              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-label-sm font-bold transition-all flex-shrink-0 shadow-sm ${
+                searchInput.trim() === ""
+                  ? "bg-outline-variant text-on-surface-variant cursor-not-allowed opacity-50"
+                  : "bg-primary text-on-primary hover:opacity-90 active:scale-95 cursor-pointer"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[17px]">search</span>
+              <span className="hidden sm:block">{language === "de" ? "Suchen" : "Search"}</span>
+            </button>
+          </div>
+
+          {/* Row 2: Filters + Sort — horizontal scroll on mobile */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-0.5 -mx-1 px-1 no-scrollbar">
+
+            {/* ── Unified Filters dropdown ─────────── */}
+            {(() => {
+              const totalBadge =
+                activeFilters.length +
+                (priceRange ? 1 : 0) +
+                (propertyType !== "all" ? 1 : 0) +
+                (distance !== "any" ? 1 : 0);
+
+              const clearAll = () => {
+                setActiveFilters([]);
+                setPriceRange("");
+                setPropertyType("all");
+                setDistance("any");
+              };
+
+              return (
+                <Dropdown
+                  id="dd-filters"
+                  label={language === "de" ? "Filter" : "Filters"}
+                  icon="tune"
+                  badge={totalBadge || undefined}
+                >
+                  {/* ── Amenities ── */}
+                  <div className="px-4 pt-4 pb-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
+                      {language === "de" ? "Ausstattung & Merkmale" : "Amenities & Features"}
+                    </p>
+                  </div>
+                  <div className="pb-1">
+                    {amenityFilters.map(({ id, label, icon }) => (
+                      <FilterCheck
+                        key={id}
+                        id={id}
+                        label={label}
+                        icon={icon}
+                        checked={activeFilters.includes(id)}
+                        onChange={() => toggleFilter(id)}
+                      />
+                    ))}
+                  </div>
+
+                  {/* ── Price Range ── */}
+                  <div className="border-t border-outline-variant mx-4" />
+                  <div className="px-4 pt-3 pb-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
+                      {language === "de" ? "Maximale Warmmiete" : "Max. Rent (warm)"}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 px-3 pb-2">
+                    {priceBands.map(({ value, label }) => (
+                      <button
+                        key={value}
+                        onClick={() => setPriceRange(value)}
+                        className={`px-3 py-2 rounded-lg text-label-sm text-left transition-all border cursor-pointer ${
+                          priceRange === value
+                            ? "bg-primary text-on-primary border-primary font-bold"
+                            : "border-outline-variant text-on-surface hover:bg-surface-container"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* ── Property Type ── */}
+                  <div className="border-t border-outline-variant mx-4" />
+                  <div className="px-4 pt-3 pb-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
+                      {language === "de" ? "Wohnungstyp" : "Property Type"}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 px-3 pb-2">
+                    {typeOptions.map(({ value, label }) => (
+                      <button
+                        key={value}
+                        onClick={() => setPropertyType(value)}
+                        className={`px-3 py-2 rounded-lg text-label-sm text-left transition-all border cursor-pointer ${
+                          propertyType === value
+                            ? "bg-primary text-on-primary border-primary font-bold"
+                            : "border-outline-variant text-on-surface hover:bg-surface-container"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* ── Distance ── */}
+                  <div className="border-t border-outline-variant mx-4" />
+                  <div className="px-4 pt-3 pb-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
+                      {language === "de" ? "Entfernung vom Zentrum" : "Distance from Centre"}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 px-3 pb-3">
+                    {distanceOptions.map(({ value, label }) => (
+                      <button
+                        key={value}
+                        onClick={() => setDistance(value)}
+                        className={`px-3 py-2 rounded-lg text-label-sm text-left transition-all border cursor-pointer ${
+                          distance === value
+                            ? "bg-primary text-on-primary border-primary font-bold"
+                            : "border-outline-variant text-on-surface hover:bg-surface-container"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* ── Footer: clear all ── */}
+                  {totalBadge > 0 && (
+                    <div className="border-t border-outline-variant px-4 py-3 flex justify-between items-center">
+                      <span className="text-[12px] text-on-surface-variant">
+                        {totalBadge} {language === "de" ? "aktiv" : "active"}
+                      </span>
+                      <button
+                        onClick={clearAll}
+                        className="text-[12px] font-bold text-primary hover:underline cursor-pointer"
+                      >
+                        {language === "de" ? "Alle zurücksetzen" : "Clear all"}
+                      </button>
+                    </div>
+                  )}
+                </Dropdown>
+              );
+            })()}
+
+            {/* Divider */}
+            <div className="h-7 w-px bg-outline-variant flex-shrink-0" />
+
+            {/* ── Sort By dropdown ── */}
+            <Dropdown
+              id="dd-sort"
+              label={language === "de" ? "Sortierung" : "Sort"}
+              icon="swap_vert"
+            >
+              <div className="px-4 pt-3 pb-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
+                  {language === "de" ? "Sortieren nach" : "Sort by"}
+                </p>
+              </div>
+              <div className="pb-3">
+                {sortOptions.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => setSort(value)}
+                    className={`w-full text-left px-4 py-2.5 text-label-sm hover:bg-surface-container transition-colors flex items-center justify-between ${
+                      sort === value ? "text-primary font-bold bg-primary/5" : "text-on-surface"
+                    }`}
+                  >
+                    <span>{label}</span>
+                    {sort === value && <span className="material-symbols-outlined text-[16px] text-primary">check</span>}
+                  </button>
+                ))}
+              </div>
+            </Dropdown>
+
+            {/* Active filter quick-clear badge */}
+            {(activeFilters.length + (priceRange ? 1 : 0) + (propertyType !== "all" ? 1 : 0) + (distance !== "any" ? 1 : 0)) > 0 && (
               <button
-                onClick={() => { setSearchInput(""); router.push("/suche"); }}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface transition-colors cursor-pointer"
+                onClick={() => { setActiveFilters([]); setPriceRange(""); setPropertyType("all"); setDistance("any"); }}
+                className="flex items-center gap-1 px-3 py-2 rounded-lg text-[12px] font-bold text-error border border-error/30 bg-error/5 hover:bg-error/10 transition-all cursor-pointer flex-shrink-0 whitespace-nowrap"
               >
-                <span className="material-symbols-outlined text-[16px]">close</span>
+                <span className="material-symbols-outlined text-[14px]">filter_list_off</span>
+                {language === "de" ? "Filter löschen" : "Clear filters"}
               </button>
             )}
           </div>
-
-          {/* Divider */}
-          <div className="h-7 w-px bg-outline-variant hidden sm:block flex-shrink-0" />
-
-          {/* ── Unified Filters dropdown (Amenities + Price + Type + Distance) ── */}
-          {(() => {
-            const totalBadge =
-              activeFilters.length +
-              (priceRange ? 1 : 0) +
-              (propertyType !== "all" ? 1 : 0) +
-              (distance !== "any" ? 1 : 0);
-
-            const clearAll = () => {
-              setActiveFilters([]);
-              setPriceRange("");
-              setPropertyType("all");
-              setDistance("any");
-            };
-
-            return (
-              <Dropdown
-                id="dd-filters"
-                label={language === "de" ? "Filter" : "Filters"}
-                icon="tune"
-                badge={totalBadge || undefined}
-              >
-                {/* ── Amenities ── */}
-                <div className="px-4 pt-4 pb-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
-                    {language === "de" ? "Ausstattung & Merkmale" : "Amenities & Features"}
-                  </p>
-                </div>
-                <div className="pb-1">
-                  {amenityFilters.map(({ id, label, icon }) => (
-                    <FilterCheck
-                      key={id}
-                      id={id}
-                      label={label}
-                      icon={icon}
-                      checked={activeFilters.includes(id)}
-                      onChange={() => toggleFilter(id)}
-                    />
-                  ))}
-                </div>
-
-                {/* ── Price Range ── */}
-                <div className="border-t border-outline-variant mx-4" />
-                <div className="px-4 pt-3 pb-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
-                    {language === "de" ? "Maximale Warmmiete" : "Max. Rent (warm)"}
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-1 px-3 pb-2">
-                  {priceBands.map(({ value, label }) => (
-                    <button
-                      key={value}
-                      onClick={() => setPriceRange(value)}
-                      className={`px-3 py-2 rounded-lg text-label-sm text-left transition-all border cursor-pointer ${
-                        priceRange === value
-                          ? "bg-primary text-on-primary border-primary font-bold"
-                          : "border-outline-variant text-on-surface hover:bg-surface-container"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* ── Property Type ── */}
-                <div className="border-t border-outline-variant mx-4" />
-                <div className="px-4 pt-3 pb-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
-                    {language === "de" ? "Wohnungstyp" : "Property Type"}
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-1 px-3 pb-2">
-                  {typeOptions.map(({ value, label }) => (
-                    <button
-                      key={value}
-                      onClick={() => setPropertyType(value)}
-                      className={`px-3 py-2 rounded-lg text-label-sm text-left transition-all border cursor-pointer ${
-                        propertyType === value
-                          ? "bg-primary text-on-primary border-primary font-bold"
-                          : "border-outline-variant text-on-surface hover:bg-surface-container"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* ── Distance ── */}
-                <div className="border-t border-outline-variant mx-4" />
-                <div className="px-4 pt-3 pb-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
-                    {language === "de" ? "Entfernung vom Zentrum" : "Distance from Centre"}
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-1 px-3 pb-3">
-                  {distanceOptions.map(({ value, label }) => (
-                    <button
-                      key={value}
-                      onClick={() => setDistance(value)}
-                      className={`px-3 py-2 rounded-lg text-label-sm text-left transition-all border cursor-pointer ${
-                        distance === value
-                          ? "bg-primary text-on-primary border-primary font-bold"
-                          : "border-outline-variant text-on-surface hover:bg-surface-container"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* ── Footer: clear all ── */}
-                {totalBadge > 0 && (
-                  <div className="border-t border-outline-variant px-4 py-3 flex justify-between items-center">
-                    <span className="text-[12px] text-on-surface-variant">
-                      {totalBadge} {language === "de" ? "aktiv" : "active"}
-                    </span>
-                    <button
-                      onClick={clearAll}
-                      className="text-[12px] font-bold text-primary hover:underline cursor-pointer"
-                    >
-                      {language === "de" ? "Alle zurücksetzen" : "Clear all"}
-                    </button>
-                  </div>
-                )}
-              </Dropdown>
-            );
-          })()}
-
-          {/* Divider */}
-          <div className="h-7 w-px bg-outline-variant hidden sm:block flex-shrink-0" />
-
-          {/* ── Sort By dropdown ─────────────── */}
-          <Dropdown
-            id="dd-sort"
-            label={language === "de" ? "Sortierung" : "Sort"}
-            icon="swap_vert"
-          >
-            <div className="px-4 pt-3 pb-1">
-              <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
-                {language === "de" ? "Sortieren nach" : "Sort by"}
-              </p>
-            </div>
-            <div className="pb-3">
-              {sortOptions.map(({ value, label }) => (
-                <button
-                  key={value}
-                  onClick={() => setSort(value)}
-                  className={`w-full text-left px-4 py-2.5 text-label-sm hover:bg-surface-container transition-colors flex items-center justify-between ${
-                    sort === value ? "text-primary font-bold bg-primary/5" : "text-on-surface"
-                  }`}
-                >
-                  <span>{label}</span>
-                  {sort === value && <span className="material-symbols-outlined text-[16px] text-primary">check</span>}
-                </button>
-              ))}
-            </div>
-          </Dropdown>
-
-          {/* Search button */}
-          <button
-            id="btn-suche-search"
-            onClick={applySearch}
-            disabled={searchInput.trim() === ""}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-label-sm font-bold transition-all flex-shrink-0 shadow-sm ${
-              searchInput.trim() === ""
-                ? "bg-outline-variant text-on-surface-variant cursor-not-allowed opacity-50"
-                : "bg-primary text-on-primary hover:opacity-90 active:scale-95 cursor-pointer"
-            }`}
-          >
-            <span className="material-symbols-outlined text-[17px]">search</span>
-            <span className="hidden md:block">{language === "de" ? "Suchen" : "Search"}</span>
-          </button>
         </div>
       </section>
 
@@ -645,23 +658,23 @@ function SuchePageContent() {
         </aside>
 
         {/* Listings */}
-        <section className="w-full md:w-[60%] overflow-y-auto custom-scrollbar bg-background px-5 md:px-[48px] py-8">
-          <div className="flex justify-between items-end mb-8 flex-wrap gap-4">
-            <div>
-              <h1 className="text-headline-lg-mobile md:text-headline-lg text-primary">
+        <section className="w-full md:w-[60%] overflow-y-auto custom-scrollbar bg-background px-4 sm:px-6 md:px-[48px] py-5 md:py-8">
+          <div className="flex justify-between items-center mb-5 md:mb-8 flex-wrap gap-3">
+            <div className="min-w-0">
+              <h1 className="text-[20px] md:text-headline-lg text-primary font-bold leading-snug truncate">
                 {hasSearched
                   ? (stadtParam
                     ? (language === "de" ? `Wohnungen in ${stadtParam}` : `Apartments in ${stadtParam}`)
                     : (language === "de" ? "Gefilterte Wohnungen" : "Filtered Apartments"))
                   : (language === "de" ? "Wo möchtest du wohnen?" : "Where do you want to live?")}
               </h1>
-              <p className="text-body-md text-on-surface-variant">
+              <p className="text-[13px] md:text-body-md text-on-surface-variant mt-0.5">
                 {hasSearched
-                  ? <>{listings.length} {t("resultsFound")}{sort !== "newest" && <span className="ml-2 text-[12px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">{currentSortLabel}</span>}</>
-                  : (language === "de" ? "Gib eine Stadt ein, um passende Inserate freizuschalten." : "Enter a city to unlock matching listings.")}
+                  ? <>{listings.length} {t("resultsFound")}{sort !== "newest" && <span className="ml-2 text-[11px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">{currentSortLabel}</span>}</>
+                  : (language === "de" ? "Gib eine Stadt ein, um Inserate freizuschalten." : "Enter a city to unlock listings.")}
               </p>
             </div>
-            <div className="hidden sm:flex gap-2">
+            <div className="flex gap-2">
               <button
                 id="view-grid"
                 onClick={() => setView("grid")}
@@ -679,9 +692,9 @@ function SuchePageContent() {
             </div>
           </div>
 
-          {/* Active filter pills */}
+          {/* Active filter pills — horizontally scrollable on mobile */}
           {(activeBadgeCount > 0 || priceRange || propertyType !== "all" || distance !== "any") && (
-            <div className="flex flex-wrap gap-2 mb-6">
+            <div className="flex gap-2 mb-5 overflow-x-auto pb-1 no-scrollbar">
               {activeFilters.map((f) => {
                 const af = amenityFilters.find(a => a.id === f);
                 return af ? (
@@ -753,24 +766,27 @@ function SuchePageContent() {
               {language === "de" ? "Keine Objekte gefunden. Bitte Filter anpassen." : "No listings found. Try adjusting your filters."}
             </div>
           ) : (
-            <div className={`grid gap-[24px] ${view === "grid" ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1"}`}>
+            <div className={`grid gap-4 md:gap-6 ${view === "grid" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-2" : "grid-cols-1"}`}>
               {listings.map((l) => (
                 <article
                   key={l.id}
-                  className="group bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden hover:shadow-xl transition-all duration-300"
+                  className="group bg-surface-container-lowest rounded-2xl border border-outline-variant overflow-hidden hover:shadow-xl transition-all duration-300"
                 >
                   <Link href={`/objekt/${l.id}`}>
-                    <div className="relative h-56 overflow-hidden bg-surface-container flex items-center justify-center">
+                    {/* Image */}
+                    <div className="relative h-44 sm:h-52 md:h-56 overflow-hidden bg-surface-container flex items-center justify-center">
                       <img
                         src={getPrimaryPhoto(l)}
                         alt={l.title}
-                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         loading="lazy"
                       />
+                      {/* Gradient overlay for readability */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
                       {/* Furnished badge */}
                       {l.furnished && (
-                        <span className="absolute top-4 left-4 bg-black/60 backdrop-blur-sm text-white px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[13px]">weekend</span>
+                        <span className="absolute top-3 left-3 bg-black/60 backdrop-blur-sm text-white px-2 py-0.5 rounded-lg text-[10px] font-bold flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[12px]">weekend</span>
                           {language === "de" ? "Möbliert" : "Furnished"}
                         </span>
                       )}
@@ -780,12 +796,12 @@ function SuchePageContent() {
                           e.preventDefault();
                           toggleFavorite(l.id);
                         }}
-                        className="absolute top-4 right-4 bg-white/80 backdrop-blur-sm p-2 rounded-full hover:bg-white transition-colors cursor-pointer group/fav"
+                        className="absolute top-3 right-3 bg-white/80 backdrop-blur-sm p-1.5 rounded-full hover:bg-white transition-colors cursor-pointer group/fav"
                       >
-                        <span 
-                          className={`material-symbols-outlined text-[20px] transition-colors ${
-                            favorites.includes(l.id) 
-                              ? "text-red-500" 
+                        <span
+                          className={`material-symbols-outlined text-[18px] transition-colors ${
+                            favorites.includes(l.id)
+                              ? "text-red-500"
                               : "text-on-surface-variant group-hover/fav:text-red-400"
                           }`}
                           style={{ fontVariationSettings: favorites.includes(l.id) ? "'FILL' 1" : "'FILL' 0" }}
@@ -794,27 +810,38 @@ function SuchePageContent() {
                         </span>
                       </button>
                     </div>
-                    <div className="p-6">
-                      <h3 className="text-headline-md text-primary leading-tight mb-1 line-clamp-1">{l.title}</h3>
-                      <p className="text-body-md text-on-surface-variant mb-4 line-clamp-1">{l.street}, {l.zip} {l.city}</p>
-                      <div className="flex items-center gap-6 mb-5">
+                    {/* Card body */}
+                    <div className="p-4 md:p-5">
+                      <h3 className="text-[15px] md:text-headline-md text-primary leading-tight font-bold mb-0.5 line-clamp-1">{l.title}</h3>
+                      <p className="text-[12px] md:text-body-md text-on-surface-variant mb-3 line-clamp-1 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[13px]">location_on</span>
+                        {l.street}, {l.zip} {l.city}
+                      </p>
+                      {/* Stats row */}
+                      <div className="flex items-center divide-x divide-outline-variant/40 mb-3">
                         {[
                           { label: t("rentWarm"), value: `${Math.round(parseFloat(l.rent_cold) + parseFloat(l.rent_utilities) + parseFloat(l.rent_heating))} €`, bold: true },
                           { label: t("area"), value: `${l.size_sqm} m²` },
                           { label: t("rooms"), value: l.rooms },
-                        ].map(({ label, value, bold }) => (
-                          <div key={label} className="flex flex-col">
-                            <span className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wide">{label}</span>
-                            <span className={`text-[18px] leading-7 ${bold ? "text-primary font-bold" : "text-primary font-semibold"}`}>{value}</span>
+                        ].map(({ label, value, bold }, i) => (
+                          <div key={label} className={`flex flex-col ${i === 0 ? "pr-4" : "px-4"}`}>
+                            <span className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wide">{label}</span>
+                            <span className={`text-[15px] md:text-[17px] leading-6 ${bold ? "text-primary font-bold" : "text-on-surface font-semibold"}`}>{value}</span>
                           </div>
                         ))}
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        {l.amenities && l.amenities.map((tag: string) => (
-                          <span key={tag} className="bg-surface-variant text-on-surface-variant px-3 py-1 rounded-lg text-[12px] font-semibold flex items-center gap-1 capitalize">
+                      {/* Amenity tags — scrollable on mobile */}
+                      <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+                        {l.amenities && l.amenities.slice(0, 4).map((tag: string) => (
+                          <span key={tag} className="flex-shrink-0 bg-surface-variant text-on-surface-variant px-2.5 py-0.5 rounded-lg text-[11px] font-semibold capitalize">
                             {tag}
                           </span>
                         ))}
+                        {l.amenities && l.amenities.length > 4 && (
+                          <span className="flex-shrink-0 bg-surface-variant text-on-surface-variant px-2.5 py-0.5 rounded-lg text-[11px] font-semibold">
+                            +{l.amenities.length - 4}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </Link>

@@ -162,6 +162,11 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
   const [newReviewAuthor, setNewReviewAuthor] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
 
+  // Photo Carousel and Lightbox states
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxZoom, setLightboxZoom] = useState(false);
+
 
 
   useEffect(() => {
@@ -569,6 +574,13 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
     ? property.property_photos.map((p: any) => getDisplayPhoto(p.cdn_url))
     : GALLERY_FALLBACK.map(g => g.src);
 
+  const nextPhoto = () => {
+    setActivePhotoIndex((prev) => (prev + 1) % photos.length);
+  };
+  const prevPhoto = () => {
+    setActivePhotoIndex((prev) => (prev - 1 + photos.length) % photos.length);
+  };
+
   const amenitiesList = property.amenities || [];
 
   const costRows = [
@@ -591,49 +603,188 @@ export default function ObjektDetailPage({ params }: { params: Promise<{ slug: s
           <span className="text-on-surface font-medium">{property.city}</span>
         </nav>
 
-        {/* Gallery */}
-        <section className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-12 h-[280px] md:h-[500px]">
-          {/* Main image */}
-          <div className="md:col-span-2 relative overflow-hidden rounded-xl group cursor-pointer bg-surface-dim">
+        {/* Gallery — Carousel */}
+        <section className="mb-12">
+          <div className="relative w-full h-[300px] md:h-[520px] rounded-2xl overflow-hidden bg-surface-container-high group select-none shadow-lg">
+            {/* Main carousel image */}
             <img
-              src={photos[0]}
-              alt="Wohnzimmer"
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              src={photos[activePhotoIndex]}
+              alt={`Photo ${activePhotoIndex + 1}`}
+              onClick={() => { setLightboxOpen(true); setLightboxZoom(false); }}
+              className="w-full h-full object-contain cursor-zoom-in transition-opacity duration-300"
+              loading="lazy"
             />
-            <div className="absolute bottom-4 left-4 bg-surface/80 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-2">
-              <span className="material-symbols-outlined text-[16px]">photo_camera</span>
-              <span className="text-[12px] font-semibold">{photos.length} {language === "de" ? "Bilder" : "Images"}</span>
+
+            {/* Gradient overlays for arrows */}
+            <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-black/30 to-transparent pointer-events-none rounded-l-2xl" />
+            <div className="absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-black/30 to-transparent pointer-events-none rounded-r-2xl" />
+
+            {/* Prev arrow */}
+            {photos.length > 1 && (
+              <button
+                id="carousel-prev"
+                onClick={(e) => { e.stopPropagation(); prevPhoto(); }}
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center cursor-pointer transition-all backdrop-blur-sm border border-white/10 z-10"
+                aria-label="Previous photo"
+              >
+                <span className="material-symbols-outlined text-[22px]">chevron_left</span>
+              </button>
+            )}
+
+            {/* Next arrow */}
+            {photos.length > 1 && (
+              <button
+                id="carousel-next"
+                onClick={(e) => { e.stopPropagation(); nextPhoto(); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center cursor-pointer transition-all backdrop-blur-sm border border-white/10 z-10"
+                aria-label="Next photo"
+              >
+                <span className="material-symbols-outlined text-[22px]">chevron_right</span>
+              </button>
+            )}
+
+            {/* Photo counter badge */}
+            <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md text-white px-3 py-1.5 rounded-full flex items-center gap-2 text-[12px] font-semibold">
+              <span className="material-symbols-outlined text-[15px]">photo_camera</span>
+              <span>{activePhotoIndex + 1} / {photos.length}</span>
             </div>
-          </div>
 
-          {/* Side column 1 */}
-          <div className="hidden md:flex flex-col gap-4 md:col-span-1">
-            {photos.slice(1, 3).map((img: string, i: number) => (
-              <div key={i} className="h-1/2 rounded-xl overflow-hidden group cursor-pointer bg-surface-dim">
-                <img
-                  src={img}
-                  alt={`Detailbild ${i + 1}`}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                />
+            {/* Click to zoom hint */}
+            <div className="absolute bottom-4 right-4 bg-black/60 backdrop-blur-md text-white px-3 py-1.5 rounded-full flex items-center gap-1.5 text-[11px] font-semibold opacity-80">
+              <span className="material-symbols-outlined text-[14px]">zoom_in</span>
+              <span>{language === "de" ? "Klicken zum Vergrößern" : "Click to zoom"}</span>
+            </div>
+
+            {/* Dot indicators */}
+            {photos.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+                {photos.map((_: string, idx: number) => (
+                  <button
+                    key={idx}
+                    onClick={(e) => { e.stopPropagation(); setActivePhotoIndex(idx); }}
+                    className={`rounded-full transition-all cursor-pointer ${
+                      idx === activePhotoIndex
+                        ? "w-5 h-2 bg-white"
+                        : "w-2 h-2 bg-white/50 hover:bg-white/80"
+                    }`}
+                    aria-label={`Go to photo ${idx + 1}`}
+                  />
+                ))}
               </div>
-            ))}
+            )}
           </div>
 
-          {/* Side column 2 — "All photos" overlay */}
-          <div className="hidden md:block md:col-span-1 rounded-xl overflow-hidden group cursor-pointer relative bg-surface-dim">
-            <img
-              src={photos[3] || photos[0]}
-              alt="Badezimmer"
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-            />
-            <button
-              id="btn-alle-bilder"
-              className="absolute inset-0 bg-primary/20 flex items-center justify-center text-on-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-[2px] cursor-pointer"
-            >
-              <span className="text-label-md font-semibold">{t("viewAllPhotos")}</span>
-            </button>
-          </div>
+          {/* Thumbnail strip */}
+          {photos.length > 1 && (
+            <div className="flex gap-2 mt-3 overflow-x-auto pb-1 custom-scrollbar">
+              {photos.map((img: string, idx: number) => (
+                <button
+                  key={idx}
+                  onClick={() => setActivePhotoIndex(idx)}
+                  className={`flex-shrink-0 w-20 h-14 rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
+                    idx === activePhotoIndex
+                      ? "border-primary shadow-md scale-105"
+                      : "border-transparent opacity-60 hover:opacity-90 hover:border-outline-variant"
+                  }`}
+                  aria-label={`View photo ${idx + 1}`}
+                >
+                  <img
+                    src={img}
+                    alt={`Thumbnail ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
         </section>
+
+        {/* Lightbox Modal */}
+        {lightboxOpen && (
+          <div
+            className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center"
+            onClick={() => { if (lightboxZoom) { setLightboxZoom(false); } else { setLightboxOpen(false); } }}
+          >
+            {/* Close button */}
+            <button
+              onClick={(e) => { e.stopPropagation(); setLightboxOpen(false); setLightboxZoom(false); }}
+              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center cursor-pointer z-10 transition-all border border-white/10"
+              aria-label="Close lightbox"
+            >
+              <span className="material-symbols-outlined text-[22px]">close</span>
+            </button>
+
+            {/* Zoom toggle button */}
+            <button
+              onClick={(e) => { e.stopPropagation(); setLightboxZoom(!lightboxZoom); }}
+              className="absolute top-4 right-16 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center cursor-pointer z-10 transition-all border border-white/10"
+              aria-label={lightboxZoom ? "Zoom out" : "Zoom in"}
+            >
+              <span className="material-symbols-outlined text-[22px]">{lightboxZoom ? "zoom_out" : "zoom_in"}</span>
+            </button>
+
+            {/* Photo counter */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white text-[13px] font-semibold bg-white/10 px-4 py-1.5 rounded-full border border-white/10">
+              {activePhotoIndex + 1} / {photos.length}
+            </div>
+
+            {/* Prev arrow */}
+            {photos.length > 1 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); prevPhoto(); }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center cursor-pointer z-10 transition-all border border-white/10"
+                aria-label="Previous photo"
+              >
+                <span className="material-symbols-outlined text-[26px]">chevron_left</span>
+              </button>
+            )}
+
+            {/* Next arrow */}
+            {photos.length > 1 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); nextPhoto(); }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center cursor-pointer z-10 transition-all border border-white/10"
+                aria-label="Next photo"
+              >
+                <span className="material-symbols-outlined text-[26px]">chevron_right</span>
+              </button>
+            )}
+
+            {/* Main lightbox image */}
+            <div
+              className={`flex items-center justify-center transition-all duration-300 ${lightboxZoom ? "overflow-auto w-full h-full p-4" : "max-w-[90vw] max-h-[90vh]"}`}
+              onClick={(e) => { e.stopPropagation(); setLightboxZoom(!lightboxZoom); }}
+            >
+              <img
+                src={photos[activePhotoIndex]}
+                alt={`Photo ${activePhotoIndex + 1}`}
+                className={`transition-all duration-300 rounded-lg shadow-2xl ${
+                  lightboxZoom
+                    ? "max-w-none w-auto h-auto cursor-zoom-out"
+                    : "max-w-full max-h-[85vh] object-contain cursor-zoom-in"
+                }`}
+                style={lightboxZoom ? { minWidth: "150%", minHeight: "150%" } : {}}
+              />
+            </div>
+
+            {/* Dot indicators */}
+            {photos.length > 1 && (
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2">
+                {photos.map((_: string, idx: number) => (
+                  <button
+                    key={idx}
+                    onClick={(e) => { e.stopPropagation(); setActivePhotoIndex(idx); }}
+                    className={`rounded-full transition-all cursor-pointer ${
+                      idx === activePhotoIndex ? "w-6 h-2.5 bg-white" : "w-2.5 h-2.5 bg-white/40 hover:bg-white/70"
+                    }`}
+                    aria-label={`Go to photo ${idx + 1}`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Content + Sidebar grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">

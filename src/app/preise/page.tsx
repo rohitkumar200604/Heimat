@@ -114,7 +114,7 @@ function PreisePageContent() {
                 {[
                   { label: language === "de" ? "Unbegrenzt Immobilien durchsuchen" : "Browse unlimited properties", check: true },
                   { label: language === "de" ? "Standard-Bewerberliste für Vermieter" : "Standard applicant list for landlords", check: true },
-                  { label: language === "de" ? "Direkter Chat mit Vermietern" : "Direct chat with landlords", check: true },
+                  { label: language === "de" ? "Direkter Chat mit Vermietern" : "Direct chat with landlords", check: false },
                   { label: language === "de" ? "Priorisierte Bewerbungen (Premium)" : "Priority applications (Premium)", check: false },
                   { label: language === "de" ? "Verifiziertes Bewerberportfolio" : "Validated application portfolio", check: false },
                 ].map(({ label, check }, i) => (
@@ -236,6 +236,7 @@ function PreisePageContent() {
                 </h4>
                 <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[14px] text-on-surface-variant">
                   {[
+                    { label: language === "de" ? "Direkter Chat mit Vermietern" : "Direct chat with landlords" },
                     { label: language === "de" ? "Geprüftes Bewerberportfolio" : "Validated applicant portfolio" },
                     { label: language === "de" ? "Priorisierte Bewerber-Anfragen" : "Priority applicant requests" },
                     { label: language === "de" ? "Unbegrenzte Chat-Vorgänge" : "Unlimited chat sessions" },

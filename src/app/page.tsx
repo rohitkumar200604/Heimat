@@ -396,7 +396,7 @@ export default function HomePage() {
                 {[
                   { text: language === "de" ? "Unbegrenzt Immobilien durchsuchen" : "Browse unlimited properties", check: true },
                   { text: language === "de" ? "Standard-Bewerberliste für Vermieter" : "Standard applicant list for landlords", check: true },
-                  { text: language === "de" ? "Direkter Chat mit Vermietern" : "Direct chat with landlords", check: true },
+                  { text: language === "de" ? "Direkter Chat mit Vermietern" : "Direct chat with landlords", check: false },
                   { text: language === "de" ? "Verifiziertes Bewerberportfolio" : "Validated application portfolio", check: false },
                 ].map(({ text, check }, i) => (
                   <li key={i} className={`flex items-center gap-3 ${!check ? "text-outline-variant/60 line-through" : ""}`}>
@@ -473,6 +473,7 @@ export default function HomePage() {
                 </span>
                 <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[13px] text-on-surface-variant">
                   {[
+                    { label: language === "de" ? "Direkter Chat mit Vermietern" : "Direct chat with landlords" },
                     { label: language === "de" ? "Verifiziertes Bewerberportfolio" : "Validated applicant portfolio" },
                     { label: language === "de" ? "Priorisierte Bewerber-Anfragen" : "Priority applicant requests" },
                     { label: language === "de" ? "Unbegrenzte Chat-Vorgänge" : "Unlimited chat sessions" },
